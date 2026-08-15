@@ -178,7 +178,7 @@ button.row:active,.tap:active{background:var(--card-press)}
 .kicker{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--label2)}
 
 /* ── hero (today) ────────────────────────────────────────── */
-#hero{margin:10px 16px 0;border-radius:18px;overflow:hidden;background:var(--card);
+#hero{margin:10px 16px 14px;border-radius:18px;overflow:hidden;background:var(--card);
   border-left:5px solid var(--sc,var(--accent))}
 #hero .hTop{padding:16px 18px 14px}
 #hero .hK{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
@@ -250,9 +250,17 @@ button.row:active,.tap:active{background:var(--card-press)}
 .bar .rq{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--label);opacity:.45;border-radius:2px}
 
 /* ── day strip (timetable) ───────────────────────────────── */
-#dayStrip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:8px 16px 4px}
-.dChip{border-radius:11px;padding:8px 2px 7px;text-align:center;background:var(--card);
-  transition:background .18s}
+/* a continuous, freely scrollable rail of dates — not locked to whole weeks */
+#dayStrip{display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;padding:8px 16px 6px;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain}
+#dayStrip::-webkit-scrollbar{display:none}
+.dChip{flex:0 0 auto;width:50px;border-radius:12px;padding:5px 2px 6px;text-align:center;
+  background:var(--card);transition:background .18s}
+.dChip .dM{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--accent);height:11px;line-height:11px}
+.dChip.on .dM{color:rgba(255,255,255,.92)}
+.dChip.wknd{background:transparent;box-shadow:inset 0 0 0 1px var(--sep-soft)}
+.dChip.on.wknd{background:var(--accent);box-shadow:none}
 .dChip .dW{font-size:10.5px;font-weight:700;letter-spacing:.05em;color:var(--label2);text-transform:uppercase}
 .dChip .dN{font-size:17px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
 .dChip .dD{width:5px;height:5px;border-radius:50%;background:var(--label3);margin:4px auto 0}
@@ -529,7 +537,14 @@ button.row:active,.tap:active{background:var(--card-press)}
 const $  = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+/* time + a monotonic counter + randomness. The counter makes collisions
+   impossible within a session (the old version relied on 4 random chars,
+   which can repeat when ids are minted in the same millisecond); the
+   random tail keeps ids distinct across devices when backups are merged. */
+let _uidSeq = 0;
+const uid = () => Date.now().toString(36) + '-' +
+  (_uidSeq = (_uidSeq + 1) % 1679616).toString(36) + '-' +
+  Math.random().toString(36).slice(2, 8);
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 
 const DAYS  = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -692,7 +707,11 @@ function attMarks(p,t){
 }
 /* how many more can be missed / must be attended */
 function canMiss(p,t){ const T=S.thr/100; return t? Math.floor(p/T - t) : 0; }
-function mustAttend(p,t){ const T=S.thr/100; return Math.ceil((T*t-p)/(1-T)); }
+function mustAttend(p,t){
+  const T=S.thr/100;
+  if(T>=1) return Infinity;      /* 100% required — one absence can never be undone */
+  return Math.ceil((T*t-p)/(1-T));
+}
 
 function bunkLine(p,t){
   if(!t) return T('No classes recorded.','No classes recorded yet.','Nothing recorded yet — mark a few classes.','No data. A blank slate, for now.');
@@ -709,6 +728,11 @@ function bunkLine(p,t){
       'Dead on the line. One more and the maths turns on you.');
   }
   const n=mustAttend(p,t);
+  if(!isFinite(n)) return T(
+    'Below the required 100%. Once a class is missed, the requirement cannot be met again.',
+    'You need 100% — a missed class can’t be made up.',
+    'At a 100% requirement, a missed class can’t be recovered. Worth double-checking that number.',
+    'You set the bar at 100%. There is no recovering from this. Bold choice.');
   return T(
     'Below the required '+S.thr+'%. '+n+' consecutive class'+(n===1?'':'es')+' required to recover.',
     'Below '+S.thr+'% — attend the next '+n+' to get back.',
@@ -1037,23 +1061,49 @@ function renderHome(){
 /* ══════════════ TIMETABLE (one day at a time) ══════════════ */
 let ttDate=new Date();
 let lastSwipe=0;                 /* set by the swipe handler, read by the day chips */
+
+/* Scroll the rail so the selected chip sits in the middle. Guarded because
+   layout numbers are 0/undefined until the element is actually on screen. */
+function centreRail(rail){
+  if(!rail) return;
+  const sel=rail.querySelector? rail.querySelector('.dChip.on') : null;
+  if(!sel) return;
+  const w=rail.clientWidth||0, l=sel.offsetLeft||0, cw=sel.offsetWidth||0;
+  if(!w||!cw) return;
+  rail.scrollLeft=Math.max(0, l - w/2 + cw/2);
+}
 function renderTT(){
   const iso=isoOf(ttDate), dow=dowOf(ttDate), tISO=todayISO();
-  /* week strip: Monday of ttDate's week */
-  const mon=addDays(ttDate,-dow);
-  let strip='';
-  for(let i=0;i<7;i++){
-    const d=addDays(mon,i), di=isoOf(d);
-    const n=slotsOn(i,di).filter(s=>subById(s.subId)).length;
-    strip+='<button class="dChip'+(di===iso?' on':'')+(di===tISO?' today':'')+'" data-d="'+di+'">'+
-      '<div class="dW">'+DAYS[i]+'</div><div class="dN">'+d.getDate()+'</div>'+
-      (n?'<div class="dD"></div>':'<div class="dD" style="background:transparent"></div>')+'</button>';
+
+  /* ── the date rail ──────────────────────────────────────────────
+     One continuous run of days you can scroll freely, so you can sit
+     across a week boundary (Thu–Fri–Sat–Sun–Mon) instead of being
+     snapped to whole Mon–Sun blocks. The month name appears on the
+     first chip of each month so you stay oriented when scrolling far. */
+  const today0=new Date();
+  let from=addDays(today0,-140), to=addDays(today0,70);
+  if(dateOf(iso) < dateOf(isoOf(from))) from=addDays(ttDate,-21);
+  if(dateOf(iso) > dateOf(isoOf(to)))   to  =addDays(ttDate, 21);
+  let strip='', prevMonth=null;
+  for(let d=new Date(from); isoOf(d)<=isoOf(to); d=addDays(d,1)){
+    const di=isoOf(d), dw=dowOf(d);
+    const n=slotsOn(dw,di).filter(s=>subById(s.subId)).length;
+    const mLabel = d.getMonth()!==prevMonth ? d.toLocaleDateString(undefined,{month:'short'}) : '';
+    prevMonth=d.getMonth();
+    strip+='<button class="dChip'+(di===iso?' on':'')+(di===tISO?' today':'')+
+      (dw>=5?' wknd':'')+'" data-d="'+di+'">'+
+      '<div class="dM">'+mLabel+'</div>'+
+      '<div class="dW">'+DAYS[dw]+'</div><div class="dN">'+d.getDate()+'</div>'+
+      '<div class="dD"'+(n?'':' style="background:transparent"')+'></div></button>';
   }
-  $('#dayStrip').innerHTML=strip;
+  const rail=$('#dayStrip');
+  rail.innerHTML=strip;
   $$('#dayStrip .dChip').forEach(b=>b.onclick=()=>{
     if(Date.now()-lastSwipe<400) return;      /* this click came from a swipe, not a tap */
     ttDate=dateOf(b.dataset.d); renderTT();
   });
+  /* keep the selected day centred in the rail */
+  centreRail(rail);
 
   const diff=Math.round((dateOf(iso)-dateOf(tISO))/864e5);
   const dateTxt=ttDate.toLocaleDateString(undefined,{day:'numeric',month:'short'});
@@ -1204,6 +1254,8 @@ function sheetCatchUp(){
 
   sec.addEventListener('touchstart',e=>{
     if(e.touches.length!==1){ reset(); return; }
+    /* the date rail scrolls itself — don't also step the day underneath it */
+    if(e.target&&e.target.closest&&e.target.closest('#dayStrip')){ reset(); return; }
     x0=e.touches[0].clientX; y0=e.touches[0].clientY; drag=false;
   },{passive:true});
 
