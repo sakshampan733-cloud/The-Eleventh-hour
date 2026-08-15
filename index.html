@@ -2,1095 +2,1740 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Eleventh Hour</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>11:59</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="11th Hour">
+<meta name="apple-mobile-web-app-title" content="11:59">
 <meta name="color-scheme" content="light dark" id="csMeta">
-<meta name="theme-color" content="#F7F5F0" id="tcMeta">
+<meta name="theme-color" content="#F2F2F7" id="tcMeta">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-
+/* ══════════════════════════════════════════════════════════════
+   11:59 — iOS-native design tokens
+   ══════════════════════════════════════════════════════════════ */
 :root{
-  --bg:#F7F5F0; --card:#FFFFFF; --card2:#F1EFE8; --ink:#1A1E26; --dim:#5B626E; --faint:#989EA9;
-  --line:#E4E1D6; --line2:#CFCBBC;
-  --acc:#1A1E26; --ok:#3E7C4F; --warn:#B08514; --bad:#BA4A33;
-  --glass:rgba(255,255,255,.62); --glass-solid:rgba(250,249,246,.94);
-  --glass-line:rgba(0,0,0,.10); --glass-hi:rgba(255,255,255,.75); --glass-active:rgba(0,0,0,.07);
-  --ok-bg:rgba(62,124,79,.1); --warn-bg:rgba(176,133,20,.1); --bad-bg:rgba(186,74,51,.09);
-  --disp:'Space Grotesk','Avenir Next',-apple-system,sans-serif;
-  --body:'Inter',-apple-system,'SF Pro Text',sans-serif;
-  --mono:'JetBrains Mono','SF Mono',Menlo,monospace;
-  --r:14px; --sh:0 1px 3px rgba(25,29,36,.06), 0 6px 20px rgba(25,29,36,.05);
+  color-scheme:light;
+  --bg:#F2F2F7;
+  --card:#FFFFFF;
+  --card-press:#E5E5EA;
+  --sep:rgba(60,60,67,.28);
+  --sep-soft:rgba(60,60,67,.10);
+  --label:#000000;
+  --label2:rgba(60,60,67,.62);
+  --label3:rgba(60,60,67,.32);
+  --fill:rgba(118,118,128,.12);
+  --fill2:rgba(118,118,128,.20);
+  --accent:#007AFF;
+  --green:#34C759; --red:#FF3B30; --orange:#FF9500; --yellow:#FFCC00;
+  --purple:#AF52DE; --teal:#30B0C7; --pink:#FF2D55; --indigo:#5856D6; --brown:#A2845E;
+  --nav:rgba(242,242,247,.80);
+  --sheet:#FFFFFF;
+  --scrim:rgba(0,0,0,.32);
+  --ta:.13;                       /* subject tint alpha */
+  --font:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,system-ui,sans-serif;
+  --round:12px;
 }
 [data-theme="dark"]{
-  --bg:#12151B; --card:#1A1E27;
-  --card2:#202530; --ink:#EAE8E0; --dim:#9BA2AE; --faint:#646C79;
-  --line:#272D39; --line2:#394150;
-  --acc:#EAE8E0; --ok:#6FB37F; --warn:#D3A63A; --bad:#D97258;
-  --glass:rgba(26,29,36,.58); --glass-solid:rgba(20,23,29,.94);
-  --glass-line:rgba(255,255,255,.12); --glass-hi:rgba(255,255,255,.10); --glass-active:rgba(255,255,255,.13);
-  --ok-bg:rgba(111,179,127,.12); --warn-bg:rgba(211,166,58,.12); --bad-bg:rgba(217,114,88,.12);
-  --sh:0 1px 3px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  color-scheme:dark;
+  --bg:#000000;
+  --card:#1C1C1E;
+  --card-press:#2C2C2E;
+  --sep:rgba(84,84,88,.60);
+  --sep-soft:rgba(84,84,88,.30);
+  --label:#FFFFFF;
+  --label2:rgba(235,235,245,.62);
+  --label3:rgba(235,235,245,.32);
+  --fill:rgba(118,118,128,.24);
+  --fill2:rgba(118,118,128,.36);
+  --accent:#0A84FF;
+  --green:#30D158; --red:#FF453A; --orange:#FF9F0A; --yellow:#FFD60A;
+  --purple:#BF5AF2; --teal:#40C8E0; --pink:#FF375F; --indigo:#5E5CE6; --brown:#AC8E68;
+  --nav:rgba(20,20,22,.80);
+  --sheet:#1C1C1E;
+  --scrim:rgba(0,0,0,.5);
+  --ta:.22;
 }
-*{box-sizing:border-box; margin:0; padding:0}
-html{scroll-behavior:smooth}
-body{background:var(--bg); color:var(--ink); font-family:var(--body); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased}
-button{font-family:inherit; color:inherit; background:none; border:none; cursor:pointer}
-input,select{font-family:inherit; font-size:13.5px; color:var(--ink); background:var(--card); border:1px solid var(--line2); border-radius:9px; padding:8px 11px; outline:none}
-input:focus,select:focus{border-color:var(--ink)}
-::selection{background:rgba(176,133,20,.25)}
 
-/* subject colors (assigned in rotation) */
-.c0{--sc:#4F5DD3; --sc-bg:rgba(79,93,211,.1)}  .c1{--sc:#C25E3E; --sc-bg:rgba(194,94,62,.1)}
-.c2{--sc:#3E7C4F; --sc-bg:rgba(62,124,79,.1)}  .c3{--sc:#8E4E8E; --sc-bg:rgba(142,78,142,.1)}
-.c4{--sc:#2E7E93; --sc-bg:rgba(46,126,147,.1)} .c5{--sc:#B08514; --sc-bg:rgba(176,133,20,.12)}
-[data-theme="dark"] .c0{--sc:#8B96EC; --sc-bg:rgba(139,150,236,.13)} [data-theme="dark"] .c1{--sc:#E08D6F; --sc-bg:rgba(224,141,111,.13)}
-[data-theme="dark"] .c2{--sc:#7FBd8F; --sc-bg:rgba(127,189,143,.13)} [data-theme="dark"] .c3{--sc:#C588C5; --sc-bg:rgba(197,136,197,.13)}
-[data-theme="dark"] .c4{--sc:#6FB6C9; --sc-bg:rgba(111,182,201,.13)} [data-theme="dark"] .c5{--sc:#D8B14E; --sc-bg:rgba(216,177,78,.14)}
+/* subject palette */
+.sc0{--sc:var(--accent)} .sc1{--sc:var(--orange)} .sc2{--sc:var(--green)} .sc3{--sc:var(--purple)}
+.sc4{--sc:var(--pink)}   .sc5{--sc:var(--teal)}   .sc6{--sc:var(--indigo)} .sc7{--sc:var(--brown)}
 
-/* ── topbar ── */
-#top{position:sticky; top:0; z-index:40; background:var(--bg); border-bottom:1px solid var(--line); padding:0 max(24px,calc(50vw - 560px))}
-#topIn{display:flex; align-items:center; gap:10px; height:60px}
-#logo{font-family:var(--disp); font-weight:700; font-size:18px; letter-spacing:-.01em}
-#logo span{color:inherit}
-#nav{display:flex; gap:2px; margin-left:22px; overflow-x:auto}
-#nav a{font-size:13px; font-weight:500; color:var(--dim); text-decoration:none; padding:7px 13px; border-radius:99px; white-space:nowrap}
-#nav a:hover{color:var(--ink); background:var(--card2)}
-#topR{margin-left:auto; display:flex; gap:8px; align-items:center}
-.tbtn{font-size:12.5px; color:var(--dim); border:1px solid var(--line2); border-radius:9px; padding:7px 12px; white-space:nowrap}
-#setTop.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
-.tbtn:hover{color:var(--ink); border-color:var(--ink)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg); color:var(--label);
+  font-family:var(--font); font-size:17px; line-height:1.4;
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:none;
+  padding-bottom:calc(64px + env(safe-area-inset-bottom,0px));
+}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;font-size:17px}
+input,select,textarea{font-family:inherit;font-size:17px;color:var(--label);background:none;border:none;outline:none;border-radius:8px}
+input::placeholder,textarea::placeholder{color:var(--label3)}
+a{color:var(--accent);text-decoration:none}
+.tnum{font-variant-numeric:tabular-nums}
 
-/* ── layout & sections ── */
-#wrap{max-width:1120px; margin:0 auto; padding:22px 20px calc(96px + env(safe-area-inset-bottom,0px))}
-section{display:none; margin-bottom:0}
-section.on{display:block; animation:secIn .3s ease}
-@keyframes secIn{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
-.secHead{display:flex; align-items:baseline; gap:12px; margin-bottom:18px}
-.secNum{display:none}
-.secHead h2{font-family:var(--disp); font-weight:700; font-size:23px; letter-spacing:-.02em}
-.secHead .sub{font-size:12px; color:var(--faint); margin-left:auto}
+/* ── nav bar ─────────────────────────────────────────────── */
+#nav{
+  position:fixed;top:0;left:0;right:0;z-index:60;
+  height:calc(48px + env(safe-area-inset-top,0px));
+  padding-top:env(safe-area-inset-top,0px);
+  display:flex;align-items:center;
+  background:transparent;
+  transition:background .22s ease, box-shadow .22s ease;
+}
+#nav.solid{
+  background:var(--nav);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  backdrop-filter:saturate(180%) blur(20px);
+  box-shadow:0 .5px 0 var(--sep);
+}
+#navTitle{
+  flex:1;text-align:center;font-size:17px;font-weight:600;letter-spacing:-.01em;
+  opacity:0;transform:translateY(4px);transition:opacity .2s,transform .2s;
+  padding:0 84px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#nav.solid #navTitle{opacity:1;transform:none}
+#navR{position:absolute;right:6px;display:flex;align-items:center;gap:2px;
+  top:env(safe-area-inset-top,0px);height:48px}
+.navBtn{
+  width:42px;height:42px;display:flex;align-items:center;justify-content:center;
+  color:var(--accent);border-radius:50%;
+}
+.navBtn:active{background:var(--fill)}
+.navBtn svg{width:23px;height:23px;display:block}
 
-/* ── bottom tab bar ── */
+/* ── layout ──────────────────────────────────────────────── */
+main{padding-top:calc(48px + env(safe-area-inset-top,0px))}
+section{display:none}
+section.on{display:block;animation:fade .26s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.lg{padding:4px 20px 2px}
+.lg h1{font-size:34px;font-weight:800;letter-spacing:-.032em;line-height:1.15}
+.lg .sub{font-size:15px;color:var(--label2);margin-top:2px;font-weight:400}
+.pad{padding:0 16px}
+
+/* ── grouped list ────────────────────────────────────────── */
+.gHead{font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--label2);
+  text-transform:uppercase;padding:22px 16px 7px;margin:0}
+.gHead.tight{padding-top:14px}
+.gNote{font-size:13px;color:var(--label2);padding:7px 16px 0;line-height:1.35}
+.list{background:var(--card);border-radius:var(--round);margin:0 0 2px;overflow:hidden}
+.row{
+  position:relative;display:flex;align-items:center;gap:12px;
+  min-height:48px;padding:11px 16px;width:100%;text-align:left;font-size:17px;
+}
+.row+.row::before{content:'';position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+button.row:active,.tap:active{background:var(--card-press)}
+.row .rMain{flex:1;min-width:0}
+.row .rT{font-size:17px;letter-spacing:-.01em}
+.row .rS{font-size:13px;color:var(--label2);margin-top:2px;line-height:1.3}
+.row .rV{color:var(--label2);font-size:17px;text-align:right;flex-shrink:0}
+.row .chev{color:var(--label3);flex-shrink:0;font-size:15px;margin-left:-4px}
+.row.danger .rT{color:var(--red)}
+.row .ico{width:29px;height:29px;border-radius:7px;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;color:#fff;font-size:15px}
+.chk{color:var(--accent);font-size:17px;font-weight:700;flex-shrink:0}
+
+/* inline controls inside rows */
+.row input[type=text],.row input[type=number]{flex:1;text-align:right;min-width:0}
+.row input[type=date],.row input[type=time],.row select{
+  background:var(--fill);border-radius:8px;padding:7px 10px;font-size:16px;
+  text-align:center;flex-shrink:0;max-width:52%;
+}
+.row select{text-align:left;-webkit-appearance:none;appearance:none;padding-right:26px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--label2) 50%),linear-gradient(135deg,var(--label2) 50%,transparent 50%);
+  background-position:calc(100% - 14px) 55%,calc(100% - 9px) 55%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+
+/* ── segmented control ───────────────────────────────────── */
+.seg{display:flex;background:var(--fill);border-radius:9px;padding:2px;gap:2px}
+.seg button{
+  flex:1;height:32px;border-radius:7px;font-size:13px;font-weight:600;
+  color:var(--label);white-space:nowrap;padding:0 6px;transition:background .18s
+}
+.seg button.on{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+[data-theme="dark"] .seg button.on{background:#48484A;box-shadow:none}
+
+/* ── buttons ─────────────────────────────────────────────── */
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  width:100%;height:50px;border-radius:13px;background:var(--accent);color:#fff;
+  font-size:17px;font-weight:600;
+}
+.btn:active{opacity:.75}
+.btn.ghost{background:var(--fill);color:var(--accent)}
+.btn.dangerBtn{background:var(--red)}
+.btn.sm{height:42px;font-size:16px;border-radius:11px}
+
+/* ── cards ───────────────────────────────────────────────── */
+.card{background:var(--card);border-radius:16px;padding:18px;margin:0 0 12px}
+.card.tinted{background:color-mix(in srgb,var(--sc) calc(var(--ta)*100%),var(--card))}
+@supports not (background:color-mix(in srgb,red 10%,blue)){
+  .card.tinted{background:var(--card)}
+}
+.kicker{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--label2)}
+
+/* ── hero (today) ────────────────────────────────────────── */
+#hero{margin:10px 16px 0;border-radius:18px;overflow:hidden;background:var(--card);
+  border-left:5px solid var(--sc,var(--accent))}
+#hero .hTop{padding:16px 18px 14px}
+#hero .hK{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--sc,var(--accent));display:flex;align-items:center;gap:7px}
+#hero .hK .dot{width:7px;height:7px;border-radius:50%;background:var(--sc,var(--accent));
+  animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+#hero .hN{font-size:26px;font-weight:800;letter-spacing:-.03em;margin-top:7px;line-height:1.18}
+#hero .hM{font-size:15px;color:var(--label2);margin-top:4px}
+#hero .hM b{color:var(--label);font-weight:600}
+#hero .hAct{padding:0 18px 16px}
+
+/* mark control */
+.mkSeg{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;background:var(--fill);
+  border-radius:11px;padding:3px}
+.mkSeg button{height:38px;border-radius:9px;font-size:14px;font-weight:600;color:var(--label2)}
+.mkSeg button:active{opacity:.6}
+.mkSeg button.on{color:#fff}
+.mkSeg button.on[data-m="p"]{background:var(--green)}
+.mkSeg button.on[data-m="a"]{background:var(--red)}
+.mkSeg button.on[data-m="c"]{background:var(--fill2);color:var(--label)}
+
+/* ── class card ──────────────────────────────────────────── */
+.cls{background:var(--card);border-radius:14px;padding:14px 15px;margin-bottom:10px;
+  border-left:4px solid var(--sc)}
+.cls .cTop{display:flex;align-items:flex-start;gap:12px}
+.cls .cTime{font-size:13px;font-weight:600;color:var(--label2);width:78px;flex-shrink:0;
+  line-height:1.35;font-variant-numeric:tabular-nums}
+.cls .cName{flex:1;min-width:0;font-size:17px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+.cls .cMeta{font-size:13px;color:var(--label2);font-weight:400;margin-top:3px}
+.cls .cMore{color:var(--label3);font-size:19px;padding:0 2px;line-height:1;align-self:center}
+.cls .cSkip{font-size:13px;color:var(--label2);margin-top:9px;display:flex;align-items:center;gap:6px}
+.cls .cSkip b{font-weight:600}
+.cls.done{opacity:.62}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  padding:2px 7px;border-radius:5px;background:var(--fill);color:var(--label2);vertical-align:2px}
+.tag.tu{background:color-mix(in srgb,var(--sc) 18%,transparent);color:var(--sc)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+  padding:3px 9px;border-radius:99px}
+.pill.ok{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+.pill.no{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red)}
+.pill.mid{background:color-mix(in srgb,var(--orange) 18%,transparent);color:var(--orange)}
+@supports not (background:color-mix(in srgb,red 10%,blue)){
+  .pill.ok{background:var(--fill)} .pill.no{background:var(--fill)} .pill.mid{background:var(--fill)}
+  .tag.tu{background:var(--fill)}
+}
+
+/* ── stat tiles ──────────────────────────────────────────── */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px 12px}
+.tile{background:var(--card);border-radius:14px;padding:14px 15px}
+.tile .tV{font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile .tL{font-size:12.5px;color:var(--label2);margin-top:3px;line-height:1.3}
+
+/* ── ring ────────────────────────────────────────────────── */
+.ring{width:112px;height:112px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;flex-shrink:0;position:relative}
+.ring .inner{width:88px;height:88px;border-radius:50%;background:var(--card);
+  display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .rv{font-size:25px;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.ring .rl{font-size:10.5px;color:var(--label2);margin-top:3px;letter-spacing:.03em}
+
+/* ── bars ────────────────────────────────────────────────── */
+.bar{height:7px;border-radius:99px;background:var(--fill);position:relative;overflow:visible;margin:11px 0 0}
+.bar .fl{height:7px;border-radius:99px;transition:width .5s cubic-bezier(.22,1,.36,1)}
+.bar .rq{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--label);opacity:.45;border-radius:2px}
+
+/* ── day strip (timetable) ───────────────────────────────── */
+#dayStrip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:8px 16px 4px}
+.dChip{border-radius:11px;padding:8px 2px 7px;text-align:center;background:var(--card);
+  transition:background .18s}
+.dChip .dW{font-size:10.5px;font-weight:700;letter-spacing:.05em;color:var(--label2);text-transform:uppercase}
+.dChip .dN{font-size:17px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+.dChip .dD{width:5px;height:5px;border-radius:50%;background:var(--label3);margin:4px auto 0}
+.dChip.on{background:var(--accent)}
+.dChip.on .dW,.dChip.on .dN{color:#fff}
+.dChip.on .dD{background:rgba(255,255,255,.85)}
+.dChip.today .dN{color:var(--accent)}
+.dChip.on.today .dN{color:#fff}
+#ttHead{display:flex;align-items:center;gap:10px;padding:12px 20px 8px}
+#ttHead .h{font-size:20px;font-weight:700;letter-spacing:-.02em;flex:1}
+#ttHead .w{font-size:13px;color:var(--label2)}
+#ttBody{padding:0 16px;touch-action:pan-y}
+#ttBody.slideL{animation:slL .26s ease}
+#ttBody.slideR{animation:slR .26s ease}
+@keyframes slL{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes slR{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
+
+/* ── empty state ─────────────────────────────────────────── */
+.empty{text-align:center;padding:44px 30px;color:var(--label2)}
+.empty .eE{font-size:38px;margin-bottom:12px;opacity:.85}
+.empty .eT{font-size:17px;font-weight:600;color:var(--label);margin-bottom:5px}
+.empty .eS{font-size:14.5px;line-height:1.45}
+
+/* ── deadlines ───────────────────────────────────────────── */
+.dlChk{width:25px;height:25px;border-radius:50%;border:1.8px solid var(--label3);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:transparent;transition:all .18s}
+.dlChk.on{background:var(--green);border-color:var(--green);color:#fff}
+.dlRow.done .rT{text-decoration:line-through;color:var(--label2)}
+.when{font-size:13px;font-weight:600;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums}
+.when.late{color:var(--red)} .when.near{color:var(--orange)} .when.calm{color:var(--label2)}
+.subChip{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.03em;
+  padding:2px 7px;border-radius:5px;color:var(--sc);
+  background:color-mix(in srgb,var(--sc) 16%,transparent)}
+@supports not (background:color-mix(in srgb,red 10%,blue)){.subChip{background:var(--fill)}}
+
+/* procrastination meter */
+.pmTrack{position:relative;height:7px;border-radius:99px;
+  background:linear-gradient(90deg,var(--green),var(--yellow) 55%,var(--red));margin:14px 0 0}
+.pmPin{position:absolute;top:50%;width:17px;height:17px;margin:-8.5px 0 0 -8.5px;border-radius:50%;
+  background:var(--card);border:3px solid var(--label);transition:left .8s cubic-bezier(.22,1,.36,1)}
+.pmEnds{display:flex;justify-content:space-between;margin-top:9px;font-size:11.5px;color:var(--label2)}
+.pmStats{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;padding-top:13px;border-top:.5px solid var(--sep)}
+.pmStats span{font-size:11.5px;color:var(--label2);display:flex;flex-direction:column;gap:2px}
+.pmStats b{font-size:17px;color:var(--label);font-weight:700}
+
+/* ── calendar ────────────────────────────────────────────── */
+#calBar{display:flex;align-items:center;gap:4px;padding:6px 16px 10px}
+#calTitle{flex:1;font-size:20px;font-weight:700;letter-spacing:-.02em}
+.calNav{width:38px;height:38px;border-radius:50%;color:var(--accent);font-size:19px;
+  display:flex;align-items:center;justify-content:center}
+.calNav:active{background:var(--fill)}
+#calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:0 10px}
+.cDow{text-align:center;font-size:11px;font-weight:600;color:var(--label2);padding:2px 0 6px}
+.cD{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;border-radius:50%;font-size:16px;font-variant-numeric:tabular-nums;position:relative}
+.cD.pad{opacity:0;pointer-events:none}
+.cD.today{color:var(--red);font-weight:700}
+.cD.sel{background:var(--accent);color:#fff!important;font-weight:700}
+.cD .dots{display:flex;gap:2.5px;height:5px;align-items:center}
+.cD .dots i{width:5px;height:5px;border-radius:50%;background:var(--sc,var(--label3))}
+.cD.sel .dots i{background:rgba(255,255,255,.9)}
+
+/* ── sheet ───────────────────────────────────────────────── */
+#scrim{position:fixed;inset:0;z-index:90;background:var(--scrim);opacity:0;
+  transition:opacity .28s ease;pointer-events:none;
+  -webkit-backdrop-filter:blur(1px);backdrop-filter:blur(1px)}
+#scrim.on{opacity:1;pointer-events:auto}
+#sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:100;
+  background:var(--sheet);border-radius:16px 16px 0 0;
+  transform:translateY(102%);transition:transform .34s cubic-bezier(.32,.72,0,1);
+  max-height:92vh;display:flex;flex-direction:column;
+  box-shadow:0 -1px 0 var(--sep-soft);
+}
+#sheet.on{transform:none}
+#sheet .grab{width:36px;height:5px;border-radius:99px;background:var(--label3);
+  margin:8px auto 0;flex-shrink:0}
+#sheetBar{display:flex;align-items:center;padding:10px 14px 8px;flex-shrink:0}
+#sheetBar .sTitle{flex:1;text-align:center;font-size:17px;font-weight:600}
+#sheetBar button{font-size:17px;color:var(--accent);min-width:64px;padding:4px 0}
+#sheetBar button.done{font-weight:600;text-align:right}
+#sheetBar button.cancel{text-align:left}
+#sheetBar button:disabled{color:var(--label3)}
+#sheetBody{overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:0 16px calc(24px + env(safe-area-inset-bottom,0px));flex:1}
+#sheetBody .list{margin-bottom:0}
+.sheetErr{font-size:13.5px;color:var(--red);padding:10px 4px 0;line-height:1.35}
+.sheetIntro{font-size:14px;color:var(--label2);padding:4px 4px 12px;line-height:1.45}
+
+/* action sheet */
+#act{position:fixed;left:8px;right:8px;bottom:8px;z-index:100;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  transform:translateY(130%);transition:transform .32s cubic-bezier(.32,.72,0,1)}
+#act.on{transform:none}
+.actGrp{background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:8px}
+[data-theme="dark"] .actGrp{background:#2C2C2E}
+.actGrp button{width:100%;height:56px;font-size:19px;color:var(--accent);position:relative;display:block}
+.actGrp button+button::before{content:'';position:absolute;top:0;left:0;right:0;height:.5px;background:var(--sep)}
+.actGrp button:active{background:var(--fill)}
+.actGrp button.destructive{color:var(--red)}
+.actGrp button.cancelBtn{font-weight:600}
+.actHead{padding:16px 20px 14px;text-align:center;position:relative}
+.actHead .aT{font-size:15px;font-weight:600}
+.actHead .aS{font-size:13px;color:var(--label2);margin-top:3px;line-height:1.35}
+.actHead::after{content:'';position:absolute;bottom:0;left:0;right:0;height:.5px;background:var(--sep)}
+
+/* ── colour picker ───────────────────────────────────────── */
+.swatches{display:flex;gap:10px;flex-wrap:wrap;padding:14px 16px}
+.swatch{width:36px;height:36px;border-radius:50%;background:var(--sc);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700}
+.swatch:not(.on){box-shadow:none}
+.swatch.on{box-shadow:0 0 0 3px var(--card),0 0 0 5.5px var(--sc)}
+
+/* ── tab bar ─────────────────────────────────────────────── */
 #tabbar{
-  position:fixed; z-index:60; display:flex; align-items:center; gap:4px;
-  left:max(12px,env(safe-area-inset-left,0px));
-  right:max(12px,env(safe-area-inset-right,0px));
-  bottom:calc(11px + env(safe-area-inset-bottom,0px));
-  height:60px; padding:6px; border-radius:999px;
-  background:var(--glass);
-  backdrop-filter:blur(26px) saturate(180%);
-  -webkit-backdrop-filter:blur(26px) saturate(180%);
-  border:1px solid var(--glass-line);
-  box-shadow:0 12px 40px rgba(0,0,0,.28), inset 0 1px 0 var(--glass-hi);
+  position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  background:var(--nav);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  backdrop-filter:saturate(180%) blur(20px);
+  box-shadow:0 -.5px 0 var(--sep);
 }
-/* if the browser can't blur, fall back to something solid enough to read */
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  #tabbar{background:var(--glass-solid)}
+  #tabbar{background:var(--card)}
 }
 #tabbar button{
-  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:3px; height:100%; border-radius:999px; border:none; background:none;
-  color:var(--faint); font-size:8.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
-  transition:color .25s, background .3s cubic-bezier(.22,1,.36,1);
+  flex:1;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;color:var(--label2);font-size:10px;font-weight:500;letter-spacing:.01em;
+  transition:color .18s;
 }
-#tabbar button .tg{font-size:17px; line-height:1; transition:transform .3s cubic-bezier(.34,1.5,.64,1)}
-#tabbar button.on{color:var(--ink); background:var(--glass-active)}
-#tabbar button.on .tg{transform:translateY(-1px)}
-#tabbar button:active .tg{transform:scale(.88)}
-#guide{position:fixed; inset:0; z-index:9998; display:flex; align-items:center; justify-content:center;
-  padding:22px; background:rgba(8,8,12,.68); backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px)}
-#guide[hidden]{display:none}
-.gCard{width:100%; max-width:440px; background:var(--card); border:1px solid var(--line);
-  border-radius:20px; box-shadow:0 30px 90px rgba(0,0,0,.4); overflow:hidden;
-  animation:gRise .5s cubic-bezier(.22,1,.36,1)}
-@keyframes gRise{from{opacity:0; transform:translateY(14px)}to{opacity:1; transform:none}}
-.gTrack{height:3px; background:var(--card2)}
-.gTrack i{display:block; height:3px; background:var(--bad); width:0; transition:width .45s cubic-bezier(.22,1,.36,1)}
-.gBody{padding:30px 28px 22px; min-height:210px}
-.gEmoji{font-size:30px; line-height:1; margin-bottom:16px; display:block}
-.gTitle{font-family:var(--disp); font-size:22px; font-weight:700; letter-spacing:-.01em; margin-bottom:11px}
-.gTitle em{font-style:normal; color:var(--bad)}
-.gText{font-size:14.5px; line-height:1.62; color:var(--dim)}
-.gText b{color:var(--ink); font-weight:600}
-.gList{margin:4px 0 0; padding-left:20px; font-size:14px; line-height:1.6; color:var(--dim)}
-.gList li{margin-bottom:11px}
-.gList li:last-child{margin-bottom:0}
-.gKey{margin-top:14px; padding:12px 14px; background:var(--card2); border:1px solid var(--line);
-  border-radius:10px; font-size:13px; line-height:1.55; color:var(--dim); font-style:italic}
-.gFoot{display:flex; align-items:center; gap:12px; padding:16px 20px; border-top:1px solid var(--line)}
-.gDots{display:flex; gap:7px; margin:0 auto}
-.gDots i{width:7px; height:7px; border-radius:50%; background:var(--line); transition:all .3s}
-.gDots i.on{background:var(--bad); transform:scale(1.25)}
-.gGhost{color:var(--faint); font-size:13px; padding:8px 10px; background:none; border:none}
-.gSolid{background:var(--ink); color:var(--bg); font-weight:600; font-size:13.5px; border:none;
-  padding:9px 20px; border-radius:99px}
-.gSolid:active{transform:scale(.95)}
-@media(prefers-reduced-motion:reduce){.gCard{animation:none}.gTrack i{transition:none}}
-@media(min-width:900px){#tabbar button{font-size:10px}}
+#tabbar button svg{width:26px;height:26px;display:block}
+#tabbar button.on{color:var(--accent)}
+#tabbar button:active svg{transform:scale(.88)}
+#tabbar button svg{transition:transform .16s}
+.badge{position:absolute;top:4px;margin-left:17px;min-width:16px;height:16px;border-radius:99px;
+  background:var(--red);color:#fff;font-size:10.5px;font-weight:700;display:flex;
+  align-items:center;justify-content:center;padding:0 4px}
 
-/* ── settings ── */
-.setGroup{margin-bottom:26px}
-.setGroup h3{font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--faint); font-weight:700; margin-bottom:10px}
-.setRow{display:flex; align-items:center; gap:14px; padding:14px 16px; border:1px solid var(--line);
-  border-radius:12px; margin-bottom:8px; background:var(--card)}
-.setRow .sMain{flex:1; min-width:0}
-.setRow .sT{font-size:14px; font-weight:600}
-.setRow .sS{font-size:11.5px; color:var(--faint); margin-top:2px; line-height:1.45}
-.setRow button, .setRow .seg{flex:0 0 auto}
-.seg{display:flex; border:1px solid var(--line2); border-radius:9px; overflow:hidden}
-.seg button{font-size:12px; padding:7px 13px; color:var(--dim); background:none; border:none}
-.seg button.on{background:var(--ink); color:var(--bg)}
-.setRow.danger{border-color:var(--bad)}
-.setRow.danger .sT{color:var(--bad)}
-.subChip{display:flex; align-items:center; gap:8px; padding:9px 13px; border:1px solid var(--line);
-  border-radius:10px; margin-bottom:7px; font-size:13px}
-.subChip .x{margin-left:auto; color:var(--bad); font-size:15px; line-height:1}
-
-/* ── week ahead strip ── */
-#weekAhead{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px; margin-top:16px}
-.wDay{border:1px solid var(--line); border-radius:10px; padding:9px 4px; text-align:center; background:var(--card)}
-.wDay .wD{font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); font-weight:700}
-.wDay .wN{font-family:var(--disp); font-size:16px; font-weight:700; margin-top:3px}
-.wDay .wC{font-size:9.5px; color:var(--dim); margin-top:3px}
-.wDay.today{border-color:var(--ink); border-width:1.5px}
-.wDay .wDot{width:5px; height:5px; border-radius:50%; background:var(--warn); margin:4px auto 0}
-.panel{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--sh)}
-
-/* ── today hero ── */
-#hero{display:flex; gap:20px; align-items:stretch; flex-wrap:wrap}
-#heroDate{flex:0 0 250px; background:var(--ink); color:var(--bg); border-radius:var(--r); padding:26px; display:flex; flex-direction:column; justify-content:space-between; min-height:190px}
-[data-theme="dark"] #heroDate{background:var(--card); color:var(--ink); border:1px solid var(--line)}
-#heroDate .dow{font-family:var(--disp); font-weight:700; font-size:30px; line-height:1.05; letter-spacing:-.02em}
-#heroDate .dt{font-family:var(--mono); font-size:12.5px; opacity:.75; margin-top:8px}
-#heroDate .cnt{font-size:12.5px; opacity:.75}
-#todayCol{flex:1; min-width:300px; display:flex; flex-direction:column; gap:10px}
-.tclass{display:flex; align-items:center; gap:14px; padding:14px 18px; border-radius:12px; background:var(--card); border:1px solid var(--line); border-left:4px solid var(--sc); box-shadow:var(--sh)}
-.tclass .tt{font-family:var(--mono); font-size:12px; color:var(--dim); width:96px; flex-shrink:0}
-.tclass .tn{font-weight:600; font-size:14.5px; flex:1}
-.tclass .tn small{color:var(--faint); font-weight:400; margin-left:8px}
-.markBtns{display:flex; gap:6px}
-.mk{font-size:11.5px; font-weight:600; padding:5px 11px; border-radius:99px; border:1px solid var(--line2); color:var(--dim)}
-.mk:hover{border-color:var(--ink); color:var(--ink)}
-.mk.on.p{background:var(--ok-bg); color:var(--ok); border-color:var(--ok)}
-.mk.on.a{background:var(--bad-bg); color:var(--bad); border-color:var(--bad)}
-.mk.on.c{background:var(--card2); color:var(--faint); border-color:var(--line2)}
-.examStrip{display:flex; gap:10px; flex-wrap:wrap; margin-top:18px}
-.exChip{font-size:12.5px; font-weight:600; padding:8px 15px; border-radius:99px; background:var(--sc-bg); color:var(--sc); border:1px solid var(--sc)}
-.exChip b{font-family:var(--mono); font-weight:500}
-.dueSoon{margin-top:18px}
-.dueRow{display:flex; gap:12px; align-items:center; padding:10px 4px; border-bottom:1px dashed var(--line); font-size:13.5px}
-.dueRow:last-child{border-bottom:none}
-.dueRow .dd{font-family:var(--mono); font-size:11px; color:var(--bad); width:70px; flex-shrink:0; font-weight:500}
-
-/* ── timetable board ── */
-#board{padding:22px; overflow-x:auto}
-#grid{display:grid; grid-template-columns:52px repeat(7,minmax(122px,1fr)); gap:8px; min-width:980px}
-.gHead{font-family:var(--disp); font-weight:600; font-size:13px; text-align:center; color:var(--dim); padding-bottom:6px}
-.gHead.today{color:var(--warn)}
-.gHead.today::after{content:'●'; display:block; font-size:7px}
-.timeCol{position:relative}
-.timeLbl{position:absolute; right:8px; transform:translateY(-50%); font-family:var(--mono); font-size:10px; color:var(--faint)}
-.dayCol{position:relative; background:var(--card2); border-radius:10px; border:1px solid var(--line)}
-.dayCol.today{outline:2px solid var(--warn); outline-offset:-1px}
-.blk{position:absolute; left:5px; right:5px; border-radius:8px; background:var(--sc-bg); border:1px solid var(--sc); border-left-width:4px; padding:6px 9px; overflow:hidden; cursor:pointer; transition:transform .1s, opacity .15s}
-.blk:hover{transform:scale(1.02)}
-.blk.today-blk{cursor:pointer}
-.blk.mk-p{background:var(--ok-bg); border-color:var(--ok)}
-.blk.mk-a{background:var(--bad-bg); border-color:var(--bad); opacity:.9}
-.blk.mk-c{opacity:.4; filter:grayscale(.6)}
-.blk .mkIco{position:absolute; top:4px; right:4px; font-size:10px; font-weight:700; width:15px; height:15px; border-radius:50%; display:flex; align-items:center; justify-content:center}
-.blk.mk-p .mkIco{background:var(--ok); color:#fff}
-.blk.mk-a .mkIco{background:var(--bad); color:#fff}
-.blk.mk-c .mkIco{background:var(--faint); color:#fff}
-.blk .rmX{position:absolute; top:-7px; right:-7px; width:22px; height:22px; border-radius:50%;
-  background:var(--bad); color:#fff; font-size:14px; line-height:1; font-weight:700; border:2px solid var(--bg);
-  display:none; align-items:center; justify-content:center; padding:0; z-index:5; box-shadow:0 2px 8px rgba(0,0,0,.3)}
-#grid.rmMode .blk .rmX{display:flex}
-#grid.rmMode .blk{animation:wobble .45s ease-in-out infinite; cursor:default}
-#grid.rmMode .blk:nth-child(2n){animation-delay:.08s}
-#grid.rmMode .blk:nth-child(3n){animation-delay:.16s}
-@keyframes wobble{
-  0%,100%{transform:rotate(-.85deg)}
-  50%{transform:rotate(.85deg)}
+/* ── toast ───────────────────────────────────────────────── */
+#toast{
+  position:fixed;left:50%;bottom:calc(74px + env(safe-area-inset-bottom,0px));
+  transform:translate(-50%,14px);z-index:110;
+  background:rgba(30,30,32,.94);color:#fff;font-size:14.5px;font-weight:500;
+  padding:11px 18px;border-radius:99px;opacity:0;pointer-events:none;
+  transition:opacity .24s,transform .24s;max-width:86vw;text-align:center;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
 }
-.onceTag{font-size:8.5px; letter-spacing:.06em; text-transform:uppercase; opacity:.75; font-weight:700;
-  border:1px solid currentColor; border-radius:4px; padding:0 3px; margin-left:3px; vertical-align:1px}
-.blk.once{border-style:dashed}
-#rmToggle{font-size:12px; padding:6px 13px; border-radius:9px; border:1px solid var(--line2); color:var(--dim)}
-#rmToggle.on{background:var(--bad); border-color:var(--bad); color:#fff}
-@media (prefers-reduced-motion:reduce){ #grid.rmMode .blk{animation:none; outline:2px dashed var(--bad); outline-offset:2px} }
-.blk .rm:hover{color:var(--bad)}
-.gridHint{font-size:11.5px; color:var(--faint); padding:0 22px 14px}
-.blk .bn{font-weight:600; font-size:12px; color:var(--sc); line-height:1.25}
-.blk .bt{font-family:var(--mono); font-size:9.5px; color:var(--dim)}
-.gridHint{font-size:11.5px; color:var(--faint); padding:0 22px 14px}
-#slotForm{display:flex; gap:8px; flex-wrap:wrap; padding:16px 22px; border-top:1px solid var(--line); align-items:center}
-#slotForm .lb{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); width:100%}
+[data-theme="dark"] #toast{background:rgba(70,70,74,.95)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
 
-/* ── attendance ── */
-#attGrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr)); gap:16px}
-.attCard{padding:22px; border-left:4px solid var(--sc)}
-.attTop{display:flex; align-items:baseline; gap:10px; margin-bottom:4px}
-.attTop .nm{font-family:var(--disp); font-weight:600; font-size:17px; flex:1}
-.attPct{font-family:var(--disp); font-weight:700; font-size:26px}
-.attPct.ok{color:var(--ok)} .attPct.warn{color:var(--warn)} .attPct.bad{color:var(--bad)}
-.attBar{height:8px; background:var(--card2); border-radius:5px; margin:12px 0 6px; position:relative; overflow:visible}
-.attBar .fill{height:100%; border-radius:5px; transition:width .3s}
-.attBar .req{position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--ink); opacity:.55}
-.attMsg{font-size:12.5px; color:var(--dim); margin-bottom:14px}
-.attMsg b{color:var(--ink)}
-.attCtl{display:flex; gap:14px; align-items:center; flex-wrap:wrap}
-.ctlGrp{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--dim)}
-.stepB{width:24px; height:24px; border-radius:7px; border:1px solid var(--line2); font-size:13px; line-height:1; color:var(--dim)}
-.stepB:hover{border-color:var(--ink); color:var(--ink)}
-.ctlGrp .v{font-family:var(--mono); font-size:13px; min-width:26px; text-align:center}
-.bfBtn{font-size:11.5px; color:var(--dim); text-decoration:underline}
-.bfBtn:hover{color:var(--ink)}
-.bfForm{display:none; margin-top:12px; padding:14px; background:var(--card2); border-radius:10px}
-.bfForm.show{display:block}
-.bfForm .bfRow{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--dim); margin-bottom:8px}
-.bfForm .bfRow b{width:58px; color:var(--ink); font-size:11px; text-transform:uppercase; letter-spacing:.05em}
-.bfForm input{width:64px; padding:5px 8px; text-align:center; font-family:var(--mono); font-size:12.5px}
-.bfForm .hint{font-size:11px; color:var(--faint); margin:2px 0 10px}
-.delSub{margin-left:auto; font-size:11px; color:var(--faint); text-decoration:underline}
-.delSub:hover{color:var(--bad)}
-#attFoot{display:flex; gap:16px; align-items:center; margin-top:18px; flex-wrap:wrap; font-size:13px; color:var(--dim)}
-#attOverall{display:flex; gap:26px; align-items:center; padding:20px 24px; margin-bottom:18px; flex-wrap:wrap}
-#attOverall .big{font-family:var(--disp); font-weight:700; font-size:34px}
-#attOverall .lbl{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint)}
-.compRow{display:flex; gap:10px; align-items:baseline; font-size:13px; padding:7px 0; border-bottom:1px dashed var(--line)}
-.compRow:last-of-type{border-bottom:none}
-.compRow .cl{width:64px; font-weight:600; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim)}
-.compRow .cv{font-family:var(--mono); font-size:12.5px}
-.compRow .cm{margin-left:auto; font-size:11px; font-weight:600; padding:2px 10px; border-radius:99px}
-.cm.m0{background:var(--bad-bg); color:var(--bad)} .cm.mSome{background:var(--warn-bg); color:var(--warn)} .cm.mFull{background:var(--ok-bg); color:var(--ok)}
-#monthWise{overflow-x:auto; -webkit-overflow-scrolling:touch}
-#monthTbl{width:100%; min-width:396px; border-collapse:collapse; font-size:13px}
-#monthTbl th{font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); text-align:right; padding:10px 11px; border-bottom:1px solid var(--line); white-space:nowrap}
-#monthTbl td{padding:10px 11px; border-bottom:1px solid var(--line); white-space:nowrap; text-align:right; font-variant-numeric:tabular-nums}
-#monthTbl th:first-child,#monthTbl td:first-child{text-align:left; padding-left:20px}
-#monthTbl th:last-child,#monthTbl td:last-child{padding-right:20px}
-#monthTbl tr:last-child td{border-bottom:none; font-weight:600}
-.pctCell{display:inline-block; font-family:var(--mono); font-weight:500; padding:2px 8px; border-radius:6px; white-space:nowrap}
-.pctCell.ok{background:var(--ok-bg); color:var(--ok)} .pctCell.bad{background:var(--bad-bg); color:var(--bad)}
-.dayBtns{display:flex; gap:8px; margin-top:12px}
-.dayBtns .tbtn{font-size:11.5px}
-#thr{width:64px}
+/* ── onboarding ──────────────────────────────────────────── */
+#intro{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;
+  flex-direction:column;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+#intro[hidden]{display:none}
+#introBody{flex:1;overflow-y:auto;padding:0 26px;display:flex;flex-direction:column;
+  justify-content:center;text-align:center}
+#introBody .iE{font-size:56px;margin-bottom:22px}
+#introBody h2{font-size:29px;font-weight:800;letter-spacing:-.03em;line-height:1.2;margin-bottom:12px}
+#introBody p{font-size:16.5px;color:var(--label2);line-height:1.5;max-width:340px;margin:0 auto}
+#introBody p b{color:var(--label);font-weight:600}
+#introBody .iList{text-align:left;margin:20px auto 0;max-width:330px}
+#introFoot{padding:16px 22px 22px;flex-shrink:0}
+#introDots{display:flex;gap:7px;justify-content:center;margin-bottom:18px}
+#introDots i{width:7px;height:7px;border-radius:50%;background:var(--label3);transition:all .3s}
+#introDots i.on{background:var(--accent);width:20px}
+#introSkip{display:block;width:100%;text-align:center;color:var(--label2);font-size:15px;
+  margin-top:12px;padding:8px}
 
-
-/* ── deadlines ── */
-#procMeter{overflow:hidden}
-.pmHead{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px}
-.pmTitle{font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--faint); font-weight:700}
-.pmScore{font-family:var(--disp); font-size:26px; font-weight:700; line-height:1}
-.pmTrack{position:relative; height:6px; border-radius:99px; background:var(--card2); overflow:visible}
-.pmFill{height:6px; border-radius:99px; background:linear-gradient(90deg,var(--ok),var(--warn) 62%,var(--bad));
-  transition:width .9s cubic-bezier(.22,1,.36,1)}
-.pmPin{position:absolute; top:50%; width:13px; height:13px; margin:-6.5px 0 0 -6.5px; border-radius:50%;
-  background:var(--bg); border:2.5px solid var(--ink); transition:left .9s cubic-bezier(.22,1,.36,1)}
-.pmEnds{display:flex; justify-content:space-between; margin-top:8px; font-size:10px;
-  letter-spacing:.06em; color:var(--faint); text-transform:uppercase}
-.pmLine{margin-top:14px; font-size:13.5px; color:var(--dim); font-style:italic}
-.pmEmpty{font-size:13px; color:var(--faint); line-height:1.6; font-style:italic}
-.pmStats{display:flex; gap:20px; flex-wrap:wrap; margin-top:14px; padding-top:13px; border-top:1px solid var(--line)}
-.pmStats span{font-size:11px; color:var(--faint); display:flex; flex-direction:column; gap:2px}
-.pmStats b{font-family:var(--disp); font-size:15px; color:var(--ink); font-weight:700}
-.verdict{font-size:10.5px; letter-spacing:.05em; padding:2px 7px; border-radius:99px; font-weight:600}
-.verdict.v-early{color:var(--ok); background:rgba(62,124,79,.12)}
-.verdict.v-close{color:var(--warn); background:rgba(176,133,20,.13)}
-.verdict.v-wire{color:var(--bad); background:rgba(178,58,46,.11)}
-.verdict.v-late{color:var(--faint); background:var(--card2)}
-#dlList{padding:8px 0}
-.dlRow{display:flex; gap:14px; align-items:center; padding:13px 22px; border-bottom:1px solid var(--line)}
-.dlRow:last-child{border-bottom:none}
-.dlChk{width:19px; height:19px; border-radius:6px; border:1.5px solid var(--line2); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; color:transparent}
-.dlChk.on{background:var(--ok-bg); border-color:var(--ok); color:var(--ok)}
-.dlT{flex:1; font-weight:500; font-size:14px}
-.dlRow.done .dlT{text-decoration:line-through; color:var(--faint); font-weight:400}
-.dlSub{font-size:11px; font-weight:600; color:var(--sc); background:var(--sc-bg); padding:2px 9px; border-radius:99px}
-.dlType{font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint)}
-.dlDate{font-family:var(--mono); font-size:11.5px; color:var(--dim); width:150px; text-align:right}
-.dlDate b{font-weight:500}
-.dlDate .late{color:var(--bad)} .dlDate .near{color:var(--warn)}
-.dlDel{color:var(--faint); font-size:14px; padding:2px 6px} .dlDel:hover{color:var(--bad)}
-#dlForm{display:flex; gap:8px; flex-wrap:wrap; padding:16px 22px; border-top:1px solid var(--line)}
-
-/* ── calendar ── */
-#calHead{display:flex; align-items:center; gap:14px; padding:18px 22px 4px}
-#calTitle{font-family:var(--disp); font-weight:600; font-size:17px; flex:1}
-#cal{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; padding:14px 22px 22px}
-.calDow{font-family:var(--mono); font-size:10px; letter-spacing:.08em; color:var(--faint); text-align:center; text-transform:uppercase; padding-bottom:4px}
-.calD{height:86px; overflow:hidden; border:1px solid var(--line); border-radius:9px; padding:5px 7px; font-size:12px; color:var(--dim); background:var(--card)}
-.calD.pad{background:transparent; border-color:transparent}
-.calD.today{outline:2px solid var(--warn); outline-offset:-1px}
-.calD .n{font-family:var(--mono); font-size:10.5px}
-.calDot{display:block; font-size:9.5px; line-height:1.5; font-weight:600; color:var(--sc); background:var(--sc-bg); border-radius:4px; padding:0 5px; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.calMore{display:block; font-size:9.5px; color:var(--faint); margin-top:3px; font-weight:600}
-
-.empty{padding:34px 22px; text-align:center; color:var(--faint); font-size:13.5px}
-.addBtn{font-size:13px; font-weight:600; padding:9px 18px; border-radius:10px; background:var(--ink); color:var(--bg)}
-[data-theme="dark"] .addBtn{background:var(--warn); color:#12151B}
-.addBtn:hover{opacity:.88}
-
-@media (max-width:760px){
-  #nav{display:none}
-  #heroDate{flex:1 1 100%; min-height:120px}
-  .tclass{flex-wrap:wrap}
-  .dlDate{width:auto}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
 </style>
-<script>
-/* home-screen icon — a calendar mark, drawn at runtime */
-(function(){
-  function rrect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.lineTo(x+w-r,y);g.quadraticCurveTo(x+w,y,x+w,y+r);
-    g.lineTo(x+w,y+h-r);g.quadraticCurveTo(x+w,y+h,x+w-r,y+h);g.lineTo(x+r,y+h);g.quadraticCurveTo(x,y+h,x,y+h-r);
-    g.lineTo(x,y+r);g.quadraticCurveTo(x,y,x+r,y);g.closePath();}
-  function draw(size,dark){
-    var c=document.createElement('canvas');c.width=size;c.height=size;
-    var g=c.getContext('2d'); if(!g||!g.moveTo)return '';
-    var bg='#0B0D12', ink='#F2EFE6', acc='#C9453D';    /* fixed: the hour, in numerals */
-    g.fillStyle=bg; rrect(g,0,0,size,size,size*0.22); g.fill();
-    var fs=Math.round(size*0.25);
-    g.font='700 '+fs+'px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
-    g.textAlign='left'; g.textBaseline='middle';
-    var a1='11', cn=':', a2='59';
-    var w1=g.measureText(a1).width, wc=g.measureText(cn).width, w2=g.measureText(a2).width;
-    var x=size*0.5-(w1+wc+w2)/2, y=size*0.52;
-    g.fillStyle=ink; g.fillText(a1,x,y);
-    g.fillStyle=acc; g.fillText(cn,x+w1,y);
-    g.fillStyle=ink; g.fillText(a2,x+w1+wc,y);
-    return c.toDataURL('image/png');
-  }
-  function setIcons(){
-    try{
-      var dark=document.documentElement.dataset.theme==='dark';
-      var t=document.querySelector('link[rel="apple-touch-icon"]')||document.createElement('link');
-      t.rel='apple-touch-icon'; t.href=draw(180,dark); if(!t.parentNode)document.head.appendChild(t);
-      var f=document.querySelector('link[rel="icon"]')||document.createElement('link');
-      f.rel='icon'; f.href=draw(64,dark); if(!f.parentNode)document.head.appendChild(f);
-    }catch(e){}
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setIcons); else setIcons();
-  window.addEventListener('themechange',setIcons);
-})();
-</script>
 </head>
 <body>
-<div id="guide" hidden>
-  <div class="gCard">
-    <div class="gTrack" id="gTrack"></div>
-    <div class="gBody" id="gBody"></div>
-    <div class="gFoot">
-      <button id="gSkip" class="gGhost">Skip</button>
-      <div class="gDots" id="gDots"></div>
-      <button id="gNext" class="gSolid">Next</button>
-    </div>
-  </div>
-</div>
 
-<div id="top"><div id="topIn">
-  <div id="logo">The <span>Eleventh Hour</span> <small style="font-size:10px;color:var(--faint);font-weight:500">11:59</small></div>
-  <div id="topR" style="margin-left:auto; display:flex; align-items:center; gap:8px">
-    <button id="setTop" class="tbtn" aria-label="Settings" title="Settings" style="padding:7px 10px; font-size:15px; line-height:1">⚙</button>
-    <input type="file" id="impFile" accept=".json" style="display:none">
-  </div>
-</div></div>
+<!-- ══════════════ NAV ══════════════ -->
+<div id="nav"><div id="navTitle">Today</div><div id="navR"></div></div>
 
-<div id="wrap">
+<main>
 
+<!-- ══════════════ TODAY ══════════════ -->
 <section id="home" class="on">
-  <div class="secHead"><h2>Today</h2><span class="sub" id="todaySub"></span></div>
-  <div id="hero">
-    <div id="heroDate"><div><div class="dow" id="hDow"></div><div class="dt" id="hDt"></div></div><div class="cnt" id="hCnt"></div></div>
-    <div id="todayCol"></div>
-  </div>
-  <div id="weekAhead"></div>
-  <div class="examStrip" id="examStrip"></div>
-  <div class="dueSoon panel" id="dueSoon" style="padding:14px 22px; margin-top:18px"></div>
+  <div class="lg"><h1>Today</h1><div class="sub" id="todayDate"></div></div>
+  <div id="heroWrap"></div>
+  <div id="homeTiles"></div>
+  <div id="homeClasses"></div>
+  <div id="homeDue"></div>
+  <div id="homeWeek"></div>
+  <div style="height:26px"></div>
 </section>
 
+<!-- ══════════════ TIMETABLE ══════════════ -->
 <section id="timetable">
-  <div class="secHead"><h2>Timetable</h2>
-    <button id="rmToggle" style="margin-left:auto">Remove</button></div>
-  <div class="panel">
-    <div id="board"><div id="grid"></div></div>
-    <div class="gridHint" id="gridHint"></div>
-    <div id="slotForm"></div>
-  </div>
+  <div class="lg"><h1>Classes</h1></div>
+  <div id="dayStrip"></div>
+  <div id="ttHead"></div>
+  <div id="ttBody"></div>
+  <div style="height:26px"></div>
 </section>
 
+<!-- ══════════════ ATTENDANCE ══════════════ -->
 <section id="attendance">
-  <div class="secHead"><h2>Attendance</h2><span class="sub">mark from Today, or adjust counts here</span></div>
-  <div class="panel" id="attOverall"></div>
-  <div id="attGrid"></div>
-  <div id="attFoot"></div>
-  <div class="secHead" style="margin-top:30px"><h2 style="font-size:17px">Month wise</h2><span class="sub">like the ERP view</span></div>
-  <div class="panel" id="monthWise"></div>
+  <div class="lg"><h1>Attendance</h1></div>
+  <div id="attTop"></div>
+  <div id="attList"></div>
+  <div id="attMonths"></div>
+  <div style="height:26px"></div>
 </section>
 
+<!-- ══════════════ DUE ══════════════ -->
 <section id="deadlines">
-  <div class="secHead"><h2>Deadlines</h2><span class="sub">assignments · internals · exams</span></div>
-  <div class="panel" id="procMeter" style="padding:18px 20px; margin-bottom:14px"></div>
-  <div class="panel"><div id="dlList"></div><div id="dlForm"></div></div>
+  <div class="lg"><h1>Due</h1></div>
+  <div id="dueFilter" class="pad" style="padding-top:8px"></div>
+  <div id="dueList"></div>
+  <div id="procCard"></div>
+  <div style="height:26px"></div>
 </section>
 
-<section id="settings">
-  <div class="secHead"><h2>Settings</h2></div>
-
-  <div class="setGroup">
-    <h3>Appearance</h3>
-    <div class="setRow">
-      <div class="sMain"><div class="sT">Theme</div><div class="sS">Auto follows your phone's light/dark setting.</div></div>
-      <div class="seg" id="themeSeg">
-        <button data-th="auto">Auto</button><button data-th="light">Light</button><button data-th="dark">Dark</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="setGroup">
-    <h3>Attendance</h3>
-    <div class="setRow">
-      <div class="sMain"><div class="sT">Minimum required</div><div class="sS">Used for the safe-to-miss maths.</div></div>
-      <input id="thrSet" type="number" min="1" max="100" style="width:74px; text-align:center">
-    </div>
-  </div>
-
-  <div class="setGroup">
-    <h3>Your subjects</h3>
-    <div id="subList"></div>
-    <div class="sS" style="color:var(--faint); font-size:11.5px; margin-top:4px">Add a subject while adding a class in Timetable.</div>
-  </div>
-
-  <div class="setGroup">
-    <h3>Data</h3>
-    <div class="setRow">
-      <div class="sMain"><div class="sT">Export a backup</div><div class="sS">Everything, as one file you can keep.</div></div>
-      <button class="tbtn" id="expBtn">Export</button>
-    </div>
-    <div class="setRow">
-      <div class="sMain"><div class="sT">Restore a backup</div><div class="sS">Replaces what's on this device.</div></div>
-      <button class="tbtn" id="impBtn">Import</button>
-    </div>
-    <div class="setRow">
-      <div class="sMain"><div class="sT">Load demo data</div><div class="sS">A filled-in example so you can look around.</div></div>
-      <button class="tbtn" id="demoBtn">Load</button>
-    </div>
-    <div class="setRow">
-      <div class="sMain"><div class="sT">The guide</div><div class="sS">The tour from your first open.</div></div>
-      <button class="tbtn" id="guideBtn">Show</button>
-    </div>
-    <div class="setRow danger">
-      <div class="sMain"><div class="sT">Erase everything</div><div class="sS">Clears this device. Export first.</div></div>
-      <button class="tbtn" id="wipeBtn" style="border-color:var(--bad); color:var(--bad)">Erase</button>
-    </div>
-  </div>
-</section>
-
+<!-- ══════════════ CALENDAR ══════════════ -->
 <section id="calendar">
-  <div class="secHead"><h2>Calendar</h2></div>
-  <div class="panel">
-    <div id="calHead"><div id="calTitle"></div><button class="tbtn" id="calPrev">←</button><button class="tbtn" id="calNext">→</button></div>
-    <div id="cal"></div>
-  </div>
+  <div class="lg"><h1>Calendar</h1></div>
+  <div id="calBar"></div>
+  <div id="calGrid"></div>
+  <div id="calDay"></div>
+  <div style="height:26px"></div>
 </section>
 
-</div>
+<!-- ══════════════ SETTINGS ══════════════ -->
+<section id="settings">
+  <div class="lg"><h1>Settings</h1></div>
+  <div id="setBody"></div>
+  <div style="height:26px"></div>
+</section>
 
-<nav id="tabbar">
-  <button data-tab="home" class="on"><span class="tg">◑</span>Home</button>
-  <button data-tab="timetable"><span class="tg">▦</span>Timetable</button>
-  <button data-tab="attendance"><span class="tg">◎</span>Attendance</button>
-  <button data-tab="deadlines"><span class="tg">◔</span>Due</button>
-  <button data-tab="calendar"><span class="tg">▤</span>Calendar</button>
-</nav>
+</main>
+
+<!-- ══════════════ TAB BAR ══════════════ -->
+<nav id="tabbar"></nav>
+
+<!-- ══════════════ SHEET ══════════════ -->
+<div id="scrim"></div>
+<div id="sheet" role="dialog" aria-modal="true">
+  <div class="grab"></div>
+  <div id="sheetBar">
+    <button class="cancel" id="sheetCancel">Cancel</button>
+    <div class="sTitle" id="sheetTitle"></div>
+    <button class="done" id="sheetDone">Done</button>
+  </div>
+  <div id="sheetBody"></div>
+</div>
+<div id="act"></div>
+<div id="toast"></div>
+<input type="file" id="impFile" accept=".json,application/json" style="display:none">
+
+<!-- ══════════════ ONBOARDING ══════════════ -->
+<div id="intro" hidden>
+  <div id="introBody"></div>
+  <div id="introFoot">
+    <div id="introDots"></div>
+    <button class="btn" id="introNext">Continue</button>
+    <button id="introSkip">Skip</button>
+  </div>
+</div>
 
 <script>
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
-const daysTo=iso=>Math.ceil((new Date(iso+'T00:00')-new Date(todayISO()+'T00:00'))/864e5);
+/* ══════════════════════════════════════════════════════════════
+   11:59 — college companion.  Single file, offline, no account.
+   ══════════════════════════════════════════════════════════════ */
+'use strict';
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 
-let S={subs:[],slots:[],marks:{},att:{},dls:[],thr:67,theme:'auto',tab:'home'};
-try{ S=Object.assign(S, JSON.parse(localStorage.getItem('sem5plan')||'{}')); }catch(e){}
-if(!S.themeV2){ S.theme='auto'; S.themeV2=1; }
-if(S.theme!=='light'&&S.theme!=='dark'&&S.theme!=='auto') S.theme='auto';
-function save(){ try{ localStorage.setItem('sem5plan', JSON.stringify(S)); }catch(e){} }
-const darkMQ=(function(){ try{ return window.matchMedia('(prefers-color-scheme: dark)'); }catch(e){ return null; } })();
-function systemTheme(){ return (darkMQ&&darkMQ.matches)?'dark':'light'; }
-function effTheme(){ return S.theme==='auto'?systemTheme():(S.theme==='dark'?'dark':'light'); }
+const DAYS  = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAYSL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+const pad2 = n => String(n).padStart(2,'0');
+const isoOf = d => d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+const todayISO = () => isoOf(new Date());
+const dateOf = iso => new Date(iso+'T00:00:00');
+const daysTo = iso => Math.round((dateOf(iso)-dateOf(todayISO()))/864e5);
+const dowOf = d => (d.getDay()+6)%7;                    /* Mon = 0 */
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
+
+const t2m = t => { const p=String(t||'0:0').split(':'); return (+p[0])*60+(+p[1]||0); };
+const fmtT = t => { let [h,m]=String(t).split(':').map(Number); const ap=h>=12?'pm':'am';
+  h=h%12||12; return h+(m?':'+pad2(m):'')+ap; };
+const nowMin = () => { const d=new Date(); return d.getHours()*60+d.getMinutes(); };
+const fmtDur = m => m<60 ? m+' min' : (m%60===0 ? (m/60)+' hr' : Math.floor(m/60)+' hr '+(m%60)+' min');
+
+/* ── icons ─────────────────────────────────────────────────── */
+const ICO = {
+  today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5.2l3.2 1.9"/></svg>',
+  grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9.5h18M8.5 4v3M15.5 4v3"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 20V11M12 20V5M19 20v-6"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l4.2 4.2L20 6"/><path d="M4 6.5h8" opacity=".45"/></svg>',
+  cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="3"/><path d="M3 9.5h18M8 3.5v3M16 3.5v3"/><circle cx="8.5" cy="14" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.1" fill="currentColor" stroke="none"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.1A1.6 1.6 0 008 19.4a1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H2a2 2 0 110-4h.1A1.6 1.6 0 003.6 9a1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H8a1.6 1.6 0 001-1.5V3a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V9a1.6 1.6 0 001.5 1H21a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'
+};
+
+/* ══════════════ STATE ══════════════ */
+const KEY='sem5plan';
+let S={subs:[],slots:[],marks:{},att:{},dls:[],cats:[],thr:67,theme:'auto',tone:'friendly',tab:'home'};
+try{ const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(S,JSON.parse(raw)||{}); }catch(e){}
+
+/* migrations */
+if(!['light','dark','auto'].includes(S.theme)) S.theme='auto';
+if(!['pro','plain','friendly','snark'].includes(S.tone)) S.tone='friendly';
+if(!Array.isArray(S.cats)) S.cats=[];
+if(!Array.isArray(S.subs)) S.subs=[];
+S.subs.forEach((s,i)=>{ if(typeof s.ci!=='number') s.ci=i%8; if(!s.code) s.code=s.name.slice(0,3).toUpperCase(); });
+S.thr=clamp(+S.thr||67,1,100);
+
+function save(){ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
+
+/* ══════════════ TONE ══════════════
+   S.tone: pro | plain | friendly | snark                        */
+const TONE_IX={pro:0,plain:1,friendly:2,snark:3};
+function T(pro,plain,friendly,snark){
+  return [pro,plain,friendly,snark][TONE_IX[S.tone]??2];
+}
+
+/* ══════════════ THEME ══════════════ */
+const darkMQ = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+const effTheme = () => S.theme==='auto' ? ((darkMQ&&darkMQ.matches)?'dark':'light') : S.theme;
 function applyTheme(){
-  const eff=effTheme();
-  document.documentElement.dataset.theme=eff;
-  const tc=document.getElementById('tcMeta'); if(tc) tc.setAttribute('content', eff==='dark'?'#12151B':'#F7F5F0');
-  const cs=document.getElementById('csMeta'); if(cs) cs.setAttribute('content', eff);
-  $$('#themeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.th===S.theme));
-  try{window.dispatchEvent(new Event('themechange'));}catch(e){}
+  const e=effTheme();
+  document.documentElement.dataset.theme=e;
+  const tc=$('#tcMeta'); if(tc) tc.setAttribute('content', e==='dark'?'#000000':'#F2F2F7');
+  const cs=$('#csMeta'); if(cs) cs.setAttribute('content', e);
+  drawIcons();
 }
 if(darkMQ){
-  const onSys=()=>{ if(S.theme==='auto') applyTheme(); };
-  if(darkMQ.addEventListener) darkMQ.addEventListener('change',onSys);
-  else if(darkMQ.addListener) darkMQ.addListener(onSys);
-}
-function showTab(id){
-  S.tab=id; save();
-  $$('#wrap section').forEach(sec=>sec.classList.toggle('on',sec.id===id));
-  $$('#tabbar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===id));
-  const st=$('#setTop'); if(st) st.classList.toggle('on',id==='settings');
-  window.scrollTo({top:0});
-}
-const subById=id=>S.subs.find(s=>s.id===id);
-const colorCls=sub=>'c'+(S.subs.indexOf(sub)%6);
-const t2m=t=>{const[a,b]=t.split(':').map(Number);return a*60+b;};
-const fmtT=t=>{let[h,m]=t.split(':').map(Number);const ap=h>=12?'pm':'am';h=h%12||12;return h+(m?':'+String(m).padStart(2,'0'):'')+ap;};
-
-/* ── mark cycling: unmarked → present → absent → cancelled → unmarked ── */
-function cycleMark(key){
-  const order=[undefined,'p','a','c'];
-  const i=order.indexOf(S.marks[key]);
-  const next=order[(i+1)%order.length];
-  if(next) S.marks[key]=next; else delete S.marks[key];
-  save(); renderGrid(); renderToday(); renderAtt();
+  const f=()=>{ if(S.theme==='auto') applyTheme(); };
+  if(darkMQ.addEventListener) darkMQ.addEventListener('change',f); else if(darkMQ.addListener) darkMQ.addListener(f);
 }
 
-/* ── attendance math ── */
+/* home-screen icon, drawn at runtime */
+function drawIcons(){
+  try{
+    const draw=size=>{
+      const c=document.createElement('canvas'); c.width=c.height=size;
+      const g=c.getContext('2d'); if(!g) return '';
+      const r=size*.2237;
+      g.beginPath();
+      g.moveTo(r,0); g.lineTo(size-r,0); g.quadraticCurveTo(size,0,size,r);
+      g.lineTo(size,size-r); g.quadraticCurveTo(size,size,size-r,size);
+      g.lineTo(r,size); g.quadraticCurveTo(0,size,0,size-r);
+      g.lineTo(0,r); g.quadraticCurveTo(0,0,r,0); g.closePath();
+      const grad=g.createLinearGradient(0,0,0,size);
+      grad.addColorStop(0,'#1C1C22'); grad.addColorStop(1,'#08080B');
+      g.fillStyle=grad; g.fill();
+      const fs=Math.round(size*.245);
+      g.font='700 '+fs+'px -apple-system, ui-monospace, "SF Mono", Menlo, monospace';
+      g.textAlign='left'; g.textBaseline='middle';
+      const a='11', cn=':', b='59';
+      const w1=g.measureText(a).width, wc=g.measureText(cn).width, w2=g.measureText(b).width;
+      const x=size/2-(w1+wc+w2)/2, y=size*.52;
+      g.fillStyle='#F5F5F7'; g.fillText(a,x,y);
+      g.fillStyle='#0A84FF'; g.fillText(cn,x+w1,y);
+      g.fillStyle='#F5F5F7'; g.fillText(b,x+w1+wc,y);
+      return c.toDataURL('image/png');
+    };
+    const set=(rel,size)=>{
+      let l=document.querySelector('link[rel="'+rel+'"]');
+      if(!l){ l=document.createElement('link'); l.rel=rel; document.head.appendChild(l); }
+      l.href=draw(size);
+    };
+    set('apple-touch-icon',180); set('icon',64);
+  }catch(e){}
+}
+
+/* ══════════════ DOMAIN ══════════════ */
+const subById = id => S.subs.find(s=>s.id===id);
+const scCls = sub => 'sc'+((sub&&typeof sub.ci==='number'?sub.ci:0)%8);
+
+/* classes on a given weekday / date. One-offs live only on their date. */
+function slotsOn(dayIx, iso){
+  return S.slots
+    .filter(s => s.once ? s.date===iso : s.day===dayIx)
+    .sort((a,b)=>t2m(a.start)-t2m(b.start));
+}
+const markKey=(iso,sl)=> iso+'|'+sl.id+'|'+sl.subId+'|'+(sl.kind||'th');
+
+/* marks made on the timetable only (used to protect manual backfill) */
 function marksOnly(subId){
   const th={p:0,a:0}, tu={p:0,a:0};
-  Object.entries(S.marks).forEach(([k,v])=>{
-    const parts=k.split('|'); if(parts[2]!==subId)return;
-    const c=parts[3]==='tu'?tu:th;
-    if(v==='p')c.p++; if(v==='a')c.a++;
-  });
+  for(const k in S.marks){
+    const p=k.split('|'); if(p[2]!==subId) continue;
+    const c = p[3]==='tu' ? tu : th;
+    if(S.marks[k]==='p') c.p++; else if(S.marks[k]==='a') c.a++;
+  }
   return {th,tu};
 }
+/* backfilled counters + everything marked = the real numbers */
 function attFor(subId){
   const m=S.att[subId]||{};
-  /* migrate old single counters into theory */
-  const th={p:(m.thp??m.p)||0, a:(m.tha??m.a)||0}, tu={p:m.tup||0, a:m.tua||0};
-  Object.entries(S.marks).forEach(([k,v])=>{
-    const parts=k.split('|');
-    if(parts[2]!==subId)return;
-    const c=parts[3]==='tu'?tu:th;
-    if(v==='p')c.p++; if(v==='a')c.a++;
-  });
+  const th={p:(m.thp??m.p)||0, a:(m.tha??m.a)||0};
+  const tu={p:m.tup||0, a:m.tua||0};
+  const d=marksOnly(subId);
+  th.p+=d.th.p; th.a+=d.th.a; tu.p+=d.tu.p; tu.a+=d.tu.a;
   th.t=th.p+th.a; tu.t=tu.p+tu.a;
   return {th,tu,p:th.p+tu.p,a:th.a+tu.a,t:th.t+tu.t};
 }
-/* DU/SBSC attendance-marks slab (out of 5, same for theory IA & tutorial CA) */
+const pctOf=(p,t)=> t? p/t*100 : 0;
+const pctFmt=n=>{ const r=Math.round(n*10)/10; return r%1===0?String(Math.round(r)):r.toFixed(1); };
+
+/* DU / SBSC attendance-marks slab, out of 5 */
 function attMarks(p,t){
-  if(!t)return null;
-  const pct=p/t*100;
-  return pct>85?5:pct>80?4:pct>75?3:pct>70?2:pct>67?1:0;
+  if(!t) return null;
+  const q=pctOf(p,t);
+  return q>85?5:q>80?4:q>75?3:q>70?2:q>67?1:0;
 }
-const marksChip=(lbl,p,t)=>{
-  const mk=attMarks(p,t);
-  if(mk===null)return '';
-  return `<span class="cm ${mk===0?'m0':mk===5?'mFull':'mSome'}">${lbl} ${mk}/5</span>`;
-};
-function bunkMsg(p,t){
-  const T=S.thr/100;
-  if(!t) return 'No classes recorded yet.';
-  const pct=p/t;
-  if(pct>=T){
-    const m=Math.floor(p/T-t);
-    return m>0?`Safe — you can miss <b>${m}</b> more class${m===1?'':'es'} and stay ≥ ${S.thr}%.`:`Right on the line — <b>don't miss the next one</b>.`;
+/* how many more can be missed / must be attended */
+function canMiss(p,t){ const T=S.thr/100; return t? Math.floor(p/T - t) : 0; }
+function mustAttend(p,t){ const T=S.thr/100; return Math.ceil((T*t-p)/(1-T)); }
+
+function bunkLine(p,t){
+  if(!t) return T('No classes recorded.','No classes recorded yet.','Nothing recorded yet — mark a few classes.','No data. A blank slate, for now.');
+  if(pctOf(p,t)>=S.thr){
+    const m=canMiss(p,t);
+    if(m>0) return T(
+      m+' class'+(m===1?'':'es')+' may be missed while staying at or above '+S.thr+'%.',
+      'You can miss '+m+' more and stay above '+S.thr+'%.',
+      'You’ve got '+m+' free skip'+(m===1?'':'s')+' before you drop below '+S.thr+'%.',
+      m+' skip'+(m===1?'':'s')+' in the bank. Spend '+(m===1?'it':'them')+' wisely.');
+    return T('At the minimum threshold. No further absences permitted.',
+      'Right on the line — don’t miss the next one.',
+      'You’re exactly on the line. Next one is compulsory.',
+      'Dead on the line. One more and the maths turns on you.');
   }
-  const n=Math.ceil((T*t-p)/(1-T));
-  return `Below ${S.thr}% — attend the next <b>${n}</b> class${n===1?'':'es'} straight to recover.`;
+  const n=mustAttend(p,t);
+  return T(
+    'Below the required '+S.thr+'%. '+n+' consecutive class'+(n===1?'':'es')+' required to recover.',
+    'Below '+S.thr+'% — attend the next '+n+' to get back.',
+    'Below '+S.thr+'%. Attend the next '+n+' in a row and you’re clear.',
+    'Below '+S.thr+'%. '+n+' straight classes to dig out. No pressure.');
 }
 
-/* ── today ── */
-/* ── the app has opinions ── */
-function quip(){
-  const h=new Date().getHours(), dow=(new Date().getDay()+6)%7;
+/* what happens to this subject's % if today's class is skipped */
+function skipImpact(subId){
+  const A=attFor(subId);
+  const now=pctOf(A.p,A.t), after=pctOf(A.p,A.t+1);
+  return {now,after,safe:after>=S.thr,has:A.t>0};
+}
+
+/* ══════════════ NAV / TABS ══════════════ */
+const TABS=[
+  {id:'home',       label:'Today',      icon:ICO.today, title:'Today'},
+  {id:'timetable',  label:'Classes',    icon:ICO.grid,  title:'Classes'},
+  {id:'attendance', label:'Attendance', icon:ICO.chart, title:'Attendance'},
+  {id:'deadlines',  label:'Due',        icon:ICO.check, title:'Due'},
+  {id:'calendar',   label:'Calendar',   icon:ICO.cal,   title:'Calendar'}
+];
+function renderTabs(){
+  const overdue=S.dls.filter(d=>!d.done&&daysTo(d.date)<=0).length;
+  $('#tabbar').innerHTML=TABS.map(t=>
+    '<button data-tab="'+t.id+'"'+(S.tab===t.id?' class="on"':'')+'>'+
+      '<span style="position:relative;display:block">'+t.icon+
+      (t.id==='deadlines'&&overdue?'<span class="badge">'+overdue+'</span>':'')+'</span>'+
+      t.label+'</button>').join('');
+  $$('#tabbar button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+}
+function navButtons(){
+  const add={timetable:()=>sheetClass(null), deadlines:()=>sheetDeadline(null), calendar:()=>sheetDeadline(null,calSel)};
+  let h='';
+  if(add[S.tab]) h+='<button class="navBtn" id="nbAdd" aria-label="Add">'+ICO.plus+'</button>';
+  if(S.tab!=='settings') h+='<button class="navBtn" id="nbSet" aria-label="Settings">'+ICO.gear+'</button>';
+  else h+='<button class="navBtn" id="nbBack" aria-label="Done" style="width:auto;padding:0 10px;font-weight:600">Done</button>';
+  $('#navR').innerHTML=h;
+  const a=$('#nbAdd'); if(a) a.onclick=add[S.tab];
+  const g=$('#nbSet'); if(g) g.onclick=()=>showTab('settings');
+  const bk=$('#nbBack'); if(bk) bk.onclick=()=>showTab(lastTab);
+}
+let lastTab='home';
+function showTab(id){
+  if(id!=='settings') lastTab=id;
+  S.tab=id; save();
+  $$('main section').forEach(s=>s.classList.toggle('on',s.id===id));
+  const t=TABS.find(x=>x.id===id);
+  $('#navTitle').textContent = t?t.title:'Settings';
+  renderTabs(); navButtons();
+  window.scrollTo(0,0); onScroll();
+  if(id==='home') renderHome();
+  if(id==='timetable') renderTT();
+  if(id==='attendance') renderAtt();
+  if(id==='deadlines') renderDue();
+  if(id==='calendar') renderCal();
+  if(id==='settings') renderSettings();
+}
+function onScroll(){ $('#nav').classList.toggle('solid', window.scrollY>24); }
+window.addEventListener('scroll',onScroll,{passive:true});
+
+/* ══════════════ TOAST ══════════════ */
+let toastT;
+function toast(msg){
+  const el=$('#toast'); el.textContent=msg; el.classList.add('on');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),1900);
+}
+
+/* ══════════════ SHEET ══════════════ */
+let sheetSave=null;
+function openSheet(o){
+  sheetSave=o.onSave||null;
+  $('#sheetTitle').textContent=o.title||'';
+  $('#sheetBody').innerHTML=o.body||'';
+  const d=$('#sheetDone'), c=$('#sheetCancel');
+  d.textContent=o.doneLabel||'Done';
+  d.style.visibility=o.onSave?'visible':'hidden';
+  c.textContent=o.cancelLabel||(o.onSave?'Cancel':'Done');
+  $('#scrim').classList.add('on'); $('#sheet').classList.add('on');
+  if(o.after) setTimeout(o.after,30);
+  document.body.style.overflow='hidden';
+}
+function closeSheet(){
+  $('#scrim').classList.remove('on'); $('#sheet').classList.remove('on');
+  sheetSave=null; document.body.style.overflow='';
+}
+$('#sheetCancel').onclick=closeSheet;
+$('#scrim').onclick=()=>{ closeSheet(); closeAct(); };
+$('#sheetDone').onclick=()=>{ if(sheetSave && sheetSave()!==false) closeSheet(); };
+function sheetError(msg){
+  let e=$('#sheetBody .sheetErr');
+  if(!e){ e=document.createElement('div'); e.className='sheetErr'; $('#sheetBody').appendChild(e); }
+  e.textContent=msg; e.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+
+/* ── action sheet ── */
+let actCb={};
+function openAct(o){
+  actCb={};
+  let h='<div class="actGrp">';
+  if(o.title||o.msg) h+='<div class="actHead">'+(o.title?'<div class="aT">'+esc(o.title)+'</div>':'')+
+    (o.msg?'<div class="aS">'+esc(o.msg)+'</div>':'')+'</div>';
+  o.actions.forEach((a,i)=>{ actCb['a'+i]=a.fn;
+    h+='<button data-a="a'+i+'"'+(a.destructive?' class="destructive"':'')+'>'+esc(a.label)+'</button>'; });
+  h+='</div><div class="actGrp"><button class="cancelBtn" data-a="cancel">Cancel</button></div>';
+  $('#act').innerHTML=h;
+  $('#scrim').classList.add('on'); $('#act').classList.add('on');
+  $$('#act button').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.a; closeAct();
+    if(k!=='cancel'&&actCb[k]) setTimeout(actCb[k],180);
+  });
+}
+function closeAct(){ $('#act').classList.remove('on'); if(!$('#sheet').classList.contains('on')) $('#scrim').classList.remove('on'); }
+
+/* ══════════════ MARKING ══════════════ */
+function setMark(key,v){
+  if(v) S.marks[key]=v; else delete S.marks[key];
+  save(); renderAll();
+}
+function mkSegHTML(key){
+  const m=S.marks[key];
+  return '<div class="mkSeg" data-key="'+key+'">'+
+    '<button data-m="p"'+(m==='p'?' class="on"':'')+'>Present</button>'+
+    '<button data-m="a"'+(m==='a'?' class="on"':'')+'>Absent</button>'+
+    '<button data-m="c"'+(m==='c'?' class="on"':'')+'>Cancelled</button></div>';
+}
+function bindMkSeg(root){
+  (root||document).querySelectorAll('.mkSeg').forEach(seg=>{
+    seg.querySelectorAll('button').forEach(b=>b.onclick=e=>{
+      e.stopPropagation();
+      const key=seg.dataset.key, v=b.dataset.m;
+      setMark(key, S.marks[key]===v ? null : v);
+      toast(S.marks[key]==='p'?T('Marked present.','Marked present.','Present — nice.','Present. Noted, reluctantly.')
+        : S.marks[key]==='a'?T('Marked absent.','Marked absent.','Marked absent.','Absent. Bold.')
+        : S.marks[key]==='c'?'Class cancelled.':'Cleared.');
+    });
+  });
+}
+
+/* ══════════════ TODAY ══════════════ */
+function greetLine(){
+  const h=new Date().getHours();
   const overdue=S.dls.filter(d=>!d.done&&daysTo(d.date)<0).length;
   const dueToday=S.dls.filter(d=>!d.done&&daysTo(d.date)===0).length;
   const soon=S.dls.filter(d=>!d.done&&daysTo(d.date)>0&&daysTo(d.date)<=3).length;
-  if(overdue>2) return 'Several things are past due. Bold of you to open this.';
-  if(overdue===1) return 'One thing is overdue. We both know which.';
-  if(dueToday) return dueToday+' due today. The hour approaches.';
-  if(h>=23||h<4) return 'It is nearly midnight. Historically, your most productive hour.';
-  if(h>=20) return 'Evening. Statistically when the panic sets in.';
-  if(soon) return soon+' thing'+(soon===1?'':'s')+' due within three days. Plenty of time, surely.';
-  if(dow===6) return 'Sunday. Tomorrow-you can deal with it.';
-  if(h<9) return 'Awake early. Suspicious.';
-  return 'Nothing on fire. Enjoy it while it lasts.';
-}
-function renderToday(){
-  const now=new Date(), dow=(now.getDay()+6)%7; // Mon=0..Sun=6
-  const ts=$('#todaySub'); if(ts) ts.textContent=quip();
-  $('#hDow').textContent=now.toLocaleDateString('en-IN',{weekday:'long'});
-  $('#hDt').textContent=now.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});
-  const iso=todayISO();
-  const todays=slotsOn(dow,iso);
-  $('#hCnt').textContent=todays.length?todays.length+' class'+(todays.length===1?'':'es')+' today':(dow===6?'Sunday — nothing scheduled':'No classes scheduled today');
-  $('#todayCol').innerHTML=todays.length?todays.map(sl=>{
-    const sub=subById(sl.subId); if(!sub)return '';
-    const key=iso+'|'+sl.id+'|'+sub.id+'|'+(sl.kind||'th'), m=S.marks[key];
-    const lbl={p:'✓ Present',a:'✗ Absent',c:'— Cancelled'}[m]||'Tap to mark';
-    return `<div class="tclass ${colorCls(sub)}">
-      <span class="tt">${fmtT(sl.start)}–${fmtT(sl.end)}</span>
-      <span class="tn">${esc(sub.name)}${sl.kind==='tu'?'<small>Tutorial</small>':''}${sl.room?`<small>${esc(sl.room)}</small>`:''}</span>
-      <button class="mk${m?' on '+m:''}" data-cyc="${key}" style="width:118px; text-align:center">${lbl}</button></div>`;
-  }).join(''):`<div class="panel empty">${dow===6?'Enjoy the Sunday.':'Add your timetable below and today\'s classes appear here with one-tap attendance.'}</div>`;
-  if(todays.length){
-    $('#todayCol').innerHTML+=`<div class="dayBtns">
-      <button class="tbtn" id="allP">✓ Whole day present</button>
-      <button class="tbtn" id="allA">✗ Whole day absent</button></div>`;
-    $('#allP').onclick=()=>{ todays.forEach(sl=>{const sub=subById(sl.subId); if(sub)S.marks[iso+'|'+sl.id+'|'+sub.id+'|'+(sl.kind||'th')]='p';}); save(); renderGrid(); renderToday(); renderAtt(); };
-    $('#allA').onclick=()=>{ todays.forEach(sl=>{const sub=subById(sl.subId); if(sub)S.marks[iso+'|'+sl.id+'|'+sub.id+'|'+(sl.kind||'th')]='a';}); save(); renderGrid(); renderToday(); renderAtt(); };
-  }
-  $$('#todayCol .mk[data-cyc]').forEach(b=>b.onclick=()=>cycleMark(b.dataset.cyc));
-  const exams=S.dls.filter(d=>d.type==='exam'&&!d.done&&daysTo(d.date)>=0).sort((a,b)=>a.date.localeCompare(b.date));
-  $('#examStrip').innerHTML=exams.map(d=>{
-    const sub=subById(d.subId), n=daysTo(d.date);
-    return `<span class="exChip ${sub?colorCls(sub):'c5'}">${esc(d.title)} — <b>${n===0?'TODAY':n+'d'}</b></span>`;
-  }).join('');
-  const soon=S.dls.filter(d=>!d.done&&d.type!=='exam'&&daysTo(d.date)<=7).sort((a,b)=>a.date.localeCompare(b.date));
-  $('#dueSoon').innerHTML=`<div class="dlType" style="margin-bottom:4px">Due within 7 days</div>`+
-    (soon.length?soon.map(d=>{const n=daysTo(d.date), sub=subById(d.subId);
-      return `<div class="dueRow"><span class="dd">${n<0?Math.abs(n)+'d late':n===0?'today':'in '+n+'d'}</span><span>${esc(d.title)}</span>${sub?`<span class="dlSub ${colorCls(sub)}">${esc(sub.code)}</span>`:''}</div>`;}).join('')
-    :`<div style="font-size:13px;color:var(--faint);padding:6px 0">Nothing due. Suspicious. Check the deadlines section.</div>`);
+  if(overdue>2) return T(overdue+' items are past their due date.',
+    overdue+' things are overdue.',
+    overdue+' overdue — maybe clear one today.',
+    'Several things are past due. Bold of you to open this.');
+  if(overdue===1) return T('1 item is past its due date.','1 thing is overdue.',
+    'One thing is overdue — quick win?','One thing is overdue. We both know which.');
+  if(dueToday) return T(dueToday+' item'+(dueToday===1?'':'s')+' due today.',
+    dueToday+' due today.', dueToday+' due today — you’ve got this.',
+    dueToday+' due today. The hour approaches.');
+  if(h>=23||h<4) return T('Late session.','It’s late.','Late one. Sleep is also a strategy.',
+    'Nearly midnight. Historically your most productive hour.');
+  if(soon) return T(soon+' item'+(soon===1?'':'s')+' due within 3 days.',
+    soon+' due in the next 3 days.', soon+' coming up this week — nothing scary.',
+    soon+' due within three days. Plenty of time, surely.');
+  if(h<9) return T('Good morning.','Morning.','Morning — early start.','Awake early. Suspicious.');
+  if(h>=20) return T('Good evening.','Evening.','Evening — wrap-up time.','Evening. Statistically when the panic sets in.');
+  return T('No pending items.','Nothing overdue.','All clear right now.','Nothing on fire. Enjoy it while it lasts.');
 }
 
-/* ── timetable ── */
-/* A slot is either recurring (has .day) or a one-off (has .date, an ISO day).
-   One-offs only ever appear on their own date, so they can never become permanent. */
-function slotsOn(dayIx,iso){
-  return S.slots.filter(s=>s.once ? s.date===iso : s.day===dayIx)
-                .sort((a,b)=>t2m(a.start)-t2m(b.start));
-}
-let rmMode=false;
-function renderGrid(){
-  const g=$('#grid'), dow=(new Date().getDay()+6)%7; // Mon=0..Sun=6
-  const weekDate=i=>{ const d=new Date(); d.setDate(d.getDate()-(dow-i)); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
-  let minH=9,maxH=17;
-  S.slots.forEach(s=>{ minH=Math.min(minH,Math.floor(t2m(s.start)/60)); maxH=Math.max(maxH,Math.ceil(t2m(s.end)/60)); });
-  const H=520, span=(maxH-minH)*60;
-  let h=`<div></div>`+DAYS.map((d,i)=>`<div class="gHead${i===dow?' today':''}">${d}</div>`).join('');
-  h+=`<div class="timeCol" style="position:relative;height:${H}px">`;
-  for(let t=minH;t<=maxH;t++) h+=`<span class="timeLbl" style="top:${((t*60-minH*60)/span*H).toFixed(1)}px">${t%12||12}${t>=12?'p':'a'}</span>`;
-  h+=`</div>`;
-  for(let d=0;d<7;d++){
-    const mday=d<=dow; /* this week's days up to today are markable */
-    const dISO=weekDate(d);
-    h+=`<div class="dayCol${d===dow?' today':''}" style="position:relative;height:${H}px">`;
-    slotsOn(d,dISO).forEach(sl=>{
-      const sub=subById(sl.subId); if(!sub)return;
-      const top=(t2m(sl.start)-minH*60)/span*H, ht=Math.max(30,(t2m(sl.end)-t2m(sl.start))/span*H);
-      const key=dISO+'|'+sl.id+'|'+sl.subId+'|'+(sl.kind||'th');
-      const mk=mday?S.marks[key]:null;
-      const ico={p:'✓',a:'✗',c:'—'}[mk]||'';
-      h+=`<div class="blk ${colorCls(sub)}${mday?' today-blk':''}${mk?' mk-'+mk:''}${sl.once?' once':''}" data-sid="${sl.id}"${mday?` data-key="${key}"`:''} style="position:absolute;top:${top.toFixed(1)}px;height:${ht.toFixed(1)}px;left:5px;right:5px">
-        <div class="bn">${esc(sub.code)}${sl.kind==='tu'?' · Tut':''}${sl.once?' <span class="onceTag">once</span>':''}</div><div class="bt">${fmtT(sl.start)}–${fmtT(sl.end)}${sl.room?' · '+esc(sl.room):''}</div>
-        ${ico?`<span class="mkIco">${ico}</span>`:''}<button class="rmX" data-rm="${sl.id}" aria-label="Remove this class">×</button></div>`;
-    });
-    h+=`</div>`;
+function renderHome(){
+  const now=new Date(), iso=todayISO(), dow=dowOf(now), mins=nowMin();
+  $('#todayDate').textContent = now.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'});
+
+  const todays=slotsOn(dow,iso).filter(sl=>subById(sl.subId));
+
+  /* ── hero ── */
+  const live   = todays.find(sl=>mins>=t2m(sl.start)&&mins<t2m(sl.end));
+  const next   = todays.find(sl=>t2m(sl.start)>mins);
+  const unmark = todays.filter(sl=>!S.marks[markKey(iso,sl)]).length;
+  let hero='';
+
+  if(live){
+    const sub=subById(live.subId), key=markKey(iso,live), imp=skipImpact(sub.id);
+    hero='<div id="hero" class="'+scCls(sub)+'">'+
+      '<div class="hTop">'+
+        '<div class="hK"><span class="dot"></span>In class now</div>'+
+        '<div class="hN">'+esc(sub.name)+'</div>'+
+        '<div class="hM">'+fmtT(live.start)+'–'+fmtT(live.end)+
+          (live.room?' · '+esc(live.room):'')+
+          (live.kind==='tu'?' · Tutorial':'')+
+          ' · <b>'+fmtDur(t2m(live.end)-mins)+' left</b></div>'+
+      '</div><div class="hAct">'+mkSegHTML(key)+
+      (imp.has?'<div class="cls cSkip" style="background:none;padding:9px 0 0;border:none;margin:0;font-size:13px;color:var(--label2)">'+
+        'Right now: <b style="color:var(--label)">'+pctFmt(imp.now)+'%</b> · miss this and it’s '+
+        pctFmt(imp.after)+'%</div>':'')+
+      '</div></div>';
+  } else if(next){
+    const sub=subById(next.subId), gap=t2m(next.start)-mins, imp=skipImpact(sub.id);
+    hero='<div id="hero" class="'+scCls(sub)+'">'+
+      '<div class="hTop">'+
+        '<div class="hK">Next up</div>'+
+        '<div class="hN">'+esc(sub.name)+'</div>'+
+        '<div class="hM">'+fmtT(next.start)+(next.room?' · '+esc(next.room):'')+
+          (next.kind==='tu'?' · Tutorial':'')+' · <b>in '+fmtDur(gap)+'</b></div>'+
+      '</div>'+
+      (imp.has?'<div class="hAct"><div style="font-size:14px;color:var(--label2);line-height:1.4">'+
+        (imp.safe
+          ? T('Skipping keeps '+esc(sub.code)+' at '+pctFmt(imp.after)+'%, above the minimum.',
+              'Skip it and '+esc(sub.code)+' is still '+pctFmt(imp.after)+'% — above '+S.thr+'%.',
+              'You could skip this — '+esc(sub.code)+' would still sit at '+pctFmt(imp.after)+'%.',
+              'You can skip it. '+esc(sub.code)+' survives at '+pctFmt(imp.after)+'%. Your call.')
+          : T('Skipping drops '+esc(sub.code)+' to '+pctFmt(imp.after)+'%, below the minimum.',
+              'Skip it and '+esc(sub.code)+' falls to '+pctFmt(imp.after)+'% — under '+S.thr+'%.',
+              'Best not to skip — '+esc(sub.code)+' would drop to '+pctFmt(imp.after)+'%.',
+              'Skip it and '+esc(sub.code)+' drops to '+pctFmt(imp.after)+'%. Then it’s your problem.'))+
+        '</div></div>':'')+
+      '</div>';
+  } else if(todays.length){
+    hero='<div id="hero" class="sc2"><div class="hTop">'+
+      '<div class="hK">Done for the day</div>'+
+      '<div class="hN">'+T('Classes complete','That’s the lot','That’s your day done','Survived another one')+'</div>'+
+      '<div class="hM">'+(unmark
+        ? unmark+' class'+(unmark===1?'':'es')+' still unmarked below.'
+        : T('All classes marked.','Everything’s marked.','All marked — tidy.','All marked. Look at you.'))+
+      '</div></div></div>';
+  } else {
+    const tISO=isoOf(addDays(now,1)), tCount=slotsOn(dowOf(addDays(now,1)),tISO).filter(s=>subById(s.subId)).length;
+    hero='<div id="hero" class="sc0"><div class="hTop">'+
+      '<div class="hK">'+(dow===6?'Sunday':'No classes')+'</div>'+
+      '<div class="hN">'+T('No scheduled classes','Nothing scheduled today',
+        'Free day','A free day. Suspicious.')+'</div>'+
+      '<div class="hM">'+(tCount? 'Tomorrow: '+tCount+' class'+(tCount===1?'':'es')+'.'
+        : 'Nothing tomorrow either.')+'</div></div></div>';
   }
-  g.innerHTML=h;
-  const hint=$('#gridHint');
-  if(hint) hint.textContent = rmMode
-    ? 'Tap the × on any class to remove it. Tap Done when you\'re finished.'
-    : `Tap a class to mark it — 1 tap present, 2 absent, 3 cancelled, 4 clears. Markable this week: ${DAYS.slice(0,dow+1).join(', ')}.`;
-  g.classList.toggle('rmMode',rmMode);
-  const rb=$('#rmToggle');
-  if(rb){ rb.textContent=rmMode?'Done':'Remove'; rb.classList.toggle('on',rmMode); }
-  $$('#grid .blk.today-blk').forEach(b=>b.onclick=e=>{ if(rmMode||e.target.closest('[data-rm]'))return; cycleMark(b.dataset.key); });
-  $$('#grid [data-rm]').forEach(b=>b.onclick=e=>{
-    e.stopPropagation();
-    const sl=S.slots.find(x=>x.id===b.dataset.rm); if(!sl)return;
-    const sub=subById(sl.subId);
-    const what=(sub?sub.code:'This class')+' · '+fmtT(sl.start);
-    if(confirm('Remove '+what+'?'+(sl.once?'':'\n\nThis is a weekly class — it will be removed from every week.'))){
-      S.slots=S.slots.filter(x=>x.id!==b.dataset.rm);
-      save(); renderGrid(); renderToday(); renderAtt();
+  $('#heroWrap').innerHTML=hero;
+  bindMkSeg($('#heroWrap'));
+
+  /* ── tiles ── */
+  let GP=0,GT=0; S.subs.forEach(s=>{const a=attFor(s.id); GP+=a.p; GT+=a.t;});
+  const gp=pctOf(GP,GT);
+  const week=S.dls.filter(d=>!d.done&&daysTo(d.date)>=0&&daysTo(d.date)<=7).length;
+  const over=S.dls.filter(d=>!d.done&&daysTo(d.date)<0).length;
+  $('#homeTiles').innerHTML='<div class="tiles">'+
+    '<button class="tile tap" data-go="attendance" style="text-align:left">'+
+      '<div class="tV" style="color:'+(GT? (gp>=S.thr?'var(--green)':'var(--red)') :'var(--label)')+'">'+
+        (GT?pctFmt(gp)+'%':'—')+'</div>'+
+      '<div class="tL">Overall attendance'+(GT?' · '+GP+'/'+GT:'')+'</div></button>'+
+    '<button class="tile tap" data-go="deadlines" style="text-align:left">'+
+      '<div class="tV"'+(over?' style="color:var(--red)"':'')+'>'+(over?over:week)+'</div>'+
+      '<div class="tL">'+(over?'Overdue':'Due in 7 days')+'</div></button>'+
+    '</div>';
+
+  /* ── today's classes ── */
+  let h='';
+  if(todays.length){
+    h+='<div class="gHead">Today’s classes · '+greetLine()+'</div><div class="pad">';
+    todays.forEach(sl=>{
+      const sub=subById(sl.subId), key=markKey(iso,sl), m=S.marks[key];
+      const imp=skipImpact(sub.id);
+      const past=t2m(sl.end)<=mins;
+      h+='<div class="cls '+scCls(sub)+(m?' done':'')+'">'+
+        '<div class="cTop">'+
+          '<div class="cTime">'+fmtT(sl.start)+'<br>'+fmtT(sl.end)+'</div>'+
+          '<div class="cName">'+esc(sub.name)+
+            (sl.kind==='tu'?' <span class="tag tu">Tut</span>':'')+
+            (sl.once?' <span class="tag">Once</span>':'')+
+            '<div class="cMeta">'+esc(sub.code)+(sl.room?' · '+esc(sl.room):'')+
+            (m?' · '+({p:'Present',a:'Absent',c:'Cancelled'}[m]):'')+'</div>'+
+          '</div>'+
+          '<button class="cMore" data-slot="'+sl.id+'" data-iso="'+iso+'">⋯</button>'+
+        '</div>'+
+        mkSegHTML(key)+
+        (!m && imp.has && !past
+          ? '<div class="cSkip">Skip this → <b>'+pctFmt(imp.after)+'%</b>'+
+            (imp.safe?'<span class="pill ok">still safe</span>':'<span class="pill no">below '+S.thr+'%</span>')+'</div>'
+          : '')+
+        '</div>';
+    });
+    h+='</div>';
+    if(unmark>1) h+='<div class="pad" style="display:flex;gap:9px;margin-top:2px">'+
+      '<button class="btn ghost sm" id="allP">All present</button>'+
+      '<button class="btn ghost sm" id="allA" style="color:var(--red)">All absent</button></div>';
+  }
+  $('#homeClasses').innerHTML=h;
+  bindMkSeg($('#homeClasses'));
+  $$('#homeClasses .cMore').forEach(b=>b.onclick=()=>slotActions(b.dataset.slot,b.dataset.iso));
+  const ap=$('#allP'), aa=$('#allA');
+  if(ap) ap.onclick=()=>{ todays.forEach(sl=>S.marks[markKey(iso,sl)]='p'); save(); renderAll(); toast('Whole day marked present.'); };
+  if(aa) aa.onclick=()=>{ todays.forEach(sl=>S.marks[markKey(iso,sl)]='a'); save(); renderAll(); toast('Whole day marked absent.'); };
+
+  /* ── due next ── */
+  const soon=S.dls.filter(d=>!d.done&&daysTo(d.date)<=10).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,5);
+  $('#homeDue').innerHTML = soon.length
+    ? '<div class="gHead">Coming up</div><div class="pad"><div class="list">'+
+      soon.map(d=>dueRowHTML(d)).join('')+'</div></div>'
+    : (todays.length?'':'<div class="gHead">Coming up</div><div class="pad"><div class="list"><div class="row"><div class="rMain"><div class="rT" style="color:var(--label2)">'+
+      T('No upcoming items.','Nothing due.','Nothing due — enjoy it.','Nothing due. Suspicious.')+'</div></div></div></div></div>');
+  bindDueRows($('#homeDue'));
+
+  /* ── week strip ── */
+  let w='<div class="gHead">Next 7 days</div><div class="pad"><div class="list">';
+  for(let i=0;i<7;i++){
+    const d=addDays(now,i), diso=isoOf(d);
+    const cls=slotsOn(dowOf(d),diso).filter(s=>subById(s.subId)).length;
+    const due=S.dls.filter(x=>x.date===diso&&!x.done).length;
+    w+='<button class="row tap" data-day="'+diso+'">'+
+      '<div class="rMain"><div class="rT">'+(i===0?'Today':i===1?'Tomorrow':DAYSL[dowOf(d)])+
+        '<span style="color:var(--label3);font-size:15px"> '+d.getDate()+'/'+(d.getMonth()+1)+'</span></div>'+
+      '<div class="rS">'+(cls?cls+' class'+(cls===1?'':'es'):'No classes')+
+        (due?' · '+due+' due':'')+'</div></div>'+
+      (due?'<span class="pill mid">'+due+'</span>':'')+
+      '<span class="chev">›</span></button>';
+  }
+  $('#homeWeek').innerHTML=w+'</div></div>';
+  $$('#homeWeek [data-day]').forEach(b=>b.onclick=()=>{ ttDate=dateOf(b.dataset.day); showTab('timetable'); });
+  $$('#homeTiles [data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));
+}
+
+/* ══════════════ TIMETABLE (one day at a time) ══════════════ */
+let ttDate=new Date();
+function renderTT(){
+  const iso=isoOf(ttDate), dow=dowOf(ttDate), tISO=todayISO();
+  /* week strip: Monday of ttDate's week */
+  const mon=addDays(ttDate,-dow);
+  let strip='';
+  for(let i=0;i<7;i++){
+    const d=addDays(mon,i), di=isoOf(d);
+    const n=slotsOn(i,di).filter(s=>subById(s.subId)).length;
+    strip+='<button class="dChip'+(di===iso?' on':'')+(di===tISO?' today':'')+'" data-d="'+di+'">'+
+      '<div class="dW">'+DAYS[i]+'</div><div class="dN">'+d.getDate()+'</div>'+
+      (n?'<div class="dD"></div>':'<div class="dD" style="background:transparent"></div>')+'</button>';
+  }
+  $('#dayStrip').innerHTML=strip;
+  $$('#dayStrip .dChip').forEach(b=>b.onclick=()=>{ ttDate=dateOf(b.dataset.d); renderTT(); });
+
+  const diff=Math.round((dateOf(iso)-dateOf(tISO))/864e5);
+  const rel = diff===0?'Today':diff===1?'Tomorrow':diff===-1?'Yesterday'
+    : (diff>1&&diff<7)?'In '+diff+' days':(diff<-1&&diff>-7)?Math.abs(diff)+' days ago'
+    : ttDate.toLocaleDateString(undefined,{day:'numeric',month:'short'});
+  $('#ttHead').innerHTML='<div class="h">'+DAYSL[dow]+'</div><div class="w">'+rel+'</div>';
+
+  const list=slotsOn(dow,iso).filter(s=>subById(s.subId));
+  let h='';
+  if(!list.length){
+    h='<div class="empty"><div class="eE">'+(dow===6?'☀️':'📅')+'</div>'+
+      '<div class="eT">'+(dow===6?'Nothing on Sunday':'No classes on '+DAYSL[dow])+'</div>'+
+      '<div class="eS">'+T('Use + to add a class to this day.','Tap + above to add one.',
+        'Tap + up top to add a class here.','Tap + to add one, if you must.')+'</div>'+
+      '<div style="height:16px"></div><button class="btn ghost sm" id="ttAdd" style="max-width:220px;margin:0 auto">Add a class</button></div>';
+  } else {
+    const markable = diff<=0;
+    list.forEach(sl=>{
+      const sub=subById(sl.subId), key=markKey(iso,sl), m=S.marks[key];
+      h+='<div class="cls '+scCls(sub)+(m?' done':'')+'">'+
+        '<div class="cTop">'+
+          '<div class="cTime">'+fmtT(sl.start)+'<br>'+fmtT(sl.end)+'</div>'+
+          '<div class="cName">'+esc(sub.name)+
+            (sl.kind==='tu'?' <span class="tag tu">Tut</span>':'')+
+            (sl.once?' <span class="tag">Once</span>':'')+
+            '<div class="cMeta">'+esc(sub.code)+(sl.room?' · '+esc(sl.room):'')+
+            ' · '+fmtDur(t2m(sl.end)-t2m(sl.start))+'</div></div>'+
+          '<button class="cMore" data-slot="'+sl.id+'" data-iso="'+iso+'">⋯</button>'+
+        '</div>'+
+        (markable ? mkSegHTML(key)
+          : '<div class="cSkip" style="color:var(--label3)">Marking opens on the day</div>')+
+        '</div>';
+    });
+    h+='<button class="btn ghost sm" id="ttAdd" style="margin-top:4px">+ Add a class to '+DAYSL[dow]+'</button>';
+  }
+  const body=$('#ttBody');
+  body.innerHTML=h;
+  bindMkSeg(body);
+  $$('#ttBody .cMore').forEach(b=>b.onclick=()=>slotActions(b.dataset.slot,b.dataset.iso));
+  const ta=$('#ttAdd'); if(ta) ta.onclick=()=>sheetClass(null,{day:dow,date:iso});
+}
+/* swipe between days */
+(function(){
+  const el=$('#ttBody'); let x0=null,y0=null;
+  el.addEventListener('touchstart',e=>{ x0=e.touches[0].clientX; y0=e.touches[0].clientY; },{passive:true});
+  el.addEventListener('touchend',e=>{
+    if(x0===null) return;
+    const dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0;
+    x0=null;
+    if(Math.abs(dx)<52||Math.abs(dx)<Math.abs(dy)*1.6) return;
+    ttDate=addDays(ttDate, dx<0?1:-1);
+    renderTT();
+    el.classList.remove('slideL','slideR');
+    void el.offsetWidth;
+    el.classList.add(dx<0?'slideL':'slideR');
+  },{passive:true});
+})();
+
+/* ── class actions ── */
+function slotActions(slotId,iso){
+  const sl=S.slots.find(x=>x.id===slotId); if(!sl) return;
+  const sub=subById(sl.subId);
+  openAct({
+    title:(sub?sub.name:'Class')+' · '+fmtT(sl.start),
+    msg: sl.once ? 'A one-off class on '+iso : 'Repeats every '+DAYSL[sl.day],
+    actions:[
+      {label:'Edit this class', fn:()=>sheetClass(sl)},
+      {label:'Delete', destructive:true, fn:()=>{
+        openAct({title:'Delete this class?',
+          msg: sl.once?'It only exists on this date.':'It will be removed from every week.',
+          actions:[{label:'Delete class',destructive:true,fn:()=>{
+            S.slots=S.slots.filter(x=>x.id!==slotId);
+            Object.keys(S.marks).forEach(k=>{ if(k.split('|')[1]===slotId) delete S.marks[k]; });
+            save(); renderAll(); toast('Class deleted.');
+          }}]});
+      }}
+    ]
+  });
+}
+
+/* ══════════════ SHEETS: class / subject ══════════════ */
+function sheetClass(slot,pre){
+  if(!S.subs.length){
+    openAct({title:'No subjects yet', msg:'Add a subject first, then give it classes.',
+      actions:[{label:'Add a subject', fn:()=>sheetSubject(null)}]});
+    return;
+  }
+  pre=pre||{};
+  const ed=!!slot;
+  const cur=slot||{subId:S.subs[0].id,kind:'th',start:'09:00',end:'10:00',room:'',
+    day:(pre.day!=null?pre.day:dowOf(new Date())), once:false, date:pre.date||todayISO()};
+  const rep = cur.once?'once':'wk';
+  const body=
+    '<div class="list">'+
+      '<label class="row"><div class="rMain"><div class="rT">Subject</div></div>'+
+        '<select id="fSub">'+S.subs.map(s=>'<option value="'+s.id+'"'+(s.id===cur.subId?' selected':'')+'>'+esc(s.name)+'</option>').join('')+'</select></label>'+
+      '<div class="row"><div class="rMain"><div class="rT">Type</div></div>'+
+        '<div class="seg" id="fKind" style="width:190px">'+
+          '<button data-v="th"'+((cur.kind||'th')==='th'?' class="on"':'')+'>Theory</button>'+
+          '<button data-v="tu"'+(cur.kind==='tu'?' class="on"':'')+'>Tutorial</button></div></div>'+
+    '</div>'+
+    '<div class="gHead tight">When</div>'+
+    '<div class="list">'+
+      '<div class="row"><div class="rMain"><div class="rT">Repeats</div></div>'+
+        '<div class="seg" id="fRep" style="width:190px">'+
+          '<button data-v="wk"'+(rep==='wk'?' class="on"':'')+'>Every week</button>'+
+          '<button data-v="once"'+(rep==='once'?' class="on"':'')+'>Just once</button></div></div>'+
+      '<label class="row" id="rowDay"><div class="rMain"><div class="rT">Day</div></div>'+
+        '<select id="fDay">'+DAYSL.map((d,i)=>'<option value="'+i+'"'+(i===(cur.day??0)?' selected':'')+'>'+d+'</option>').join('')+'</select></label>'+
+      '<label class="row" id="rowDate"><div class="rMain"><div class="rT">Date</div></div>'+
+        '<input type="date" id="fDate" value="'+(cur.date||todayISO())+'"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Starts</div></div>'+
+        '<input type="time" id="fStart" value="'+cur.start+'"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Ends</div></div>'+
+        '<input type="time" id="fEnd" value="'+cur.end+'"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Room</div></div>'+
+        '<input type="text" id="fRoom" placeholder="Optional" value="'+esc(cur.room||'')+'"></label>'+
+    '</div>'+
+    '<div class="gNote">One-off classes show on that date only — they never become permanent.</div>'+
+    (ed?'<div style="height:18px"></div><button class="btn dangerBtn sm" id="fDel">Delete class</button>':'');
+
+  openSheet({
+    title: ed?'Edit class':'New class',
+    body, doneLabel:'Save',
+    onSave(){
+      const subId=$('#fSub').value;
+      const kind=$('#fKind .on').dataset.v;
+      const once=$('#fRep .on').dataset.v==='once';
+      const st=$('#fStart').value, en=$('#fEnd').value;
+      const day=+$('#fDay').value, date=$('#fDate').value;
+      if(!st||!en) return sheetError('Pick a start and end time.'), false;
+      if(t2m(en)<=t2m(st)) return sheetError('End time has to be after the start time.'), false;
+      if(once&&!date) return sheetError('Pick the date for this one-off class.'), false;
+      const dup=S.slots.some(s=>s.id!==(slot&&slot.id)&&s.subId===subId&&s.start===st&&
+        (once? (s.once&&s.date===date) : (!s.once&&s.day===day)));
+      if(dup) return sheetError('That exact class is already on the timetable.'), false;
+      const target = slot || {id:uid()};
+      Object.assign(target,{subId,kind,start:st,end:en,room:$('#fRoom').value.trim()});
+      if(once){ target.once=true; target.date=date; delete target.day; }
+      else { target.once=false; delete target.date; target.day=day; }
+      if(!slot) S.slots.push(target);
+      if(once) ttDate=dateOf(date); else ttDate=addDays(new Date(), day-dowOf(new Date()));
+      save(); renderAll(); toast(ed?'Class updated.':'Class added.');
+    },
+    after(){
+      const sync=()=>{
+        const once=$('#fRep .on').dataset.v==='once';
+        $('#rowDay').style.display=once?'none':'';
+        $('#rowDate').style.display=once?'':'none';
+      };
+      $$('#fKind button').forEach(b=>b.onclick=()=>{ $$('#fKind button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
+      $$('#fRep button').forEach(b=>b.onclick=()=>{ $$('#fRep button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); sync(); });
+      sync();
+      const del=$('#fDel');
+      if(del) del.onclick=()=>{ closeSheet(); setTimeout(()=>slotActions(slot.id,todayISO()),200); };
     }
   });
-  renderSlotForm();
 }
 
-function renderSlotForm(){
-  const f=$('#slotForm');
-  const subOpts=S.subs.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
-  f.innerHTML=`<div class="lb">Add to timetable</div>
-    ${S.subs.length?`
-    <select id="sfSub">${subOpts}</select>
-    <select id="sfRepeat"><option value="wk">Every week</option><option value="once">Just once</option></select>
-    <select id="sfDay">${DAYS.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select>
-    <input id="sfDate" type="date" value="${todayISO()}" style="display:none">
-    <select id="sfKind"><option value="th">Theory</option><option value="tu">Tutorial</option></select>
-    <input id="sfStart" type="time" value="09:00"><input id="sfEnd" type="time" value="10:00">
-    <input id="sfRoom" placeholder="Room (optional)" style="width:130px">
-    <button class="addBtn" id="sfAdd">Add class</button>`:''}
-    <input id="sfNewName" placeholder="Subject name" style="width:180px">
-    <input id="sfNewCode" placeholder="Code (FM)" style="width:90px">
-    <button class="addBtn" id="sfNewAdd" style="opacity:.85">＋ Subject</button>
-    <div id="sfMsg" style="display:none; width:100%; font-size:12px"></div>`;
-  const msg=(t,ok)=>{ const m=$('#sfMsg'); m.textContent=t; m.style.display=t?'block':'none'; m.style.color=ok?'var(--ok)':'var(--bad)'; };
-  const rep_=$('#sfRepeat');
-  if(rep_) rep_.onchange=()=>{
-    const once=rep_.value==='once';
-    $('#sfDay').style.display=once?'none':'';
-    $('#sfDate').style.display=once?'':'none';
-  };
-  const add=$('#sfAdd');
-  if(add) add.onclick=()=>{
-    const st=$('#sfStart').value, en=$('#sfEnd').value, subId=$('#sfSub').value, kind=$('#sfKind').value;
-    const once=$('#sfRepeat').value==='once';
-    const day=+$('#sfDay').value, date=$('#sfDate').value;
-    if(!st||!en||t2m(en)<=t2m(st))return msg('End time must be after start time.');
-    if(once&&!date)return msg('Pick the date for this one-off class.');
-    if(!once&&S.slots.some(s=>!s.once&&s.subId===subId&&s.day===day&&s.start===st))return msg('That exact class is already on the board — it may just be stacked behind an identical one.');
-    if(once&&S.slots.some(s=>s.once&&s.subId===subId&&s.date===date&&s.start===st))return msg('That extra class is already on that date.');
-    const slot={id:uid(), subId, kind, start:st, end:en, room:$('#sfRoom').value.trim()};
-    if(once){ slot.once=true; slot.date=date; }
-    else { slot.day=day; }
-    S.slots.push(slot);
-    save(); renderGrid(); renderToday(); renderWeek();
-    msg(once?'Extra class added — it shows on that date only ✓':'Added ✓','ok');
-    setTimeout(()=>{const m=$('#sfMsg'); if(m&&/✓/.test(m.textContent))m.style.display='none';},2200);
-  };
-  $('#sfNewAdd').onclick=()=>{
-    const name=$('#sfNewName').value.trim(); if(!name)return msg('Type a subject name first.');
-    if(S.subs.some(s=>s.name.toLowerCase()===name.toLowerCase()))return msg('"'+name+'" already exists — if that\'s the demo subject, remove it from its attendance card first.');
-    const code=($('#sfNewCode').value.trim()||name.slice(0,4)).toUpperCase();
-    S.subs.push({id:uid(),name,code});
-    save(); renderAll();
-  };
+function sheetSubject(sub){
+  const ed=!!sub;
+  const cur=sub||{name:'',code:'',ci:S.subs.length%8};
+  const body=
+    '<div class="list">'+
+      '<label class="row"><div class="rMain"><div class="rT">Name</div></div>'+
+        '<input type="text" id="uName" placeholder="Cost Accounting" value="'+esc(cur.name)+'"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Short code</div></div>'+
+        '<input type="text" id="uCode" placeholder="CA" maxlength="6" value="'+esc(cur.code)+'"></label>'+
+    '</div>'+
+    '<div class="gHead tight">Colour</div>'+
+    '<div class="list"><div class="swatches" id="uCols">'+
+      [0,1,2,3,4,5,6,7].map(i=>'<button class="swatch sc'+i+(i===cur.ci?' on':'')+'" data-c="'+i+'">'+
+        (i===cur.ci?'✓':'')+'</button>').join('')+
+    '</div></div>'+
+    (ed?'<div style="height:18px"></div><button class="btn dangerBtn sm" id="uDel">Delete subject</button>'+
+        '<div class="gNote" style="text-align:center">Removes its classes, deadlines and attendance too.</div>':'');
+  openSheet({
+    title: ed?'Edit subject':'New subject',
+    body, doneLabel:'Save',
+    onSave(){
+      const name=$('#uName').value.trim();
+      if(!name) return sheetError('Give the subject a name.'), false;
+      const clash=S.subs.some(s=>s.id!==(sub&&sub.id)&&s.name.toLowerCase()===name.toLowerCase());
+      if(clash) return sheetError('You already have a subject called that.'), false;
+      const code=($('#uCode').value.trim()||name.slice(0,3)).toUpperCase().slice(0,6);
+      const ci=+($('#uCols .on')||{dataset:{c:0}}).dataset.c;
+      if(ed) Object.assign(sub,{name,code,ci});
+      else S.subs.push({id:uid(),name,code,ci});
+      save(); renderAll(); toast(ed?'Subject updated.':'Subject added.');
+    },
+    after(){
+      $$('#uCols .swatch').forEach(b=>b.onclick=()=>{
+        $$('#uCols .swatch').forEach(x=>{x.classList.remove('on');x.textContent='';});
+        b.classList.add('on'); b.textContent='✓';
+      });
+      const d=$('#uDel');
+      if(d) d.onclick=()=>openAct({
+        title:'Delete '+sub.name+'?', msg:'Its classes, deadlines and attendance go too.',
+        actions:[{label:'Delete subject',destructive:true,fn:()=>{
+          S.subs=S.subs.filter(s=>s.id!==sub.id);
+          S.slots=S.slots.filter(s=>s.subId!==sub.id);
+          S.dls=S.dls.filter(d=>d.subId!==sub.id);
+          delete S.att[sub.id];
+          Object.keys(S.marks).forEach(k=>{ if(k.split('|')[2]===sub.id) delete S.marks[k]; });
+          save(); closeSheet(); renderAll(); toast('Subject deleted.');
+        }}]});
+    }
+  });
 }
 
-/* ── attendance ── */
+/* ══════════════ ATTENDANCE ══════════════ */
+function ringHTML(pct,color,label){
+  const deg=Math.round(clamp(pct,0,100)*3.6);
+  return '<div class="ring" style="background:conic-gradient('+color+' '+deg+'deg, var(--fill) 0)">'+
+    '<div class="inner"><div class="rv" style="color:'+color+'">'+(label==null?pctFmt(pct)+'%':label)+'</div>'+
+    '<div class="rl">of '+S.thr+'% min</div></div></div>';
+}
 function renderAtt(){
-  /* overall strip — like the ERP grand total */
   let GP=0,GT=0;
-  S.subs.forEach(s=>{const x=attFor(s.id); GP+=x.p; GT+=x.t;});
-  const gpct=GT?Math.round(GP/GT*10000)/100:0;
-  $('#attOverall').innerHTML=GT?`
-    <div><div class="big ${''}" style="color:${gpct>=S.thr?'var(--ok)':'var(--bad)'}">${gpct}%</div><div class="lbl">Overall attendance</div></div>
-    <div><div class="big">${GP}/${GT}</div><div class="lbl">Present / Total</div></div>
-    <div style="max-width:340px; font-size:13px; color:var(--dim)">${bunkMsg(GP,GT)}</div>`
-    :`<div style="font-size:13px;color:var(--faint)">Overall attendance appears once classes are recorded.</div>`;
-  $('#attGrid').innerHTML=S.subs.length?S.subs.map(sub=>{
-    const A=attFor(sub.id), pct=A.t?Math.round(A.p/A.t*100):0;
-    const cls=!A.t?'ok':pct>=S.thr?'ok':pct>=S.thr-8?'warn':'bad';
-    const man=S.att[sub.id]||{};
-    const mv=f=>man[f]||((f==='thp'&&man.p)||(f==='tha'&&man.a))||0;
-    return `<div class="panel attCard ${colorCls(sub)}">
-      <div class="attTop"><span class="nm">${esc(sub.name)}</span><span class="attPct ${cls}">${A.t?pct+'%':'—'}</span></div>
-      <div style="font-size:12px;color:var(--faint)">${A.p}/${A.t} overall · ${A.a} missed</div>
-      <div class="attBar"><div class="fill" style="width:${pct}%; background:var(--sc)"></div><div class="req" style="left:${S.thr}%"></div></div>
-      <div class="attMsg">${bunkMsg(A.p,A.t)}</div>
-      <div class="compRow"><span class="cl">Theory</span><span class="cv">${A.th.p}/${A.th.t}${A.th.t?' · '+Math.round(A.th.p/A.th.t*100)+'%':''}</span>${marksChip('IA',A.th.p,A.th.t)}</div>
-      <div class="compRow"><span class="cl">Tutorial</span><span class="cv">${A.tu.p}/${A.tu.t}${A.tu.t?' · '+Math.round(A.tu.p/A.tu.t*100)+'%':''}</span>${marksChip('CA',A.tu.p,A.tu.t)}</div>
-      <div class="attCtl" style="margin-top:12px">
-        <button class="bfBtn" data-bf="${sub.id}">edit past classes</button>
-        <button class="delSub" data-del="${sub.id}">remove</button>
-      </div>
-      <div class="bfForm" id="bf-${sub.id}">
-        <div class="hint">Set these to what the ERP shows (attended / total). Timetable-marked classes are already included in these numbers; future marks keep adding on top.</div>
-        <div class="bfRow"><b>Theory</b> attended <input type="number" min="0" id="bfthp-${sub.id}" value="${A.th.p}"> of <input type="number" min="0" id="bftht-${sub.id}" value="${A.th.t}"> total</div>
-        <div class="bfRow"><b>Tutorial</b> attended <input type="number" min="0" id="bftup-${sub.id}" value="${A.tu.p}"> of <input type="number" min="0" id="bftut-${sub.id}" value="${A.tu.t}"> total</div>
-        <button class="addBtn" data-bfsave="${sub.id}" style="font-size:12px; padding:7px 16px">Save</button>
-      </div></div>`;
-  }).join(''):`<div class="panel empty">Add subjects in the timetable section — attendance cards appear here.</div>`;
-  renderMonthTbl();
-  const _g=GT?gpct:0;
-  const _v=!S.subs.length?'':_g>=85?'Frankly overqualified to be here.'
-    :_g>=S.thr+8?'Comfortable. Don\u2019t get cocky.'
-    :_g>=S.thr?'Above the line, but not by much.'
-    :_g>0?'Below requirement. This is the part where you attend classes.'
-    :'No classes marked yet.';
-  const _vh=_v?`<div style="width:100%;font-style:italic;color:var(--faint);font-size:12.5px;margin-bottom:4px">${_v}</div>`:'';
-  $('#attFoot').innerHTML=S.subs.length?_vh+`Requirement: <input id="thr" type="number" min="1" max="100" value="${S.thr}">% minimum attendance · manual counters are for backfilling past classes; Today's marks add on top automatically.`:'';
-  $$('#attGrid .bfBtn').forEach(b=>b.onclick=()=>$('#bf-'+b.dataset.bf).classList.toggle('show'));
-  $$('#attGrid [data-bfsave]').forEach(b=>b.onclick=()=>{
-    const id=b.dataset.bfsave;
-    const g=x=>Math.max(0,+($('#bf'+x+'-'+id).value)||0);
-    const thp=g('thp'), tht=g('tht'), tup=g('tup'), tut=g('tut');
-    const err=t=>{ const hd=$('#bf-'+id+' .hint'); hd.textContent=t; hd.style.color='var(--bad)'; };
-    if(tht<thp||tut<tup)return err('Total can\'t be less than attended.');
-    const dv=marksOnly(id);
-    if(thp<dv.th.p||tht-thp<dv.th.a||tup<dv.tu.p||tut-tup<dv.tu.a)
-      return err('You\'ve already marked more than that on the timetable this week — enter numbers at least that big.');
-    S.att[id]={thp:thp-dv.th.p, tha:(tht-thp)-dv.th.a, tup:tup-dv.tu.p, tua:(tut-tup)-dv.tu.a};
-    save(); renderAtt();
+  S.subs.forEach(s=>{ const a=attFor(s.id); GP+=a.p; GT+=a.t; });
+  const gp=pctOf(GP,GT);
+  const col = !GT?'var(--label3)' : gp>=S.thr?'var(--green)' : gp>=S.thr-6?'var(--orange)':'var(--red)';
+
+  $('#attTop').innerHTML='<div class="pad"><div class="card" style="display:flex;gap:18px;align-items:center">'+
+    ringHTML(gp,col,GT?null:'—')+
+    '<div style="flex:1;min-width:0">'+
+      '<div style="font-size:15px;font-weight:600;margin-bottom:3px">Overall</div>'+
+      '<div style="font-size:13.5px;color:var(--label2);line-height:1.4">'+
+        (GT? GP+' attended of '+GT+' classes' : 'No classes recorded yet')+'</div>'+
+      '<div style="font-size:13.5px;color:var(--label2);line-height:1.4;margin-top:7px">'+bunkLine(GP,GT)+'</div>'+
+    '</div></div>'+
+    '<div class="list"><label class="row"><div class="rMain"><div class="rT">Minimum required</div>'+
+      '<div class="rS">Everything below is measured against this</div></div>'+
+      '<input type="number" id="attThr" min="1" max="100" value="'+S.thr+'" '+
+      'style="width:66px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
+      '<span style="color:var(--label2)">%</span></label></div></div>';
+  $('#attThr').onchange=e=>{ S.thr=clamp(parseInt(e.target.value)||67,1,100); save(); renderAll(); };
+
+  if(!S.subs.length){
+    $('#attList').innerHTML='<div class="empty"><div class="eE">📊</div>'+
+      '<div class="eT">No subjects yet</div>'+
+      '<div class="eS">Add subjects in Settings, then attendance appears here.</div>'+
+      '<div style="height:16px"></div><button class="btn ghost sm" id="attAddSub" style="max-width:230px;margin:0 auto">Add a subject</button></div>';
+    $('#attAddSub').onclick=()=>sheetSubject(null);
+    $('#attMonths').innerHTML=''; return;
+  }
+
+  let h='<div class="gHead">By subject</div><div class="pad">';
+  S.subs.forEach(sub=>{
+    const A=attFor(sub.id), p=pctOf(A.p,A.t);
+    const c = !A.t?'var(--label3)' : p>=S.thr?'var(--green)' : p>=S.thr-6?'var(--orange)':'var(--red)';
+    const miss=canMiss(A.p,A.t);
+    h+='<div class="card '+scCls(sub)+'" style="padding:16px 17px">'+
+      '<div style="display:flex;align-items:flex-start;gap:12px">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">'+esc(sub.name)+'</div>'+
+          '<div style="font-size:13px;color:var(--label2);margin-top:2px">'+
+            '<span class="subChip">'+esc(sub.code)+'</span> '+A.p+'/'+A.t+' · '+A.a+' missed</div>'+
+        '</div>'+
+        '<div style="font-size:26px;font-weight:800;letter-spacing:-.03em;color:'+c+'" class="tnum">'+
+          (A.t?pctFmt(p)+'%':'—')+'</div>'+
+      '</div>'+
+      '<div class="bar"><div class="fl" style="width:'+clamp(p,0,100)+'%;background:'+c+'"></div>'+
+        '<div class="rq" style="left:'+S.thr+'%"></div></div>'+
+      '<div style="font-size:13.5px;color:var(--label2);margin-top:10px;line-height:1.4">'+bunkLine(A.p,A.t)+'</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;font-size:12.5px;color:var(--label2)">'+
+        cmpChip('Theory',A.th,'IA')+cmpChip('Tutorial',A.tu,'CA')+
+      '</div>'+
+      '<div style="display:flex;gap:8px;margin-top:13px">'+
+        '<button class="btn ghost sm" data-fix="'+sub.id+'" style="flex:1">Fix the numbers</button>'+
+        '<button class="btn ghost sm" data-edit="'+sub.id+'" style="flex:0 0 44%">Edit subject</button>'+
+      '</div></div>';
   });
-  $$('#attGrid .delSub').forEach(b=>b.onclick=()=>{
-    const sub=subById(b.dataset.del);
-    if(!b.dataset.armed){ b.dataset.armed='1'; b.textContent='delete this subject + its data?'; b.style.color='var(--bad)';
-      setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent='remove'; b.style.color=''; } },3000); return; }
-    S.subs=S.subs.filter(s=>s.id!==sub.id);
-    S.slots=S.slots.filter(s=>s.subId!==sub.id);
-    S.dls=S.dls.filter(d=>d.subId!==sub.id);
-    delete S.att[sub.id];
-    Object.keys(S.marks).forEach(k=>{ if(k.split('|')[2]===sub.id) delete S.marks[k]; });
+  $('#attList').innerHTML=h+'</div>';
+  $$('#attList [data-fix]').forEach(b=>b.onclick=()=>sheetBackfill(subById(b.dataset.fix)));
+  $$('#attList [data-edit]').forEach(b=>b.onclick=()=>sheetSubject(subById(b.dataset.edit)));
+  renderMonths();
+}
+function cmpChip(label,c,mkLabel){
+  if(!c.t) return '<span class="pill" style="background:var(--fill);color:var(--label2)">'+label+' —</span>';
+  const mk=attMarks(c.p,c.t);
+  const cls = mk===0?'no' : mk===5?'ok':'mid';
+  return '<span class="pill '+cls+'">'+label+' '+c.p+'/'+c.t+' · '+mkLabel+' '+mk+'/5</span>';
+}
+function renderMonths(){
+  const byM={};
+  for(const k in S.marks){
+    const v=S.marks[k]; if(v==='c') continue;
+    const mo=k.slice(0,7);
+    (byM[mo]||(byM[mo]={p:0,t:0}));
+    byM[mo].t++; if(v==='p') byM[mo].p++;
+  }
+  const rows=Object.keys(byM).sort();
+  if(!rows.length){
+    $('#attMonths').innerHTML='<div class="gHead">Month by month</div><div class="pad"><div class="list">'+
+      '<div class="row"><div class="rMain"><div class="rT" style="color:var(--label2);font-size:15px">Builds up as you mark classes</div>'+
+      '<div class="rS">Numbers you type in "Fix the numbers" have no dates, so they can’t appear here — but they still count in the totals.</div></div></div></div></div>';
+    return;
+  }
+  let TP=0,TT=0;
+  let h='<div class="gHead">Month by month</div><div class="pad"><div class="list">';
+  rows.forEach(mo=>{
+    const o=byM[mo]; TP+=o.p; TT+=o.t;
+    const p=pctOf(o.p,o.t);
+    h+='<div class="row"><div class="rMain">'+
+      '<div class="rT">'+new Date(mo+'-01T00:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'})+'</div>'+
+      '<div class="rS">'+o.p+' present · '+(o.t-o.p)+' absent · '+o.t+' total</div></div>'+
+      '<span class="pill '+(p>=S.thr?'ok':'no')+'">'+pctFmt(p)+'%</span></div>';
+  });
+  const tp=pctOf(TP,TT);
+  h+='<div class="row"><div class="rMain"><div class="rT" style="font-weight:600">All marked classes</div>'+
+    '<div class="rS">'+TP+' of '+TT+'</div></div>'+
+    '<span class="pill '+(tp>=S.thr?'ok':'no')+'">'+pctFmt(tp)+'%</span></div>';
+  $('#attMonths').innerHTML=h+'</div></div>';
+}
+function sheetBackfill(sub){
+  const A=attFor(sub.id);
+  const body='<div class="sheetIntro">Type what your college portal shows. Classes you’ve marked in the app are already inside these numbers, and future marks keep adding on top.</div>'+
+    '<div class="gHead tight" style="padding-top:0">Theory</div>'+
+    '<div class="list">'+
+      '<label class="row"><div class="rMain"><div class="rT">Attended</div></div><input type="number" min="0" id="bThp" value="'+A.th.p+'"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Total held</div></div><input type="number" min="0" id="bTht" value="'+A.th.t+'"></label>'+
+    '</div>'+
+    '<div class="gHead tight">Tutorial</div>'+
+    '<div class="list">'+
+      '<label class="row"><div class="rMain"><div class="rT">Attended</div></div><input type="number" min="0" id="bTup" value="'+A.tu.p+'"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Total held</div></div><input type="number" min="0" id="bTut" value="'+A.tu.t+'"></label>'+
+    '</div>';
+  openSheet({
+    title:sub.code+' numbers', body, doneLabel:'Save',
+    onSave(){
+      const g=id=>Math.max(0,parseInt($(id).value)||0);
+      const thp=g('#bThp'), tht=g('#bTht'), tup=g('#bTup'), tut=g('#bTut');
+      if(tht<thp||tut<tup) return sheetError('Total held can’t be smaller than attended.'), false;
+      const d=marksOnly(sub.id);
+      if(thp<d.th.p||tht-thp<d.th.a||tup<d.tu.p||tut-tup<d.tu.a)
+        return sheetError('You’ve already marked more than that in the app. Enter numbers at least as big as what’s marked.'), false;
+      S.att[sub.id]={thp:thp-d.th.p, tha:(tht-thp)-d.th.a, tup:tup-d.tu.p, tua:(tut-tup)-d.tu.a};
+      save(); renderAll(); toast('Numbers updated.');
+    }
+  });
+}
+
+/* ══════════════ DEADLINES ══════════════ */
+const DL_BASE=['assignment','internal','exam','other'];
+const dlTypes=()=>[...new Set([...DL_BASE,...S.cats,...S.dls.map(d=>d.type).filter(Boolean)])];
+let dueFilter='open';
+
+function whenHTML(d){
+  if(d.done){
+    const tag=leadTag(leadHours(d));
+    return '<span class="when calm">'+(tag?esc(tag.t):'Done')+'</span>';
+  }
+  const n=daysTo(d.date);
+  if(n<0)  return '<span class="when late">'+Math.abs(n)+'d late</span>';
+  if(n===0)return '<span class="when late">Today</span>';
+  if(n===1)return '<span class="when near">Tomorrow</span>';
+  if(n<=6) return '<span class="when near">'+n+' days</span>';
+  return '<span class="when calm">'+dateOf(d.date).toLocaleDateString(undefined,{day:'numeric',month:'short'})+'</span>';
+}
+function dueRowHTML(d){
+  const sub=subById(d.subId);
+  return '<div class="row dlRow'+(d.done?' done':'')+'" data-dl="'+d.id+'">'+
+    '<button class="dlChk'+(d.done?' on':'')+'" data-tick="'+d.id+'">✓</button>'+
+    '<button class="rMain tap" data-open="'+d.id+'" style="background:none;text-align:left;padding:0">'+
+      '<div class="rT">'+esc(d.title)+'</div>'+
+      '<div class="rS">'+(sub?'<span class="subChip '+scCls(sub)+'">'+esc(sub.code)+'</span> ':'')+
+        esc(d.type||'other')+'</div></button>'+
+    whenHTML(d)+'</div>';
+}
+function bindDueRows(root){
+  (root||document).querySelectorAll('[data-tick]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const d=S.dls.find(x=>x.id===b.dataset.tick); if(!d) return;
+    d.done=!d.done;
+    if(d.done){ d.doneAt=Date.now(); const t=leadTag(leadHours(d));
+      toast(t? T('Completed.','Done.',t.t+' — nice.',t.t+'.') : 'Done.');
+    } else delete d.doneAt;
     save(); renderAll();
   });
-  const thr=$('#thr');
-  if(thr) thr.onchange=()=>{ S.thr=Math.min(100,Math.max(1,+thr.value||67)); save(); renderAtt(); renderSettings(); };
-}
-
-const pctFmt=n=>{ const r=Math.round(n*10)/10; return r%1===0?String(Math.round(r)):r.toFixed(1); };
-function renderMonthTbl(){
-  const box=$('#monthWise'); if(!box)return;
-  const byM={};
-  Object.entries(S.marks).forEach(([k,v])=>{
-    if(v==='c')return;
-    const mo=k.slice(0,7);
-    const o=byM[mo]||(byM[mo]={p:0,t:0});
-    o.t++; if(v==='p')o.p++;
+  (root||document).querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{
+    const d=S.dls.find(x=>x.id===b.dataset.open); if(d) sheetDeadline(d);
   });
-  const rows=Object.entries(byM).sort();
-  if(!rows.length){ box.innerHTML=`<div class="empty">Month-wise attendance builds up as you mark classes in Today. (Backfilled counters count in totals above, but have no dates, so they can't appear per-month.)</div>`; return; }
-  let TP=0,TT=0;
-  box.innerHTML=`<table id="monthTbl"><tr><th>Month</th><th>Total</th><th>Present</th><th>Absent</th><th>P/Tot</th><th>%</th></tr>`+
-    rows.map(([mo,o])=>{ TP+=o.p; TT+=o.t;
-      const pct=pctFmt(o.p/o.t*100);
-      const d=new Date(mo+'-01').toLocaleDateString('en-IN',{month:'short',year:'numeric'});
-      return `<tr><td>${d}</td><td>${o.t}</td><td>${o.p}</td><td>${o.t-o.p}</td><td>${o.p}/${o.t}</td><td><span class="pctCell ${(o.p/o.t*100)>=S.thr?'ok':'bad'}">${pct}%</span></td></tr>`;
-    }).join('')+
-    `<tr><td>Total</td><td>${TT}</td><td>${TP}</td><td>${TT-TP}</td><td>${TP}/${TT}</td><td><span class="pctCell ${TP/TT*100>=S.thr?'ok':'bad'}">${pctFmt(TP/TT*100)}%</span></td></tr></table>`;
+}
+function renderDue(){
+  const f=[['open','To do'],['all','All'],['done','Done']];
+  $('#dueFilter').innerHTML='<div class="seg">'+f.map(x=>
+    '<button data-f="'+x[0]+'"'+(dueFilter===x[0]?' class="on"':'')+'>'+x[1]+'</button>').join('')+'</div>';
+  $$('#dueFilter button').forEach(b=>b.onclick=()=>{ dueFilter=b.dataset.f; renderDue(); });
+
+  let list=S.dls.slice();
+  if(dueFilter==='open') list=list.filter(d=>!d.done);
+  if(dueFilter==='done') list=list.filter(d=>d.done);
+  list.sort((a,b)=>(a.done-b.done)||a.date.localeCompare(b.date));
+
+  if(!list.length){
+    $('#dueList').innerHTML='<div class="empty"><div class="eE">'+(dueFilter==='done'?'📦':'✅')+'</div>'+
+      '<div class="eT">'+(dueFilter==='done'?'Nothing finished yet':
+        T('No items','Nothing due','All clear','Nothing due. Suspicious.'))+'</div>'+
+      '<div class="eS">'+(dueFilter==='done'?'Tick something off and it lands here.':
+        'Tap + at the top to add an assignment, internal or exam.')+'</div>'+
+      '<div style="height:16px"></div><button class="btn ghost sm" id="dueAdd" style="max-width:220px;margin:0 auto">Add a deadline</button></div>';
+    $('#dueAdd').onclick=()=>sheetDeadline(null);
+    renderProc(); return;
+  }
+  /* group */
+  const groups=[['Overdue',d=>!d.done&&daysTo(d.date)<0],
+                ['Today',  d=>!d.done&&daysTo(d.date)===0],
+                ['This week',d=>!d.done&&daysTo(d.date)>0&&daysTo(d.date)<=7],
+                ['Later',  d=>!d.done&&daysTo(d.date)>7],
+                ['Done',   d=>d.done]];
+  let h='';
+  groups.forEach(([name,fn])=>{
+    const g=list.filter(fn); if(!g.length) return;
+    h+='<div class="gHead">'+name+' · '+g.length+'</div><div class="pad"><div class="list">'+
+      g.map(dueRowHTML).join('')+'</div></div>';
+  });
+  $('#dueList').innerHTML=h;
+  bindDueRows($('#dueList'));
+  renderProc();
+}
+function sheetDeadline(dl,presetDate){
+  const ed=!!dl;
+  const cur=dl||{title:'',subId:'',type:'assignment',date:presetDate||todayISO(),note:''};
+  const body=
+    '<div class="list">'+
+      '<label class="row"><div class="rMain"><div class="rT">What’s due</div></div>'+
+        '<input type="text" id="dT" placeholder="Assignment 2" value="'+esc(cur.title)+'"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Date</div></div>'+
+        '<input type="date" id="dD" value="'+cur.date+'"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Subject</div></div>'+
+        '<select id="dS"><option value="">None</option>'+
+        S.subs.map(s=>'<option value="'+s.id+'"'+(s.id===cur.subId?' selected':'')+'>'+esc(s.name)+'</option>').join('')+
+        '</select></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Kind</div></div>'+
+        '<select id="dTy">'+dlTypes().map(t=>'<option value="'+esc(t)+'"'+(t===cur.type?' selected':'')+'>'+esc(t)+'</option>').join('')+
+        '<option value="__new">+ New kind…</option></select></label>'+
+      '<label class="row" id="rowNewTy" style="display:none"><div class="rMain"><div class="rT">Name it</div></div>'+
+        '<input type="text" id="dTyNew" placeholder="notebook submission"></label>'+
+    '</div>'+
+    '<div class="gHead tight">Note</div>'+
+    '<div class="list"><label class="row"><input type="text" id="dN" placeholder="Optional detail" '+
+      'value="'+esc(cur.note||'')+'" style="text-align:left"></label></div>'+
+    (ed?'<div style="height:18px"></div><button class="btn dangerBtn sm" id="dDel">Delete</button>':'');
+  openSheet({
+    title: ed?'Edit deadline':'New deadline', body, doneLabel:'Save',
+    onSave(){
+      const t=$('#dT').value.trim();
+      if(!t) return sheetError('Give it a name.'), false;
+      const date=$('#dD').value;
+      if(!date) return sheetError('Pick a date.'), false;
+      let type=$('#dTy').value;
+      if(type==='__new'){
+        type=$('#dTyNew').value.trim().toLowerCase();
+        if(!type) return sheetError('Name the new kind, or pick an existing one.'), false;
+        if(!DL_BASE.includes(type)&&!S.cats.includes(type)) S.cats.push(type);
+      }
+      const target=dl||{id:uid(),done:false};
+      Object.assign(target,{title:t,subId:$('#dS').value,type,date,note:$('#dN').value.trim()});
+      if(!dl) S.dls.push(target);
+      save(); renderAll(); toast(ed?'Updated.':'Deadline added.');
+    },
+    after(){
+      $('#dTy').onchange=()=>{
+        const n=$('#dTy').value==='__new';
+        $('#rowNewTy').style.display=n?'':'none';
+        if(n) $('#dTyNew').focus();
+      };
+      const d=$('#dDel');
+      if(d) d.onclick=()=>openAct({title:'Delete this?',msg:dl.title,
+        actions:[{label:'Delete',destructive:true,fn:()=>{
+          S.dls=S.dls.filter(x=>x.id!==dl.id); save(); closeSheet(); renderAll(); toast('Deleted.');
+        }}]});
+      if(!ed) setTimeout(()=>{ const i=$('#dT'); if(i) i.focus(); },260);
+    }
+  });
 }
 
-/* ── deadlines ── */
-/* ── procrastination meter ───────────────────────────────────────────
-   Lead time = how long before the deadline actually expired you ticked it.
-   Due moment is the END of the due day, so finishing on the day itself
-   still counts as cutting it fine rather than being late.            */
+/* ── procrastination meter ── */
 function leadHours(d){
   if(!d.done||!d.doneAt) return null;
-  const due=new Date(d.date+'T23:59:59').getTime();
-  return (due-d.doneAt)/3600000;
+  return (new Date(d.date+'T23:59:59').getTime()-d.doneAt)/3600000;
 }
 function leadTag(h){
-  if(h===null) return null;
-  if(h<0)   return {k:'late',  t:'Missed it'};
-  if(h<12)  return {k:'wire',  t:'Eleventh hour'};
-  if(h<48)  return {k:'close', t:'Cut it close'};
-  return              {k:'early', t:'Ahead of it'};
+  if(h===null||h===undefined) return null;
+  if(h<0)  return {k:'late', t:'Missed it'};
+  if(h<12) return {k:'wire', t:'Eleventh hour'};
+  if(h<48) return {k:'close',t:'Cut it close'};
+  return {k:'early',t:'Ahead of it'};
 }
 function procScore(){
   const done=S.dls.filter(d=>d.done&&d.doneAt);
   if(!done.length) return null;
   const recent=done.slice().sort((a,b)=>b.doneAt-a.doneAt).slice(0,10);
-  const avg=recent.reduce((n,d)=>n+Math.max(-24,Math.min(96,leadHours(d))),0)/recent.length;
-  const score=Math.round(Math.max(0,Math.min(100,100-(avg/72)*100)));
-  return {score,avg,n:done.length,recent:recent.length};
+  const avg=recent.reduce((n,d)=>n+clamp(leadHours(d),-24,96),0)/recent.length;
+  return {score:Math.round(clamp(100-(avg/72)*100,0,100)), avg, n:done.length};
 }
-const PROC_LINES=[
-  [0,15,'Suspiciously organised. Everything alright?'],
-  [15,35,'Annoyingly on top of things.'],
-  [35,55,'Respectably human. Neither hero nor cautionary tale.'],
-  [55,75,'Cutting it fine. Familiar.'],
-  [75,101,'You are the reason this app is named what it is.']
-];
+function procLine(score){
+  if(score<20) return T('Consistently ahead of deadlines.','You finish early.',
+    'You finish things early. Genuinely impressive.','Suspiciously organised. Everything alright?');
+  if(score<40) return T('Generally ahead of schedule.','Usually early.',
+    'Mostly ahead of things. Keep it up.','Annoyingly on top of things.');
+  if(score<60) return T('Completion times are close to due dates.','You finish around the deadline.',
+    'You finish near the deadline. Very normal.','Respectably human. Neither hero nor cautionary tale.');
+  if(score<80) return T('Completion typically occurs shortly before the deadline.','You cut it fine.',
+    'You do cut it a bit fine.','Cutting it fine. Familiar.');
+  return T('Completion typically occurs at or past the deadline.','You finish at the last minute.',
+    'Last-minute is your default setting.','You are the reason this app is named what it is.');
+}
 function renderProc(){
-  const host=$('#procMeter'); if(!host) return;
   const p=procScore();
   if(!p){
-    host.innerHTML='<div class="pmHead"><span class="pmTitle">Procrastination meter</span></div>'+
-      '<div class="pmEmpty">Nothing finished yet, so nothing to hold against you. Tick something off and the judging begins.</div>';
+    $('#procCard').innerHTML='<div class="gHead">Habit</div><div class="pad"><div class="card">'+
+      '<div class="kicker">How early you finish</div>'+
+      '<div style="font-size:14px;color:var(--label2);margin-top:9px;line-height:1.45">'+
+      T('No completed items yet.','Nothing finished yet — tick something off and this fills in.',
+        'Nothing finished yet. Tick something off and this starts tracking.',
+        'Nothing finished yet, so nothing to hold against you. Yet.')+'</div></div></div>';
     return;
   }
-  const line=(PROC_LINES.find(l=>p.score>=l[0]&&p.score<l[1])||PROC_LINES[2])[2];
-  const streak=(()=>{ let n=0; for(const d of S.dls.filter(x=>x.done&&x.doneAt).sort((a,b)=>b.doneAt-a.doneAt)){
-    if(leadHours(d)>=48) n++; else break; } return n; })();
-  const avgTxt=p.avg>=24?(Math.round(p.avg/24*10)/10)+' days':Math.round(Math.max(0,p.avg))+' hours';
-  host.innerHTML=
-    '<div class="pmHead"><span class="pmTitle">Procrastination meter</span>'+
-      '<span class="pmScore">'+p.score+'</span></div>'+
-    '<div class="pmTrack"><div class="pmFill" style="width:'+p.score+'%"></div>'+
-      '<div class="pmPin" style="left:'+p.score+'%"></div></div>'+
+  const streak=(()=>{ let n=0;
+    for(const d of S.dls.filter(x=>x.done&&x.doneAt).sort((a,b)=>b.doneAt-a.doneAt)){
+      if(leadHours(d)>=48) n++; else break; } return n; })();
+  const avgTxt = p.avg>=24 ? (Math.round(p.avg/24*10)/10)+' days' : Math.round(Math.max(0,p.avg))+' hours';
+  $('#procCard').innerHTML='<div class="gHead">Habit</div><div class="pad"><div class="card">'+
+    '<div style="display:flex;align-items:baseline;justify-content:space-between">'+
+      '<span class="kicker">How early you finish</span>'+
+      '<span style="font-size:26px;font-weight:800;letter-spacing:-.03em" class="tnum">'+p.score+'</span></div>'+
+    '<div class="pmTrack"><div class="pmPin" style="left:'+p.score+'%"></div></div>'+
     '<div class="pmEnds"><span>Early bird</span><span>Eleventh hour</span></div>'+
-    '<div class="pmLine">'+esc(line)+'</div>'+
-    '<div class="pmStats">'+
-      '<span><b>'+avgTxt+'</b>average lead time</span>'+
+    '<div style="font-size:14px;color:var(--label2);margin-top:13px;line-height:1.45">'+esc(procLine(p.score))+'</div>'+
+    '<div class="pmStats"><span><b>'+avgTxt+'</b>average lead time</span>'+
       '<span><b>'+streak+'</b>in a row done early</span>'+
-      '<span><b>'+p.n+'</b>finished so far</span>'+
-    '</div>';
-}
-const DL_BASE=['assignment','internal','exam','other'];
-function dlTypes(){
-  const used=S.dls.map(d=>d.type).filter(Boolean);
-  return [...new Set([...DL_BASE,...(S.cats||[]),...used])];
-}
-function dlTypeOpts(){
-  return dlTypes().map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
-}
-function renderDls(){
-  renderProc();
-  const list=S.dls.slice().sort((a,b)=>(a.done-b.done)||a.date.localeCompare(b.date));
-  $('#dlList').innerHTML=list.length?list.map(d=>{
-    const sub=subById(d.subId), n=daysTo(d.date);
-    const tag=leadTag(leadHours(d));
-    const when=d.done?(tag?`<b class="verdict v-${tag.k}">${tag.t}</b>`:'')
-      :n<0?`<b class="late">${Math.abs(n)}d overdue</b>`:n===0?`<b class="near">today</b>`:n<=3?`<b class="near">in ${n}d</b>`:`in ${n}d`;
-    return `<div class="dlRow${d.done?' done':''}">
-      <button class="dlChk${d.done?' on':''}" data-dn="${d.id}">✓</button>
-      <span class="dlT">${esc(d.title)}</span>
-      ${sub?`<span class="dlSub ${colorCls(sub)}">${esc(sub.code)}</span>`:''}
-      <span class="dlType">${d.type}</span>
-      <span class="dlDate">${d.date.slice(8)}/${d.date.slice(5,7)} · ${when}</span>
-      <button class="dlDel" data-del="${d.id}">✕</button></div>`;
-  }).join(''):`<div class="empty">No deadlines yet. Blessed, or just not entered?</div>`;
-  $('#dlForm').innerHTML=`
-    <input id="dfT" placeholder="What's due?" style="flex:1; min-width:170px">
-    <select id="dfS"><option value="">— general —</option>${S.subs.map(s=>`<option value="${s.id}">${esc(s.code)}</option>`).join('')}</select>
-    <select id="dfTy">${dlTypeOpts()}<option value="__new">＋ New category…</option></select>
-    <input id="dfTyNew" placeholder="Your category" style="width:150px; display:none">
-    <input id="dfD" type="date" value="${todayISO()}">
-    <button class="addBtn" id="dfAdd">Add</button>`;
-  $('#dfTy').onchange=()=>{
-    const isNew=$('#dfTy').value==='__new';
-    $('#dfTyNew').style.display=isNew?'':'none';
-    if(isNew) $('#dfTyNew').focus();
-  };
-  $('#dfAdd').onclick=()=>{
-    const t=$('#dfT').value.trim(); if(!t)return;
-    let type=$('#dfTy').value;
-    if(type==='__new'){
-      type=$('#dfTyNew').value.trim().toLowerCase();
-      if(!type)return;                                   /* need a name before it can be used */
-      if(!S.cats) S.cats=[];
-      if(!DL_BASE.includes(type)&&!S.cats.includes(type)) S.cats.push(type);
-    }
-    S.dls.push({id:uid(), title:t, subId:$('#dfS').value, type, date:$('#dfD').value, done:false});
-    save(); renderDls(); renderToday(); renderCal();
-  };
-  $$('#dlList .dlChk').forEach(b=>b.onclick=()=>{
-    const d=S.dls.find(x=>x.id===b.dataset.dn);
-    d.done=!d.done;
-    if(d.done) d.doneAt=Date.now(); else delete d.doneAt;
-    save(); renderDls(); renderToday(); renderCal();
-  });
-  $$('#dlList .dlDel').forEach(b=>b.onclick=()=>{ S.dls=S.dls.filter(x=>x.id!==b.dataset.del); save(); renderDls(); renderToday(); renderCal(); });
+      '<span><b>'+p.n+'</b>finished so far</span></div></div></div>';
 }
 
-/* ── calendar ── */
-let calY,calM;
+/* ══════════════ CALENDAR ══════════════ */
+let calY,calM,calSel=todayISO();
 function renderCal(){
   if(calY===undefined){ const n=new Date(); calY=n.getFullYear(); calM=n.getMonth(); }
   const first=new Date(calY,calM,1), padd=(first.getDay()+6)%7, days=new Date(calY,calM+1,0).getDate();
-  $('#calTitle').textContent=first.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
-  let h=['M','T','W','T','F','S','S'].map(d=>`<div class="calDow">${d}</div>`).join('');
-  for(let i=0;i<padd;i++) h+=`<div class="calD pad"></div>`;
+  $('#calBar').innerHTML='<div id="calTitle">'+first.toLocaleDateString(undefined,{month:'long',year:'numeric'})+'</div>'+
+    '<button class="calNav" id="calPrev">‹</button>'+
+    '<button class="calNav" id="calToday" style="width:auto;padding:0 12px;font-size:15px;font-weight:600">Today</button>'+
+    '<button class="calNav" id="calNext">›</button>';
+  $('#calPrev').onclick=()=>{ calM--; if(calM<0){calM=11;calY--;} renderCal(); };
+  $('#calNext').onclick=()=>{ calM++; if(calM>11){calM=0;calY++;} renderCal(); };
+  $('#calToday').onclick=()=>{ const n=new Date(); calY=n.getFullYear(); calM=n.getMonth(); calSel=todayISO(); renderCal(); };
+
+  let h=['M','T','W','T','F','S','S'].map(d=>'<div class="cDow">'+d+'</div>').join('');
+  for(let i=0;i<padd;i++) h+='<div class="cD pad"></div>';
   for(let d=1;d<=days;d++){
-    const iso=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const iso=calY+'-'+pad2(calM+1)+'-'+pad2(d);
     const items=S.dls.filter(x=>x.date===iso&&!x.done);
-    const shown=items.slice(0,2), extra=items.length-shown.length;
-    const short=t=>{ t=t.replace(/^.*?—\s*/,''); return t.length>18?t.slice(0,17)+'…':t; };
-    h+=`<div class="calD${iso===todayISO()?' today':''}" title="${esc(items.map(x=>x.title).join('\n'))}"><span class="n">${d}</span>${shown.map(x=>{
+    const dots=items.slice(0,3).map(x=>{
       const sub=subById(x.subId);
-      return `<span class="calDot ${sub?colorCls(sub):'c5'}">${esc(short(x.title))}</span>`;}).join('')}${extra>0?`<span class="calMore">+${extra} more</span>`:''}</div>`;
+      return '<i class="'+(sub?scCls(sub):'')+'"></i>';
+    }).join('');
+    h+='<button class="cD'+(iso===todayISO()?' today':'')+(iso===calSel?' sel':'')+'" data-c="'+iso+'">'+
+      d+'<span class="dots">'+dots+'</span></button>';
   }
-  $('#cal').innerHTML=h;
+  $('#calGrid').innerHTML=h;
+  $$('#calGrid [data-c]').forEach(b=>b.onclick=()=>{ calSel=b.dataset.c; renderCal(); });
+
+  /* selected day detail */
+  const d=dateOf(calSel);
+  const cls=slotsOn(dowOf(d),calSel).filter(s=>subById(s.subId));
+  const dls=S.dls.filter(x=>x.date===calSel);
+  let dh='<div class="gHead">'+d.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'})+'</div><div class="pad">';
+  if(!cls.length&&!dls.length){
+    dh+='<div class="list"><div class="row"><div class="rMain"><div class="rT" style="color:var(--label2);font-size:15px">Nothing on this day</div></div></div></div>';
+  }
+  if(dls.length) dh+='<div class="list">'+dls.map(dueRowHTML).join('')+'</div>';
+  if(cls.length){
+    dh+='<div style="height:8px"></div><div class="list">'+cls.map(sl=>{
+      const sub=subById(sl.subId);
+      return '<div class="row '+scCls(sub)+'"><span class="ico" style="background:var(--sc)"></span>'+
+        '<div class="rMain"><div class="rT">'+esc(sub.name)+(sl.kind==='tu'?' <span class="tag tu">Tut</span>':'')+'</div>'+
+        '<div class="rS">'+fmtT(sl.start)+'–'+fmtT(sl.end)+(sl.room?' · '+esc(sl.room):'')+'</div></div></div>';
+    }).join('')+'</div>';
+  }
+  dh+='<div style="height:12px"></div><button class="btn ghost sm" id="calAdd">+ Add something on this day</button></div>';
+  $('#calDay').innerHTML=dh;
+  bindDueRows($('#calDay'));
+  $('#calAdd').onclick=()=>sheetDeadline(null,calSel);
 }
 
-/* ── shell ── */
-function renderWeek(){
-  const host=$('#weekAhead'); if(!host) return;
-  const today=new Date(todayISO()+'T00:00');
-  let h='';
-  for(let i=0;i<7;i++){
-    const d=new Date(today); d.setDate(d.getDate()+i);
-    const iso=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    const dow=d.getDay();                    // 0 Sun … 6 Sat
-    const cls=slotsOn((dow+6)%7,iso).length;
-    const due=S.dls.filter(x=>x.due===iso).length;
-    h+='<div class="wDay'+(i===0?' today':'')+'">'+
-       '<div class="wD">'+['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow]+'</div>'+
-       '<div class="wN">'+d.getDate()+'</div>'+
-       '<div class="wC">'+(cls?cls+(cls===1?' class':' cls'):'—')+'</div>'+
-       (due?'<div class="wDot"></div>':'')+
-       '</div>';
-  }
-  host.innerHTML=h;
-}
+/* ══════════════ SETTINGS ══════════════ */
+const TONE_OPTS=[
+  ['pro','Professional','Plain, factual, no commentary.'],
+  ['plain','Neutral','Short and clear, a little warmth.'],
+  ['friendly','Friendly','Encouraging nudges. The default.'],
+  ['snark','Sarcastic','Dry, judgemental, occasionally rude.']
+];
 function renderSettings(){
-  const t=$('#thrSet'); if(t) t.value=S.thr;
-  const host=$('#subList'); if(!host) return;
-  host.innerHTML=S.subs.length
-    ? S.subs.map(sb=>'<div class="subChip"><span>'+esc(sb.name)+'</span>'+
-        (sb.code?'<span style="color:var(--faint);font-size:11px">'+esc(sb.code)+'</span>':'')+
-        '<button class="x" data-rmsub="'+sb.id+'" title="Remove">\u00D7</button></div>').join('')
-    : '<div class="sS" style="color:var(--faint)">No subjects yet.</div>';
-  $$('#subList [data-rmsub]').forEach(b=>b.onclick=()=>{
-    if(b.dataset.armed!=='1'){ b.dataset.armed='1'; b.textContent='remove?'; b.style.fontSize='11px'; setTimeout(()=>{b.dataset.armed='0';b.textContent='\u00D7';b.style.fontSize='';},2600); return; }
-    const id=b.dataset.rmsub;
-    S.subs=S.subs.filter(x=>x.id!==id);
-    S.slots=S.slots.filter(x=>x.sub!==id);
-    delete S.att[id];
-    save(); renderAll();
-  });
+  const themeOpts=[['auto','Auto'],['light','Light'],['dark','Dark']];
+  let h='';
+  h+='<div class="gHead tight">Appearance</div><div class="pad"><div class="list">'+
+    '<div class="row"><div class="rMain"><div class="rT">Theme</div>'+
+      '<div class="rS">Auto follows your phone</div></div>'+
+      '<div class="seg" id="thSeg" style="width:180px">'+themeOpts.map(t=>
+        '<button data-th="'+t[0]+'"'+(S.theme===t[0]?' class="on"':'')+'>'+t[1]+'</button>').join('')+
+      '</div></div></div></div>';
+
+  h+='<div class="gHead">How it talks to you</div><div class="pad"><div class="list">'+
+    TONE_OPTS.map(t=>'<button class="row tap" data-tone="'+t[0]+'">'+
+      '<div class="rMain"><div class="rT">'+t[1]+'</div><div class="rS">'+t[2]+'</div></div>'+
+      (S.tone===t[0]?'<span class="chk">✓</span>':'')+'</button>').join('')+
+    '</div><div class="gNote">Right now: “'+esc(greetLine())+'”</div></div>';
+
+  h+='<div class="gHead">Attendance</div><div class="pad"><div class="list">'+
+    '<label class="row"><div class="rMain"><div class="rT">Minimum required</div>'+
+      '<div class="rS">Used for every safe-to-skip calculation</div></div>'+
+      '<input type="number" id="setThr" min="1" max="100" value="'+S.thr+'" '+
+      'style="width:66px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
+      '<span style="color:var(--label2)">%</span></label></div></div>';
+
+  h+='<div class="gHead">Subjects</div><div class="pad"><div class="list">'+
+    (S.subs.length? S.subs.map(s=>'<button class="row tap '+scCls(s)+'" data-sub="'+s.id+'">'+
+      '<span class="ico" style="background:var(--sc);font-size:11px;font-weight:700">'+esc(s.code.slice(0,3))+'</span>'+
+      '<div class="rMain"><div class="rT">'+esc(s.name)+'</div>'+
+      '<div class="rS">'+S.slots.filter(x=>x.subId===s.id).length+' class slots</div></div>'+
+      '<span class="chev">›</span></button>').join('')
+      : '<div class="row"><div class="rMain"><div class="rT" style="color:var(--label2);font-size:15px">No subjects yet</div></div></div>')+
+    '<button class="row tap" id="addSub"><span class="ico" style="background:var(--accent)">+</span>'+
+      '<div class="rMain"><div class="rT" style="color:var(--accent)">Add a subject</div></div></button>'+
+    '</div></div>';
+
+  h+='<div class="gHead">Data</div><div class="pad"><div class="list">'+
+    '<button class="row tap" id="expBtn"><div class="rMain"><div class="rT">Export a backup</div>'+
+      '<div class="rS">Everything, as one file</div></div><span class="chev">›</span></button>'+
+    '<button class="row tap" id="impBtn"><div class="rMain"><div class="rT">Restore a backup</div>'+
+      '<div class="rS">Replaces what’s on this device</div></div><span class="chev">›</span></button>'+
+    '<button class="row tap" id="demoBtn"><div class="rMain"><div class="rT">Load example data</div>'+
+      '<div class="rS">A filled-in semester to look around</div></div><span class="chev">›</span></button>'+
+    '<button class="row tap" id="tourBtn"><div class="rMain"><div class="rT">Show the tour again</div></div>'+
+      '<span class="chev">›</span></button>'+
+    '<button class="row tap danger" id="wipeBtn"><div class="rMain"><div class="rT">Erase everything</div>'+
+      '<div class="rS">Clears this device. Export first.</div></div></button>'+
+    '</div></div>';
+
+  h+='<div class="gNote" style="text-align:center;padding-top:26px;color:var(--label3)">11:59 · v2.0<br>'+
+     'Everything stays on this device. No account, no cloud.</div>';
+  $('#setBody').innerHTML=h;
+
+  $$('#thSeg button').forEach(b=>b.onclick=()=>{ S.theme=b.dataset.th; save(); applyTheme(); renderSettings(); });
+  $$('[data-tone]').forEach(b=>b.onclick=()=>{ S.tone=b.dataset.tone; save(); renderSettings(); toast('Tone: '+TONE_OPTS.find(t=>t[0]===S.tone)[1]); });
+  $('#setThr').onchange=e=>{ S.thr=clamp(parseInt(e.target.value)||67,1,100); e.target.value=S.thr; save(); renderAll(); };
+  $$('[data-sub]').forEach(b=>b.onclick=()=>sheetSubject(subById(b.dataset.sub)));
+  $('#addSub').onclick=()=>sheetSubject(null);
+  $('#expBtn').onclick=doExport;
+  $('#impBtn').onclick=()=>$('#impFile').click();
+  $('#demoBtn').onclick=()=>{
+    openAct({title:'Load example data?', msg:S.subs.length?'This replaces everything currently in the app.':'A filled-in semester so you can see how it works.',
+      actions:[{label:'Load example data', destructive:S.subs.length>0, fn:()=>{ loadDemo(); toast('Example data loaded.'); }}]});
+  };
+  $('#tourBtn').onclick=()=>showIntro(true);
+  $('#wipeBtn').onclick=()=>openAct({title:'Erase everything?', msg:'Subjects, timetable, attendance and deadlines. This cannot be undone.',
+    actions:[{label:'Erase everything', destructive:true, fn:()=>{
+      const keepTheme=S.theme, keepTone=S.tone;
+      S={subs:[],slots:[],marks:{},att:{},dls:[],cats:[],thr:67,theme:keepTheme,tone:keepTone,tab:'home'};
+      save(); renderAll(); showTab('home'); toast('Erased.');
+    }}]});
 }
-function renderAll(){ renderToday(); renderWeek(); renderGrid(); renderAtt(); renderDls(); renderCal(); renderSettings(); }
-$$('#tabbar button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-$('#setTop').onclick=()=>showTab(S.tab==='settings'?'home':'settings');
-$('#rmToggle').onclick=()=>{ rmMode=!rmMode; renderGrid(); };
-$$('#themeSeg button').forEach(b=>b.onclick=()=>{ S.theme=(b.dataset.th==='light'||b.dataset.th==='dark')?b.dataset.th:'auto'; save(); applyTheme(); });
-$('#thrSet').onchange=e=>{ const v=parseInt(e.target.value)||67; S.thr=Math.min(100,Math.max(1,v)); e.target.value=S.thr; save(); renderAll(); };
-$('#wipeBtn').onclick=e=>{
-  const b=e.target;
-  if(b.dataset.armed!=='1'){ b.dataset.armed='1'; b.textContent='Tap again'; setTimeout(()=>{b.dataset.armed='0';b.textContent='Erase';},2800); return; }
-  try{ localStorage.removeItem('sem5plan'); }catch(err){}
-  S={subs:[],slots:[],marks:{},att:{},dls:[],thr:67,theme:S.theme,themeV2:1,tab:'home'};
-  save(); renderAll(); showTab('home');
-};
-$('#calPrev').onclick=()=>{ calM--; if(calM<0){calM=11;calY--;} renderCal(); };
-$('#calNext').onclick=()=>{ calM++; if(calM>11){calM=0;calY++;} renderCal(); };
-$('#expBtn').onclick=()=>{
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));
-  a.download='sem5-planner.json'; a.click();
-};
-$('#impBtn').onclick=()=>$('#impFile').click();
+function doExport(){
+  try{
+    const blob=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='1159-backup-'+todayISO()+'.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+    toast('Backup saved.');
+  }catch(e){ toast('Couldn’t export here.'); }
+}
 $('#impFile').onchange=e=>{
-  const f=e.target.files[0]; if(!f)return;
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
   const r=new FileReader();
-  r.onload=()=>{ try{ S=Object.assign(S,JSON.parse(r.result)); save(); 
-      }catch(err){ $('#impBtn').textContent='Invalid file'; setTimeout(()=>$('#impBtn').textContent='Import',2500); } };
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!d||typeof d!=='object'||!Array.isArray(d.subs)) throw 0;
+      S=Object.assign({subs:[],slots:[],marks:{},att:{},dls:[],cats:[],thr:67,theme:S.theme,tone:S.tone,tab:'home'},d);
+      if(!Array.isArray(S.cats)) S.cats=[];
+      S.subs.forEach((s,i)=>{ if(typeof s.ci!=='number') s.ci=i%8; });
+      save(); renderAll(); showTab('home'); toast('Backup restored.');
+    }catch(err){ toast('That file didn’t look right.'); }
+  };
   r.readAsText(f);
+  e.target.value='';
 };
 
-/* ── demo seed (your real Sem-IV numbers from the ERP screenshot,
-     plus made-up deadlines/timetable so you can see every screen
-     working before you enter this semester's real data) ── */
+/* ══════════════ DEMO DATA ══════════════ */
 function demoState(){
-  const iso=(y,m,d)=>y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-  const off=(n)=>{ const d=new Date(); d.setDate(d.getDate()+n); return iso(d.getFullYear(),d.getMonth()+1,d.getDate()); };
+  const off=n=>isoOf(addDays(new Date(),n));
   const subs=[
-    {id:'d-ca', name:'Cost Accounting', code:'CA'},
-    {id:'d-ie', name:'Indian Economy',  code:'IE'},
-    {id:'d-ib', name:'International Business', code:'IB'},
-    {id:'d-bs', name:'Business Statistics', code:'BS'},
+    {id:'d-ca',name:'Cost Accounting',code:'CA',ci:0},
+    {id:'d-ie',name:'Indian Economy',code:'IE',ci:1},
+    {id:'d-ib',name:'International Business',code:'IB',ci:2},
+    {id:'d-bs',name:'Business Statistics',code:'BS',ci:3}
   ];
   const slots=[
     {id:'sl1',subId:'d-ca',day:0,kind:'th',start:'09:00',end:'10:00',room:'B-12'},
-    {id:'sl2',subId:'d-ca',day:2,kind:'tu',start:'09:00',end:'09:40',room:'B-12'},
-    {id:'sl3',subId:'d-ie',day:0,kind:'th',start:'10:10',end:'11:10',room:'A-4'},
-    {id:'sl4',subId:'d-ie',day:3,kind:'tu',start:'11:20',end:'12:00',room:'A-4'},
-    {id:'sl5',subId:'d-ib',day:1,kind:'th',start:'09:00',end:'10:00',room:'C-2'},
-    {id:'sl6',subId:'d-ib',day:4,kind:'tu',start:'12:10',end:'12:50',room:'C-2'},
-    {id:'sl7',subId:'d-bs',day:1,kind:'th',start:'10:10',end:'11:10',room:'B-6'},
-    {id:'sl8',subId:'d-bs',day:2,kind:'th',start:'11:20',end:'12:20',room:'B-6'},
+    {id:'sl2',subId:'d-ie',day:0,kind:'th',start:'10:10',end:'11:10',room:'A-4'},
+    {id:'sl3',subId:'d-ib',day:1,kind:'th',start:'09:00',end:'10:00',room:'C-2'},
+    {id:'sl4',subId:'d-bs',day:1,kind:'th',start:'10:10',end:'11:10',room:'B-6'},
+    {id:'sl5',subId:'d-ca',day:2,kind:'tu',start:'09:00',end:'09:40',room:'B-12'},
+    {id:'sl6',subId:'d-bs',day:2,kind:'th',start:'11:20',end:'12:20',room:'B-6'},
+    {id:'sl7',subId:'d-ie',day:3,kind:'tu',start:'11:20',end:'12:00',room:'A-4'},
+    {id:'sl8',subId:'d-ib',day:4,kind:'tu',start:'12:10',end:'12:50',room:'C-2'}
   ];
-  /* dated marks reconstruct your exact Sem-IV ERP totals below, spread
-     across Jan–Apr so the month-wise table has something to show. Real
-     per-class dates aren't in the ERP export, so the month split itself
-     is illustrative — the TOTALS match your screenshot exactly. */
   const marks={};
-  const months=[[2026,1],[2026,2],[2026,3],[2026,4]];
-  function spread(subId,kind,pTot,aTot){
-    const per=n=>{ const base=Math.floor(n/4), rem=n%4, out=[base,base,base,base]; for(let i=0;i<rem;i++)out[3-i]++; return out; };
-    const ps=per(pTot), as=per(aTot);
+  const now=new Date();
+  const months=[[now.getFullYear(),now.getMonth()-2],[now.getFullYear(),now.getMonth()-1],[now.getFullYear(),now.getMonth()]]
+    .map(([y,m])=>{ const d=new Date(y,m,1); return [d.getFullYear(),d.getMonth()+1]; });
+  function spread(subId,kind,p,a){
+    const per=n=>{const b=Math.floor(n/3),r=n%3,o=[b,b,b];for(let i=0;i<r;i++)o[2-i]++;return o;};
+    const ps=per(p), as=per(a);
     months.forEach(([y,m],mi)=>{
       let day=2;
-      for(let i=0;i<ps[mi];i++){ marks[iso(y,m,Math.min(27,day))+'|demo-'+subId+kind+mi+i+'p|'+subId+'|'+kind]='p'; day+=2; }
-      for(let i=0;i<as[mi];i++){ marks[iso(y,m,Math.min(27,day))+'|demo-'+subId+kind+mi+i+'a|'+subId+'|'+kind]='a'; day+=2; }
+      for(let i=0;i<ps[mi];i++){ marks[y+'-'+pad2(m)+'-'+pad2(Math.min(27,day))+'|dm'+subId+kind+mi+i+'p|'+subId+'|'+kind]='p'; day+=2; }
+      for(let i=0;i<as[mi];i++){ marks[y+'-'+pad2(m)+'-'+pad2(Math.min(27,day))+'|dm'+subId+kind+mi+i+'a|'+subId+'|'+kind]='a'; day+=2; }
     });
   }
   spread('d-ca','th',9,19);  spread('d-ca','tu',1,8);
@@ -1098,103 +1743,82 @@ function demoState(){
   spread('d-ib','th',21,13); spread('d-ib','tu',10,4);
   spread('d-bs','th',17,16);
   const dls=[
-    {id:'dm1', title:'Cost Accounting — Assignment 2 (Marginal Costing)', subId:'d-ca', type:'assignment', date:off(-2), done:false},
-    {id:'dm2', title:'Indian Economy — Reading response', subId:'d-ie', type:'assignment', date:off(1), done:false},
-    {id:'dm3', title:'International Business — Case study submission', subId:'d-ib', type:'assignment', date:off(3), done:false},
-    {id:'dm4', title:'Business Statistics — Internal Assessment I', subId:'d-bs', type:'internal', date:off(6), done:false},
-    {id:'dm5', title:'Cost Accounting — Internal Exam', subId:'d-ca', type:'exam', date:off(11), done:false},
-    {id:'dm6', title:'International Business — Mid-sem', subId:'d-ib', type:'exam', date:off(18), done:false},
-    {id:'dm7', title:'Society membership renewal', subId:'', type:'other', date:off(9), done:false},
-    {id:'dm8', title:'Indian Economy — Term paper draft', subId:'d-ie', type:'assignment', date:off(-6), done:true},
-    {id:'dm9', title:'Business Statistics — End-sem', subId:'d-bs', type:'exam', date:off(34), done:false},
+    {id:'dm1',title:'Cost Accounting — Assignment 2',subId:'d-ca',type:'assignment',date:off(-2),done:false},
+    {id:'dm2',title:'Indian Economy — Reading response',subId:'d-ie',type:'assignment',date:off(1),done:false},
+    {id:'dm3',title:'International Business — Case study',subId:'d-ib',type:'assignment',date:off(3),done:false},
+    {id:'dm4',title:'Business Statistics — Internal I',subId:'d-bs',type:'internal',date:off(6),done:false},
+    {id:'dm5',title:'Cost Accounting — Internal exam',subId:'d-ca',type:'exam',date:off(11),done:false},
+    {id:'dm6',title:'Society membership renewal',subId:'',type:'other',date:off(9),done:false},
+    {id:'dm7',title:'Indian Economy — Term paper draft',subId:'d-ie',type:'assignment',date:off(-6),done:true,doneAt:Date.now()-6*864e5},
+    {id:'dm8',title:'Business Statistics — End-sem',subId:'d-bs',type:'exam',date:off(34),done:false}
   ];
-  return {subs, slots, marks, att:{}, dls, thr:67, theme:S.theme};
+  return {subs,slots,marks,att:{},dls,cats:[],thr:S.thr,theme:S.theme,tone:S.tone,tab:S.tab};
 }
-function loadDemo(force){
-  if(S.subs.length && !force){
-    const b=$('#demoBtn');
-    const lbl=b.dataset.label||(b.dataset.label=b.textContent);
-    if(!b.dataset.armed){ b.dataset.armed='1'; b.textContent='Replace everything?'; setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent=lbl; } },3000); return; }
-    delete b.dataset.armed; b.textContent=lbl;
-  }
-  S=Object.assign(S, demoState());
-  save(); renderAll();
-}
+function loadDemo(){ S=Object.assign({},S,demoState()); save(); renderAll(); showTab('home'); }
 
-$('#demoBtn').onclick=loadDemo;
-if(!S.subs.length) loadDemo(true);
-/* ── first-run guide ── */
-const GUIDE_VERSION='1';
-const GUIDE=[
-  {e:'🕚', t:'This is <em>The Eleventh Hour</em>',
-   h:'Your timetable, attendance and deadlines — in one place, on your phone, offline. Named after when you\'ll probably open it.',
-   k:'Everything stays on this device. No account, no cloud, no excuses.'},
-  {e:'📱', t:'Six tabs, no scrolling',
-   h:'The bar along the bottom is the whole app: <b>Home</b>, <b>Timetable</b>, <b>Attendance</b>, <b>Due</b>, <b>Calendar</b>, <b>Settings</b>. One screen each.',
-   k:'Home is your glance — today\'s classes, the week ahead, and what\'s coming due.'},
-  {e:'🗓️', t:'Build your week',
-   h:'In <b>Settings</b>, load the demo to see it filled in, then add your own subjects. Add classes in <b>Timetable</b> — each one tagged theory or tutorial.',
-   k:'Mark attendance straight on the timetable — one tap per class, present, absent or cancelled.'},
-  {e:'📊', t:'Attendance that does the maths',
-   h:'The <b>Attendance</b> tab tracks your percentage per subject against the minimum you set, and tells you how many classes you can still afford to miss.',
-   k:'Set your required percentage in Settings — the safe-to-bunk maths follows it.'},
-  {e:'⏳', t:'The procrastination meter',
-   h:'Add deadlines in <b>Due</b>. When you tick one off, the app quietly notes <b>how early</b> you did it — and scores you from <b>Early bird</b> to <b>Eleventh hour</b>.',
-   k:'It starts blank and builds a picture of you over the term. No judging yet — that comes later.'},
-  {e:'💬', t:'It has opinions',
-   h:'Don\'t be surprised when it comments on your habits. That\'s the point. The whole app is a slightly sarcastic nudge to stop leaving things to — well, the eleventh hour.',
-   k:'Back it up now and then from Settings. Then go attend a class.'}
+/* ══════════════ ONBOARDING ══════════════ */
+const INTRO_V='2';
+const INTRO=[
+  {e:'🕛', t:'11:59',
+   p:'Your timetable, attendance and deadlines — in one place, on your phone, offline. Named after when you’ll probably open it.'},
+  {e:'✅', t:'Mark classes in one tap',
+   p:'<b>Today</b> shows what you have, in order. Tap <b>Present</b> or <b>Absent</b> and the maths updates everywhere.'},
+  {e:'🧮', t:'Know before you skip',
+   p:'Every class shows what skipping it would do to your percentage — <b>before</b> you decide. Set your minimum in Settings.'},
+  {e:'📅', t:'One day at a time',
+   p:'<b>Classes</b> shows a single day, big enough to read. <b>Swipe left or right</b> to move between days.'},
+  {e:'💬', t:'Pick how it talks',
+   p:'This app has a voice, and you choose how much of it you want.', tone:true}
 ];
-const APP_VERSION='1.2';
-const WHATS_NEW=[
-  'The tab bar floats now — a rounded glass strip you can see the page through as you scroll under it.',
-  'Sunday is a real column — add classes on it like any other day.',
-  'Extra one-off classes: pick “Just once” and a date, and it shows on that date only. It never becomes permanent, so there is nothing to remember to delete.',
-  'A Remove button above the timetable — tap it, every class wiggles, tap the × on the one you want gone.',
-  'Deadlines take your own categories — pick “＋ New category…” and type something like notebook submission.'
-];
-function showWhatsNew(){
-  const $g=document.querySelector('#guide');
-  let seen=null; try{ seen=localStorage.getItem('eh-seen-version'); }catch(e){ return; }
-  if(seen===APP_VERSION) return;
-  try{ localStorage.setItem('eh-seen-version',APP_VERSION); }catch(e){}
-  /* a first-time user gets the tour instead — they have no "before" to compare against */
-  let guideSeen=null; try{ guideSeen=localStorage.getItem('eh-guide-seen'); }catch(e){}
-  if(!guideSeen) return;
-  document.querySelector('#gDots').innerHTML='';
-  document.querySelector('#gTrack').innerHTML='<i style="width:100%"></i>';
-  document.querySelector('#gBody').innerHTML=
-    '<span class="gEmoji">✨</span><div class="gTitle">What\u2019s new <em>in 11:59</em></div>'+
-    '<ul class="gList">'+WHATS_NEW.map(t=>'<li>'+t+'</li>').join('')+'</ul>';
-  document.querySelector('#gNext').textContent='Got it';
-  document.querySelector('#gSkip').style.visibility='hidden';
-  document.querySelector('#gNext').onclick=()=>$g.setAttribute('hidden','');
-  $g.removeAttribute('hidden');
-}
-function showGuide(force){
-  const $g=document.querySelector('#guide');
-  if(!force){ try{ if(localStorage.getItem('eh-guide-seen')===GUIDE_VERSION) return; }catch(e){ return; } }
+function showIntro(force){
+  if(!force){
+    let seen=null; try{ seen=localStorage.getItem('eh-intro'); }catch(e){ return; }
+    if(seen===INTRO_V) return;
+  }
   let i=0;
-  document.querySelector('#gDots').innerHTML=GUIDE.map(()=>'<i></i>').join('');
+  const el=$('#intro');
+  $('#introDots').innerHTML=INTRO.map(()=>'<i></i>').join('');
   function paint(){
-    const s=GUIDE[i];
-    document.querySelector('#gBody').innerHTML='<span class="gEmoji">'+s.e+'</span>'+
-      '<div class="gTitle">'+s.t+'</div><div class="gText">'+s.h+'</div>'+
-      (s.k?'<div class="gKey">'+s.k+'</div>':'');
-    document.querySelector('#gTrack').innerHTML='<i style="width:'+Math.round((i+1)/GUIDE.length*100)+'%"></i>';
-    [...document.querySelectorAll('#gDots i')].forEach((d,n)=>d.classList.toggle('on',n===i));
-    document.querySelector('#gNext').textContent = i===GUIDE.length-1 ? 'Start' : 'Next';
-    document.querySelector('#gSkip').style.visibility = i===GUIDE.length-1 ? 'hidden' : 'visible';
+    const s=INTRO[i];
+    $('#introBody').innerHTML='<div class="iE">'+s.e+'</div><h2>'+s.t+'</h2><p>'+s.p+'</p>'+
+      (s.tone?'<div class="iList"><div class="list">'+TONE_OPTS.map(t=>
+        '<button class="row tap" data-itone="'+t[0]+'"><div class="rMain"><div class="rT">'+t[1]+'</div>'+
+        '<div class="rS">'+t[2]+'</div></div>'+(S.tone===t[0]?'<span class="chk">✓</span>':'')+
+        '</button>').join('')+'</div></div>':'');
+    $$('#introBody [data-itone]').forEach(b=>b.onclick=()=>{ S.tone=b.dataset.itone; save(); paint(); });
+    [...$('#introDots').children].forEach((d,n)=>d.classList.toggle('on',n===i));
+    $('#introNext').textContent = i===INTRO.length-1 ? 'Start' : 'Continue';
+    $('#introSkip').style.visibility = i===INTRO.length-1 ? 'hidden' : 'visible';
   }
-  function done(){ try{ localStorage.setItem('eh-guide-seen',GUIDE_VERSION); localStorage.setItem('eh-seen-version',APP_VERSION); }catch(e){} $g.setAttribute('hidden',''); }
-  $g.removeAttribute('hidden'); paint();
-  document.querySelector('#gNext').onclick=()=>{ if(i<GUIDE.length-1){ i++; paint(); } else done(); };
-  document.querySelector('#gSkip').onclick=done;
+  function done(){ try{ localStorage.setItem('eh-intro',INTRO_V); }catch(e){} el.setAttribute('hidden',''); renderAll(); }
+  $('#introNext').onclick=()=>{ if(i<INTRO.length-1){ i++; paint(); } else done(); };
+  $('#introSkip').onclick=done;
+  el.removeAttribute('hidden'); paint();
 }
-const _gb=document.querySelector('#guideBtn'); if(_gb) _gb.onclick=()=>showGuide(true);
 
-applyTheme(); renderAll(); showTab(S.tab||'home');
-showGuide(false); showWhatsNew();
+/* ══════════════ BOOT ══════════════ */
+function renderAll(){
+  renderTabs(); navButtons();
+  if(S.tab==='home') renderHome();
+  else if(S.tab==='timetable') renderTT();
+  else if(S.tab==='attendance') renderAtt();
+  else if(S.tab==='deadlines') renderDue();
+  else if(S.tab==='calendar') renderCal();
+  else if(S.tab==='settings') renderSettings();
+}
+applyTheme();
+if(!TABS.some(t=>t.id===S.tab) && S.tab!=='settings') S.tab='home';
+showTab(S.tab);
+showIntro(false);
+
+/* re-render when the app comes back after a while (day may have changed) */
+let hiddenAt=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) hiddenAt=Date.now();
+  else if(Date.now()-hiddenAt>60000) renderAll();
+});
+/* keep "in class now" fresh */
+setInterval(()=>{ if(S.tab==='home' && !$('#sheet').classList.contains('on')) renderHome(); }, 60000);
 </script>
 </body>
 </html>
