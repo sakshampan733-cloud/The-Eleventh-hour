@@ -216,6 +216,8 @@ button.row:active,.tap:active{background:var(--card-press)}
 .tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
   padding:2px 7px;border-radius:5px;background:var(--fill);color:var(--label2);vertical-align:2px}
 .tag.tu{background:color-mix(in srgb,var(--sc) 18%,transparent);color:var(--sc)}
+.tag.pr{background:color-mix(in srgb,var(--purple) 20%,transparent);color:var(--purple)}
+.tag.online{background:color-mix(in srgb,var(--teal) 20%,transparent);color:var(--teal)}
 .pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
   padding:3px 9px;border-radius:99px}
 .pill.ok{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
@@ -224,6 +226,8 @@ button.row:active,.tap:active{background:var(--card-press)}
 @supports not (background:color-mix(in srgb,red 10%,blue)){
   .pill.ok{background:var(--fill)} .pill.no{background:var(--fill)} .pill.mid{background:var(--fill)}
   .tag.tu{background:var(--fill)}
+  .tag.pr{background:var(--fill);color:var(--purple)}
+  .tag.online{background:var(--fill);color:var(--teal)}
 }
 
 /* ── stat tiles ──────────────────────────────────────────── */
@@ -260,7 +264,9 @@ button.row:active,.tap:active{background:var(--card-press)}
 #ttHead{display:flex;align-items:center;gap:10px;padding:12px 20px 8px}
 #ttHead .h{font-size:20px;font-weight:700;letter-spacing:-.02em;flex:1}
 #ttHead .w{font-size:13px;color:var(--label2)}
-#ttBody{padding:0 16px;touch-action:pan-y}
+#ttBody{padding:0 16px;transition:transform .18s ease-out}
+#timetable{touch-action:pan-y}
+#dayStrip,#ttHead{touch-action:pan-y}
 #ttBody.slideL{animation:slL .26s ease}
 #ttBody.slideR{animation:slR .26s ease}
 @keyframes slL{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
@@ -384,9 +390,10 @@ button.row:active,.tap:active{background:var(--card-press)}
 #tabbar button.on{color:var(--accent)}
 #tabbar button:active svg{transform:scale(.88)}
 #tabbar button svg{transition:transform .16s}
-.badge{position:absolute;top:4px;margin-left:17px;min-width:16px;height:16px;border-radius:99px;
+.badge{position:absolute;top:-3px;left:50%;margin-left:4px;min-width:16px;height:16px;border-radius:99px;
   background:var(--red);color:#fff;font-size:10.5px;font-weight:700;display:flex;
-  align-items:center;justify-content:center;padding:0 4px}
+  align-items:center;justify-content:center;padding:0 4px;
+  box-shadow:0 0 0 2px var(--nav);pointer-events:none}
 
 /* ── toast ───────────────────────────────────────────────── */
 #toast{
@@ -528,6 +535,19 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const DAYS  = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const DAYSL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
+/* class kinds — theory / tutorial / practical. "online" is a separate flag,
+   so any kind can also be an online class. */
+const KINDS = [['th','Theory'],['tu','Tutorial'],['pr','Practical']];
+const KIND_NAME = {th:'Theory', tu:'Tutorial', pr:'Practical'};
+const KIND_TAG  = {th:'', tu:'Tut', pr:'Prac'};
+const kindOf = sl => (sl && KIND_NAME[sl.kind]) ? sl.kind : 'th';
+/* the little badges on a class card */
+const kindTag = sl => KIND_TAG[kindOf(sl)]
+  ? ' <span class="tag '+kindOf(sl)+'">'+KIND_TAG[kindOf(sl)]+'</span>' : '';
+const onlineTag = sl => sl.online ? ' <span class="tag online">Online</span>' : '';
+/* where the class happens — a room, or "Online" */
+const placeOf = sl => sl.online ? 'Online' : (sl.room||'');
+
 const pad2 = n => String(n).padStart(2,'0');
 const isoOf = d => d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
 const todayISO = () => isoOf(new Date());
@@ -639,23 +659,27 @@ const markKey=(iso,sl)=> iso+'|'+sl.id+'|'+sl.subId+'|'+(sl.kind||'th');
 
 /* marks made on the timetable only (used to protect manual backfill) */
 function marksOnly(subId){
-  const th={p:0,a:0}, tu={p:0,a:0};
+  const th={p:0,a:0}, tu={p:0,a:0}, pr={p:0,a:0};
   for(const k in S.marks){
     const p=k.split('|'); if(p[2]!==subId) continue;
-    const c = p[3]==='tu' ? tu : th;
+    const c = p[3]==='tu' ? tu : p[3]==='pr' ? pr : th;
     if(S.marks[k]==='p') c.p++; else if(S.marks[k]==='a') c.a++;
   }
-  return {th,tu};
+  return {th,tu,pr};
 }
 /* backfilled counters + everything marked = the real numbers */
 function attFor(subId){
   const m=S.att[subId]||{};
   const th={p:(m.thp??m.p)||0, a:(m.tha??m.a)||0};
   const tu={p:m.tup||0, a:m.tua||0};
+  const pr={p:m.prp||0, a:m.pra||0};
   const d=marksOnly(subId);
-  th.p+=d.th.p; th.a+=d.th.a; tu.p+=d.tu.p; tu.a+=d.tu.a;
-  th.t=th.p+th.a; tu.t=tu.p+tu.a;
-  return {th,tu,p:th.p+tu.p,a:th.a+tu.a,t:th.t+tu.t};
+  th.p+=d.th.p; th.a+=d.th.a;
+  tu.p+=d.tu.p; tu.a+=d.tu.a;
+  pr.p+=d.pr.p; pr.a+=d.pr.a;
+  th.t=th.p+th.a; tu.t=tu.p+tu.a; pr.t=pr.p+pr.a;
+  return {th,tu,pr,
+    p:th.p+tu.p+pr.p, a:th.a+tu.a+pr.a, t:th.t+tu.t+pr.t};
 }
 const pctOf=(p,t)=> t? p/t*100 : 0;
 const pctFmt=n=>{ const r=Math.round(n*10)/10; return r%1===0?String(Math.round(r)):r.toFixed(1); };
@@ -868,8 +892,8 @@ function renderHome(){
         '<div class="hK"><span class="dot"></span>In class now</div>'+
         '<div class="hN">'+esc(sub.name)+'</div>'+
         '<div class="hM">'+fmtT(live.start)+'–'+fmtT(live.end)+
-          (live.room?' · '+esc(live.room):'')+
-          (live.kind==='tu'?' · Tutorial':'')+
+          (placeOf(live)?' · '+esc(placeOf(live)):'')+
+          (kindOf(live)!=='th'?' · '+KIND_NAME[kindOf(live)]:'')+
           ' · <b>'+fmtDur(t2m(live.end)-mins)+' left</b></div>'+
       '</div><div class="hAct">'+mkSegHTML(key)+
       (imp.has?'<div class="cls cSkip" style="background:none;padding:9px 0 0;border:none;margin:0;font-size:13px;color:var(--label2)">'+
@@ -882,8 +906,8 @@ function renderHome(){
       '<div class="hTop">'+
         '<div class="hK">Next up</div>'+
         '<div class="hN">'+esc(sub.name)+'</div>'+
-        '<div class="hM">'+fmtT(next.start)+(next.room?' · '+esc(next.room):'')+
-          (next.kind==='tu'?' · Tutorial':'')+' · <b>in '+fmtDur(gap)+'</b></div>'+
+        '<div class="hM">'+fmtT(next.start)+(placeOf(next)?' · '+esc(placeOf(next)):'')+
+          (kindOf(next)!=='th'?' · '+KIND_NAME[kindOf(next)]:'')+' · <b>in '+fmtDur(gap)+'</b></div>'+
       '</div>'+
       (imp.has?'<div class="hAct"><div style="font-size:14px;color:var(--label2);line-height:1.4">'+
         (imp.safe
@@ -942,7 +966,11 @@ function renderHome(){
   /* ── today's classes ── */
   let h='';
   if(todays.length){
-    h+='<div class="gHead">Today’s classes · '+greetLine()+'</div><div class="pad">';
+    h+='<div class="gHead">Today’s classes</div>'+
+       '<div class="pad" style="margin:-3px 0 12px">'+
+         '<div style="font-size:14.5px;color:var(--label2);line-height:1.4">'+esc(greetLine())+'</div>'+
+       '</div>'+
+       '<div class="pad">';
     todays.forEach(sl=>{
       const sub=subById(sl.subId), key=markKey(iso,sl), m=S.marks[key];
       const imp=skipImpact(sub.id);
@@ -951,9 +979,9 @@ function renderHome(){
         '<div class="cTop">'+
           '<div class="cTime">'+fmtT(sl.start)+'<br>'+fmtT(sl.end)+'</div>'+
           '<div class="cName">'+esc(sub.name)+
-            (sl.kind==='tu'?' <span class="tag tu">Tut</span>':'')+
+            kindTag(sl)+onlineTag(sl)+
             (sl.once?' <span class="tag">Once</span>':'')+
-            '<div class="cMeta">'+esc(sub.code)+(sl.room?' · '+esc(sl.room):'')+
+            '<div class="cMeta">'+esc(sub.code)+(placeOf(sl)?' · '+esc(placeOf(sl)):'')+
             (m?' · '+({p:'Present',a:'Absent',c:'Cancelled'}[m]):'')+'</div>'+
           '</div>'+
           '<button class="cMore" data-slot="'+sl.id+'" data-iso="'+iso+'">⋯</button>'+
@@ -1008,6 +1036,7 @@ function renderHome(){
 
 /* ══════════════ TIMETABLE (one day at a time) ══════════════ */
 let ttDate=new Date();
+let lastSwipe=0;                 /* set by the swipe handler, read by the day chips */
 function renderTT(){
   const iso=isoOf(ttDate), dow=dowOf(ttDate), tISO=todayISO();
   /* week strip: Monday of ttDate's week */
@@ -1021,7 +1050,10 @@ function renderTT(){
       (n?'<div class="dD"></div>':'<div class="dD" style="background:transparent"></div>')+'</button>';
   }
   $('#dayStrip').innerHTML=strip;
-  $$('#dayStrip .dChip').forEach(b=>b.onclick=()=>{ ttDate=dateOf(b.dataset.d); renderTT(); });
+  $$('#dayStrip .dChip').forEach(b=>b.onclick=()=>{
+    if(Date.now()-lastSwipe<400) return;      /* this click came from a swipe, not a tap */
+    ttDate=dateOf(b.dataset.d); renderTT();
+  });
 
   const diff=Math.round((dateOf(iso)-dateOf(tISO))/864e5);
   const dateTxt=ttDate.toLocaleDateString(undefined,{day:'numeric',month:'short'});
@@ -1056,9 +1088,9 @@ function renderTT(){
         '<div class="cTop">'+
           '<div class="cTime">'+fmtT(sl.start)+'<br>'+fmtT(sl.end)+'</div>'+
           '<div class="cName">'+esc(sub.name)+
-            (sl.kind==='tu'?' <span class="tag tu">Tut</span>':'')+
+            kindTag(sl)+onlineTag(sl)+
             (sl.once?' <span class="tag">Once</span>':'')+
-            '<div class="cMeta">'+esc(sub.code)+(sl.room?' · '+esc(sl.room):'')+
+            '<div class="cMeta">'+esc(sub.code)+(placeOf(sl)?' · '+esc(placeOf(sl)):'')+
             ' · '+fmtDur(t2m(sl.end)-t2m(sl.start))+'</div></div>'+
           '<button class="cMore" data-slot="'+sl.id+'" data-iso="'+iso+'">⋯</button>'+
         '</div>'+
@@ -1124,8 +1156,8 @@ function catchUpHTML(){
       const sub=subById(sl.subId);
       h+='<div class="cls '+scCls(sub)+'">'+
         '<div class="cTop"><div class="cTime">'+fmtT(sl.start)+'<br>'+fmtT(sl.end)+'</div>'+
-        '<div class="cName">'+esc(sub.name)+(sl.kind==='tu'?' <span class="tag tu">Tut</span>':'')+
-        '<div class="cMeta">'+esc(sub.code)+(sl.room?' · '+esc(sl.room):'')+'</div></div></div>'+
+        '<div class="cName">'+esc(sub.name)+kindTag(sl)+onlineTag(sl)+
+        '<div class="cMeta">'+esc(sub.code)+(placeOf(sl)?' · '+esc(placeOf(sl)):'')+'</div></div></div>'+
         mkSegHTML(markKey(g.iso,sl))+'</div>';
     });
   });
@@ -1158,21 +1190,52 @@ function sheetCatchUp(){
   catchBack=21;
   openSheet({title:'Catch up', body:catchUpHTML(), cancelLabel:'Done', after:bindCatchUp});
 }
-/* swipe between days */
+/* ── swipe between days ──────────────────────────────────────────
+   Attached to the whole Classes screen, so dragging the date strip
+   works as well as dragging the list under it. The card follows your
+   finger while you drag, so it's obvious the gesture is live.      */
 (function(){
-  const el=$('#ttBody'); let x0=null,y0=null;
-  el.addEventListener('touchstart',e=>{ x0=e.touches[0].clientX; y0=e.touches[0].clientY; },{passive:true});
-  el.addEventListener('touchend',e=>{
+  const sec=document.getElementById('timetable');
+  const body=()=>document.getElementById('ttBody');
+  let x0=null, y0=null, drag=false;
+
+  const settle=()=>{ const b=body(); if(b){ b.style.transition=''; b.style.transform=''; } };
+  const reset=()=>{ x0=null; drag=false; settle(); };
+
+  sec.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1){ reset(); return; }
+    x0=e.touches[0].clientX; y0=e.touches[0].clientY; drag=false;
+  },{passive:true});
+
+  sec.addEventListener('touchmove',e=>{
+    if(x0===null||e.touches.length!==1) return;
+    const dx=e.touches[0].clientX-x0, dy=e.touches[0].clientY-y0;
+    /* commit to a horizontal drag once it clearly beats vertical movement */
+    if(!drag && Math.abs(dx)>10 && Math.abs(dx)>Math.abs(dy)) drag=true;
+    if(drag){
+      const b=body();
+      if(b){ b.style.transition='none'; b.style.transform='translateX('+(dx*0.4).toFixed(1)+'px)'; }
+    }
+  },{passive:true});
+
+  sec.addEventListener('touchend',e=>{
     if(x0===null) return;
     const dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0;
-    x0=null;
-    if(Math.abs(dx)<52||Math.abs(dx)<Math.abs(dy)*1.6) return;
+    const wasDrag=drag;
+    reset();
+    if(!wasDrag) return;
+    /* only needs to beat vertical drift, not dominate it — a real thumb
+       swipe on a phone always drifts a bit */
+    if(Math.abs(dx)<38||Math.abs(dx)<Math.abs(dy)) return;
+    lastSwipe=Date.now();                 /* suppress the click a swipe can emit */
     ttDate=addDays(ttDate, dx<0?1:-1);
     renderTT();
-    el.classList.remove('slideL','slideR');
-    void el.offsetWidth;
-    el.classList.add(dx<0?'slideL':'slideR');
+    const b=body();
+    if(b){ b.classList.remove('slideL','slideR'); void b.offsetWidth;
+           b.classList.add(dx<0?'slideL':'slideR'); }
   },{passive:true});
+
+  sec.addEventListener('touchcancel',reset,{passive:true});
 })();
 
 /* ── class actions ── */
@@ -1213,11 +1276,19 @@ function sheetClass(slot,pre){
     '<div class="list">'+
       '<label class="row"><div class="rMain"><div class="rT">Subject</div></div>'+
         '<select id="fSub">'+S.subs.map(s=>'<option value="'+s.id+'"'+(s.id===cur.subId?' selected':'')+'>'+esc(s.name)+'</option>').join('')+'</select></label>'+
-      '<div class="row"><div class="rMain"><div class="rT">Type</div></div>'+
-        '<div class="seg" id="fKind" style="width:190px">'+
-          '<button data-v="th"'+((cur.kind||'th')==='th'?' class="on"':'')+'>Theory</button>'+
-          '<button data-v="tu"'+(cur.kind==='tu'?' class="on"':'')+'>Tutorial</button></div></div>'+
+      '<div class="row" style="display:block">'+
+        '<div class="rT" style="margin-bottom:9px">Type</div>'+
+        '<div class="seg" id="fKind">'+
+          KINDS.map(k=>'<button data-v="'+k[0]+'"'+(kindOf(cur)===k[0]?' class="on"':'')+'>'+k[1]+'</button>').join('')+
+        '</div></div>'+
+      '<div class="row" style="display:block">'+
+        '<div class="rT" style="margin-bottom:9px">Where</div>'+
+        '<div class="seg" id="fMode">'+
+          '<button data-v="off"'+(cur.online?'':' class="on"')+'>In person</button>'+
+          '<button data-v="on"'+(cur.online?' class="on"':'')+'>Online</button>'+
+        '</div></div>'+
     '</div>'+
+    '<div class="gNote">Any type can be online — a practical, a tutorial, or a lecture.</div>'+
     '<div class="gHead tight">When</div>'+
     '<div class="list">'+
       '<div class="row"><div class="rMain"><div class="rT">Repeats</div></div>'+
@@ -1232,7 +1303,7 @@ function sheetClass(slot,pre){
         '<input type="time" id="fStart" value="'+cur.start+'"></label>'+
       '<label class="row"><div class="rMain"><div class="rT">Ends</div></div>'+
         '<input type="time" id="fEnd" value="'+cur.end+'"></label>'+
-      '<label class="row"><div class="rMain"><div class="rT">Room</div></div>'+
+      '<label class="row" id="rowRoom"><div class="rMain"><div class="rT" id="roomLbl">Room</div></div>'+
         '<input type="text" id="fRoom" placeholder="Optional" value="'+esc(cur.room||'')+'"></label>'+
     '</div>'+
     '<div class="gNote">One-off classes show on that date only — they never become permanent.</div>'+
@@ -1254,7 +1325,9 @@ function sheetClass(slot,pre){
         (once? (s.once&&s.date===date) : (!s.once&&s.day===day)));
       if(dup) return sheetError('That exact class is already on the timetable.'), false;
       const target = slot || {id:uid()};
-      Object.assign(target,{subId,kind,start:st,end:en,room:$('#fRoom').value.trim()});
+      Object.assign(target,{subId,kind,start:st,end:en,
+        online: $('#fMode .on').dataset.v==='on',
+        room:$('#fRoom').value.trim()});
       if(once){ target.once=true; target.date=date; delete target.day; }
       else { target.once=false; delete target.date; target.day=day; }
       if(!slot) S.slots.push(target);
@@ -1267,9 +1340,16 @@ function sheetClass(slot,pre){
         $('#rowDay').style.display=once?'none':'';
         $('#rowDate').style.display=once?'':'none';
       };
+      /* the Room field means something different for an online class */
+      const syncMode=()=>{
+        const on=$('#fMode .on').dataset.v==='on';
+        $('#roomLbl').textContent = on?'Link / note':'Room';
+        $('#fRoom').placeholder = on?'Meet, Zoom… (optional)':'Optional';
+      };
       $$('#fKind button').forEach(b=>b.onclick=()=>{ $$('#fKind button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
+      $$('#fMode button').forEach(b=>b.onclick=()=>{ $$('#fMode button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); syncMode(); });
       $$('#fRep button').forEach(b=>b.onclick=()=>{ $$('#fRep button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); sync(); });
-      sync();
+      sync(); syncMode();
       const del=$('#fDel');
       if(del) del.onclick=()=>{ closeSheet(); setTimeout(()=>slotActions(slot.id,todayISO()),200); };
     }
@@ -1390,7 +1470,9 @@ function renderAtt(){
         '<div class="rq" style="left:'+S.thr+'%"></div></div>'+
       '<div style="font-size:13.5px;color:var(--label2);margin-top:10px;line-height:1.4">'+bunkLine(A.p,A.t)+'</div>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;font-size:12.5px;color:var(--label2)">'+
-        cmpChip('Theory',A.th,'IA')+cmpChip('Tutorial',A.tu,'CA')+
+        (A.th.t||A.tu.t||A.pr.t
+          ? cmpChip('Theory',A.th,'IA')+cmpChip('Tutorial',A.tu,'CA')+cmpChip('Practical',A.pr,'PR')
+          : '<span class="pill" style="background:var(--fill);color:var(--label2)">Nothing recorded yet</span>')+
       '</div>'+
       '<div style="display:flex;gap:8px;margin-top:13px">'+
         '<button class="btn ghost sm" data-fix="'+sub.id+'" style="flex:1">Fix the numbers</button>'+
@@ -1403,7 +1485,7 @@ function renderAtt(){
   renderMonths();
 }
 function cmpChip(label,c,mkLabel){
-  if(!c.t) return '<span class="pill" style="background:var(--fill);color:var(--label2)">'+label+' —</span>';
+  if(!c.t) return '';                       /* subject doesn't have this component — don't clutter the card */
   const mk=attMarks(c.p,c.t);
   const cls = mk===0?'no' : mk===5?'ok':'mid';
   return '<span class="pill '+cls+'">'+label+' '+c.p+'/'+c.t+' · '+mkLabel+' '+mk+'/5</span>';
@@ -1451,17 +1533,27 @@ function sheetBackfill(sub){
     '<div class="list">'+
       '<label class="row"><div class="rMain"><div class="rT">Attended</div></div><input type="number" min="0" id="bTup" value="'+A.tu.p+'"></label>'+
       '<label class="row"><div class="rMain"><div class="rT">Total held</div></div><input type="number" min="0" id="bTut" value="'+A.tu.t+'"></label>'+
-    '</div>';
+    '</div>'+
+    '<div class="gHead tight">Practical</div>'+
+    '<div class="list">'+
+      '<label class="row"><div class="rMain"><div class="rT">Attended</div></div><input type="number" min="0" id="bPrp" value="'+A.pr.p+'"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Total held</div></div><input type="number" min="0" id="bPrt" value="'+A.pr.t+'"></label>'+
+    '</div>'+
+    '<div class="gNote">Leave a section at zero if the subject doesn’t have it.</div>';
   openSheet({
     title:sub.code+' numbers', body, doneLabel:'Save',
     onSave(){
       const g=id=>Math.max(0,parseInt($(id).value)||0);
-      const thp=g('#bThp'), tht=g('#bTht'), tup=g('#bTup'), tut=g('#bTut');
-      if(tht<thp||tut<tup) return sheetError('Total held can’t be smaller than attended.'), false;
+      const thp=g('#bThp'), tht=g('#bTht'),
+            tup=g('#bTup'), tut=g('#bTut'),
+            prp=g('#bPrp'), prt=g('#bPrt');
+      if(tht<thp||tut<tup||prt<prp) return sheetError('Total held can’t be smaller than attended.'), false;
       const d=marksOnly(sub.id);
-      if(thp<d.th.p||tht-thp<d.th.a||tup<d.tu.p||tut-tup<d.tu.a)
+      if(thp<d.th.p||tht-thp<d.th.a||tup<d.tu.p||tut-tup<d.tu.a||prp<d.pr.p||prt-prp<d.pr.a)
         return sheetError('You’ve already marked more than that in the app. Enter numbers at least as big as what’s marked.'), false;
-      S.att[sub.id]={thp:thp-d.th.p, tha:(tht-thp)-d.th.a, tup:tup-d.tu.p, tua:(tut-tup)-d.tu.a};
+      S.att[sub.id]={thp:thp-d.th.p, tha:(tht-thp)-d.th.a,
+                     tup:tup-d.tu.p, tua:(tut-tup)-d.tu.a,
+                     prp:prp-d.pr.p, pra:(prt-prp)-d.pr.a};
       save(); renderAll(); toast('Numbers updated.');
     }
   });
@@ -1701,8 +1793,8 @@ function renderCal(){
     dh+='<div style="height:8px"></div><div class="list">'+cls.map(sl=>{
       const sub=subById(sl.subId);
       return '<div class="row '+scCls(sub)+'"><span class="ico" style="background:var(--sc)"></span>'+
-        '<div class="rMain"><div class="rT">'+esc(sub.name)+(sl.kind==='tu'?' <span class="tag tu">Tut</span>':'')+'</div>'+
-        '<div class="rS">'+fmtT(sl.start)+'–'+fmtT(sl.end)+(sl.room?' · '+esc(sl.room):'')+'</div></div></div>';
+        '<div class="rMain"><div class="rT">'+esc(sub.name)+kindTag(sl)+onlineTag(sl)+'</div>'+
+        '<div class="rS">'+fmtT(sl.start)+'–'+fmtT(sl.end)+(placeOf(sl)?' · '+esc(placeOf(sl)):'')+'</div></div></div>';
     }).join('')+'</div>';
   }
   dh+='<div style="height:12px"></div><button class="btn ghost sm" id="calAdd">+ Add something on this day</button></div>';
@@ -1832,8 +1924,10 @@ function demoState(){
     {id:'sl4',subId:'d-bs',day:1,kind:'th',start:'10:10',end:'11:10',room:'B-6'},
     {id:'sl5',subId:'d-ca',day:2,kind:'tu',start:'09:00',end:'09:40',room:'B-12'},
     {id:'sl6',subId:'d-bs',day:2,kind:'th',start:'11:20',end:'12:20',room:'B-6'},
-    {id:'sl7',subId:'d-ie',day:3,kind:'tu',start:'11:20',end:'12:00',room:'A-4'},
-    {id:'sl8',subId:'d-ib',day:4,kind:'tu',start:'12:10',end:'12:50',room:'C-2'}
+    {id:'sl7',subId:'d-ie',day:3,kind:'tu',start:'11:20',end:'12:00',room:'A-4',online:true},
+    {id:'sl8',subId:'d-ib',day:4,kind:'tu',start:'12:10',end:'12:50',room:'C-2'},
+    {id:'sl9',subId:'d-bs',day:3,kind:'pr',start:'14:00',end:'16:00',room:'Lab 2'},
+    {id:'sl10',subId:'d-ib',day:2,kind:'pr',start:'14:00',end:'15:30',room:'',online:true}
   ];
   const marks={};
   const now=new Date();
@@ -1850,8 +1944,8 @@ function demoState(){
   }
   spread('d-ca','th',9,19);  spread('d-ca','tu',1,8);
   spread('d-ie','th',20,11); spread('d-ie','tu',5,6);
-  spread('d-ib','th',21,13); spread('d-ib','tu',10,4);
-  spread('d-bs','th',17,16);
+  spread('d-ib','th',21,13); spread('d-ib','tu',10,4);  spread('d-ib','pr',7,2);
+  spread('d-bs','th',17,16); spread('d-bs','pr',11,3);
   const dls=[
     {id:'dm1',title:'Cost Accounting — Assignment 2',subId:'d-ca',type:'assignment',date:off(-2),done:false},
     {id:'dm2',title:'Indian Economy — Reading response',subId:'d-ie',type:'assignment',date:off(1),done:false},
