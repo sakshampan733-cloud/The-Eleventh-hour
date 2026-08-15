@@ -930,7 +930,14 @@ function renderHome(){
     '<button class="tile tap" data-go="deadlines" style="text-align:left">'+
       '<div class="tV"'+(over?' style="color:var(--red)"':'')+'>'+(over?over:week)+'</div>'+
       '<div class="tL">'+(over?'Overdue':'Due in 7 days')+'</div></button>'+
-    '</div>';
+    '</div>'+
+    (()=>{ const n=unmarkedCount(21);
+      return n? '<div class="pad" style="margin-bottom:12px"><div class="list">'+
+        '<button class="row tap" id="homeCatch"><span class="ico" style="background:var(--orange)">!</span>'+
+        '<div class="rMain"><div class="rT">'+n+' class'+(n===1?'':'es')+' not marked</div>'+
+        '<div class="rS">'+T('Outstanding from the last 3 weeks.','From the last 3 weeks.',
+          'Catch up on the last 3 weeks.','Three weeks of unlogged classes. Bold.')+
+        '</div></div><span class="chev">›</span></button></div></div>' : ''; })();
 
   /* ── today's classes ── */
   let h='';
@@ -996,6 +1003,7 @@ function renderHome(){
   $('#homeWeek').innerHTML=w+'</div></div>';
   $$('#homeWeek [data-day]').forEach(b=>b.onclick=()=>{ ttDate=dateOf(b.dataset.day); showTab('timetable'); });
   $$('#homeTiles [data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));
+  const hc=$('#homeCatch'); if(hc) hc.onclick=sheetCatchUp;
 }
 
 /* ══════════════ TIMETABLE (one day at a time) ══════════════ */
@@ -1016,10 +1024,21 @@ function renderTT(){
   $$('#dayStrip .dChip').forEach(b=>b.onclick=()=>{ ttDate=dateOf(b.dataset.d); renderTT(); });
 
   const diff=Math.round((dateOf(iso)-dateOf(tISO))/864e5);
-  const rel = diff===0?'Today':diff===1?'Tomorrow':diff===-1?'Yesterday'
-    : (diff>1&&diff<7)?'In '+diff+' days':(diff<-1&&diff>-7)?Math.abs(diff)+' days ago'
-    : ttDate.toLocaleDateString(undefined,{day:'numeric',month:'short'});
-  $('#ttHead').innerHTML='<div class="h">'+DAYSL[dow]+'</div><div class="w">'+rel+'</div>';
+  const dateTxt=ttDate.toLocaleDateString(undefined,{day:'numeric',month:'short'});
+  const rel = diff===0?'Today':diff===1?'Tomorrow':diff===-1?'Yesterday · '+dateTxt
+    : (diff>1&&diff<7)?'In '+diff+' days'
+    : diff<0 ? Math.abs(diff)+' days ago · '+dateTxt
+    : dateTxt;
+  $('#ttHead').innerHTML=
+    '<button class="calNav" id="ttPrevW" aria-label="Previous week">‹</button>'+
+    '<div style="flex:1;min-width:0;text-align:center">'+
+      '<div class="h" style="text-align:center">'+DAYSL[dow]+'</div>'+
+      '<div class="w" style="text-align:center">'+rel+'</div></div>'+
+    (diff!==0?'<button class="calNav" id="ttToday" style="width:auto;padding:0 11px;font-size:14px;font-weight:600">Today</button>':'')+
+    '<button class="calNav" id="ttNextW" aria-label="Next week">›</button>';
+  $('#ttPrevW').onclick=()=>{ ttDate=addDays(ttDate,-7); renderTT(); };
+  $('#ttNextW').onclick=()=>{ ttDate=addDays(ttDate,7); renderTT(); };
+  const tt=$('#ttToday'); if(tt) tt.onclick=()=>{ ttDate=new Date(); renderTT(); };
 
   const list=slotsOn(dow,iso).filter(s=>subById(s.subId));
   let h='';
@@ -1047,6 +1066,10 @@ function renderTT(){
           : '<div class="cSkip" style="color:var(--label3)">Marking opens on the day</div>')+
         '</div>';
     });
+    if(markable && list.filter(sl=>!S.marks[markKey(iso,sl)]).length>1)
+      h='<div style="display:flex;gap:9px;margin-bottom:12px">'+
+        '<button class="btn ghost sm" id="ttAllP">All present</button>'+
+        '<button class="btn ghost sm" id="ttAllA" style="color:var(--red)">All absent</button></div>'+h;
     h+='<button class="btn ghost sm" id="ttAdd" style="margin-top:4px">+ Add a class to '+DAYSL[dow]+'</button>';
   }
   const body=$('#ttBody');
@@ -1054,6 +1077,86 @@ function renderTT(){
   bindMkSeg(body);
   $$('#ttBody .cMore').forEach(b=>b.onclick=()=>slotActions(b.dataset.slot,b.dataset.iso));
   const ta=$('#ttAdd'); if(ta) ta.onclick=()=>sheetClass(null,{day:dow,date:iso});
+  const markDay=v=>{ list.forEach(sl=>S.marks[markKey(iso,sl)]=v); save(); renderAll();
+    toast(DAYSL[dow]+' marked '+(v==='p'?'present':'absent')+'.'); };
+  const ap=$('#ttAllP'), aa=$('#ttAllA');
+  if(ap) ap.onclick=()=>markDay('p');
+  if(aa) aa.onclick=()=>markDay('a');
+}
+
+/* ══════════════ CATCH UP — mark classes you missed logging ══════════════ */
+let catchBack=21;                      /* how many days back to scan */
+function unmarkedPast(days){
+  const out=[], now=new Date(), mins=nowMin();
+  for(let i=0;i<=days;i++){
+    const d=addDays(now,-i), iso=isoOf(d);
+    const slots=slotsOn(dowOf(d),iso).filter(sl=>{
+      if(!subById(sl.subId)) return false;
+      if(i===0 && t2m(sl.end)>mins) return false;      /* today: only classes that have ended */
+      return !S.marks[markKey(iso,sl)];
+    });
+    if(slots.length) out.push({iso,d,slots});
+  }
+  return out;
+}
+const unmarkedCount=days=>unmarkedPast(days).reduce((n,g)=>n+g.slots.length,0);
+
+function catchUpHTML(){
+  const groups=unmarkedPast(catchBack);
+  if(!groups.length)
+    return '<div class="empty"><div class="eE">✅</div>'+
+      '<div class="eT">'+T('Nothing outstanding.','All caught up.','All caught up — nothing missing.',
+        'All caught up. Suspiciously diligent.')+'</div>'+
+      '<div class="eS">Every class in the last '+catchBack+' days is marked.</div></div>';
+  const total=groups.reduce((n,g)=>n+g.slots.length,0);
+  let h='<div class="sheetIntro">'+total+' class'+(total===1?'':'es')+' from the last '+catchBack+
+    ' days you never marked, newest first. Mark them here and every percentage updates as you go.</div>';
+  groups.forEach(g=>{
+    const rel=Math.round((dateOf(g.iso)-dateOf(todayISO()))/864e5);
+    const when = rel===0?'Today' : rel===-1?'Yesterday'
+      : g.d.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'short'});
+    h+='<div class="gHead" style="padding-left:4px;padding-right:4px">'+when+' · '+g.slots.length+' unmarked</div>';
+    if(g.slots.length>1)
+      h+='<div style="display:flex;gap:9px;margin-bottom:10px">'+
+        '<button class="btn ghost sm" data-cuall="p" data-iso="'+g.iso+'">All present</button>'+
+        '<button class="btn ghost sm" data-cuall="a" data-iso="'+g.iso+'" style="color:var(--red)">All absent</button></div>';
+    g.slots.forEach(sl=>{
+      const sub=subById(sl.subId);
+      h+='<div class="cls '+scCls(sub)+'">'+
+        '<div class="cTop"><div class="cTime">'+fmtT(sl.start)+'<br>'+fmtT(sl.end)+'</div>'+
+        '<div class="cName">'+esc(sub.name)+(sl.kind==='tu'?' <span class="tag tu">Tut</span>':'')+
+        '<div class="cMeta">'+esc(sub.code)+(sl.room?' · '+esc(sl.room):'')+'</div></div></div>'+
+        mkSegHTML(markKey(g.iso,sl))+'</div>';
+    });
+  });
+  h+='<div style="height:8px"></div>'+
+     '<button class="btn ghost sm" id="cuMore">Look back further (+3 weeks)</button>'+
+     '<div class="gNote" style="text-align:center">Currently scanning '+catchBack+' days.</div>';
+  return h;
+}
+function bindCatchUp(){
+  const refresh=()=>{ $('#sheetBody').innerHTML=catchUpHTML(); bindCatchUp(); };
+  /* marks apply immediately, then the list re-renders so cleared rows disappear */
+  $$('#sheetBody .mkSeg').forEach(seg=>{
+    seg.querySelectorAll('button').forEach(b=>b.onclick=e=>{
+      e.stopPropagation();
+      setMark(seg.dataset.key, S.marks[seg.dataset.key]===b.dataset.m ? null : b.dataset.m);
+      refresh();
+    });
+  });
+  $$('#sheetBody [data-cuall]').forEach(b=>b.onclick=()=>{
+    const iso=b.dataset.iso, v=b.dataset.cuall;
+    slotsOn(dowOf(dateOf(iso)),iso).forEach(sl=>{
+      if(subById(sl.subId) && !S.marks[markKey(iso,sl)]) S.marks[markKey(iso,sl)]=v;
+    });
+    save(); renderAll(); refresh();
+  });
+  const m=$('#cuMore');
+  if(m) m.onclick=()=>{ catchBack+=21; refresh(); };
+}
+function sheetCatchUp(){
+  catchBack=21;
+  openSheet({title:'Catch up', body:catchUpHTML(), cancelLabel:'Done', after:bindCatchUp});
 }
 /* swipe between days */
 (function(){
@@ -1245,12 +1348,19 @@ function renderAtt(){
         (GT? GP+' attended of '+GT+' classes' : 'No classes recorded yet')+'</div>'+
       '<div style="font-size:13.5px;color:var(--label2);line-height:1.4;margin-top:7px">'+bunkLine(GP,GT)+'</div>'+
     '</div></div>'+
-    '<div class="list"><label class="row"><div class="rMain"><div class="rT">Minimum required</div>'+
+    '<div class="list">'+
+      (()=>{ const n=unmarkedCount(21);
+        return n? '<button class="row tap" id="attCatch"><span class="ico" style="background:var(--orange)">!</span>'+
+          '<div class="rMain"><div class="rT">'+n+' class'+(n===1?'':'es')+' not marked</div>'+
+          '<div class="rS">From the last 3 weeks — log them now</div></div>'+
+          '<span class="chev">›</span></button>' : ''; })()+
+      '<label class="row"><div class="rMain"><div class="rT">Minimum required</div>'+
       '<div class="rS">Everything below is measured against this</div></div>'+
       '<input type="number" id="attThr" min="1" max="100" value="'+S.thr+'" '+
       'style="width:66px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
       '<span style="color:var(--label2)">%</span></label></div></div>';
   $('#attThr').onchange=e=>{ S.thr=clamp(parseInt(e.target.value)||67,1,100); save(); renderAll(); };
+  const ac=$('#attCatch'); if(ac) ac.onclick=sheetCatchUp;
 
   if(!S.subs.length){
     $('#attList').innerHTML='<div class="empty"><div class="eE">📊</div>'+
