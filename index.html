@@ -30,6 +30,10 @@
   --green:#34C759; --red:#FF3B30; --orange:#FF9500; --yellow:#FFCC00;
   --purple:#AF52DE; --teal:#30B0C7; --pink:#FF2D55; --indigo:#5856D6; --brown:#A2845E;
   --nav:rgba(242,242,247,.80);
+  /* liquid-glass pill (carried over from the wallet app) */
+  --glass:rgba(255,255,255,.62); --glass-solid:rgba(252,251,249,.95);
+  --glass-line:rgba(22,20,20,.11); --glass-hi:rgba(255,255,255,.80);
+  --glass-active:rgba(22,20,20,.07);
   --sheet:#FFFFFF;
   --scrim:rgba(0,0,0,.32);
   --ta:.13;                       /* subject tint alpha */
@@ -52,6 +56,9 @@
   --green:#30D158; --red:#FF453A; --orange:#FF9F0A; --yellow:#FFD60A;
   --purple:#BF5AF2; --teal:#40C8E0; --pink:#FF375F; --indigo:#5E5CE6; --brown:#AC8E68;
   --nav:rgba(20,20,22,.80);
+  --glass:rgba(28,28,31,.58); --glass-solid:rgba(18,18,20,.95);
+  --glass-line:rgba(241,239,237,.13); --glass-hi:rgba(255,255,255,.09);
+  --glass-active:rgba(241,239,237,.13);
   --sheet:#1C1C1E;
   --scrim:rgba(0,0,0,.5);
   --ta:.22;
@@ -68,7 +75,7 @@ body{
   font-family:var(--font); font-size:17px; line-height:1.4;
   -webkit-font-smoothing:antialiased;
   overscroll-behavior-y:none;
-  padding-bottom:calc(64px + env(safe-area-inset-bottom,0px));
+  padding-bottom:calc(92px + env(safe-area-inset-bottom,0px));
 }
 button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;font-size:17px}
 input,select,textarea{font-family:inherit;font-size:17px;color:var(--label);background:none;border:none;outline:none;border-radius:8px}
@@ -250,31 +257,46 @@ button.row:active,.tap:active{background:var(--card-press)}
 .bar .rq{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--label);opacity:.45;border-radius:2px}
 
 /* ── day strip (timetable) ───────────────────────────────── */
-/* a continuous, freely scrollable rail of dates — not locked to whole weeks */
-#dayStrip{display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;padding:8px 16px 6px;
-  -webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain}
+/* ── date picker rail ────────────────────────────────────────────
+   Behaves like the iPhone clock picker: flick it, it glides, and
+   whichever date lands under the centre marker becomes the selected
+   day. Scroll-snap does the settling; a scroll-end handler reads the
+   centred chip. */
+#railWrap{position:relative}
+#railWrap::before{                      /* the centre selection band */
+  content:'';position:absolute;left:50%;top:6px;bottom:6px;width:58px;
+  transform:translateX(-50%);border-radius:14px;background:var(--fill);
+  pointer-events:none;z-index:0;
+}
+#dayStrip{position:relative;z-index:1;display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;
+  padding:8px 0 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+  overscroll-behavior-x:contain;scroll-snap-type:x mandatory}
 #dayStrip::-webkit-scrollbar{display:none}
+/* first and last chips must be able to reach the centre */
+#dayStrip::before,#dayStrip::after{content:'';flex:0 0 calc(50vw - 25px)}
 .dChip{flex:0 0 auto;width:50px;border-radius:12px;padding:5px 2px 6px;text-align:center;
-  background:var(--card);transition:background .18s}
+  background:transparent;scroll-snap-align:center;transition:background .18s,transform .18s}
 .dChip .dM{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
   color:var(--accent);height:11px;line-height:11px}
-.dChip.on .dM{color:rgba(255,255,255,.92)}
-.dChip.wknd{background:transparent;box-shadow:inset 0 0 0 1px var(--sep-soft)}
-.dChip.on.wknd{background:var(--accent);box-shadow:none}
+.dChip.wknd .dW,.dChip.wknd .dN{opacity:.55}
+/* the centred day reads as selected — no fill, the band behind it does that */
+.dChip.on{transform:scale(1.06)}
+.dChip.on .dW{color:var(--accent)}
+.dChip.on .dN{font-weight:800}
+.dChip.on.wknd .dW,.dChip.on.wknd .dN{opacity:1}
 .dChip .dW{font-size:10.5px;font-weight:700;letter-spacing:.05em;color:var(--label2);text-transform:uppercase}
 .dChip .dN{font-size:17px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
 .dChip .dD{width:5px;height:5px;border-radius:50%;background:var(--label3);margin:4px auto 0}
-.dChip.on{background:var(--accent)}
-.dChip.on .dW,.dChip.on .dN{color:#fff}
-.dChip.on .dD{background:rgba(255,255,255,.85)}
-.dChip.today .dN{color:var(--accent)}
-.dChip.on.today .dN{color:#fff}
+/* today is always marked in red, selected or not (Calendar app convention) */
+.dChip.today .dN,.dChip.today .dW{color:var(--red);opacity:1}
 #ttHead{display:flex;align-items:center;gap:10px;padding:12px 20px 8px}
 #ttHead .h{font-size:20px;font-weight:700;letter-spacing:-.02em;flex:1}
 #ttHead .w{font-size:13px;color:var(--label2)}
 #ttBody{padding:0 16px;transition:transform .18s ease-out}
 #timetable{touch-action:pan-y}
-#dayStrip,#ttHead{touch-action:pan-y}
+#ttHead{touch-action:pan-y}
+/* the rail must own horizontal panning — pan-y here would kill finger scrolling */
+#dayStrip{touch-action:pan-x}
 #ttBody.slideL{animation:slL .26s ease}
 #ttBody.slideR{animation:slR .26s ease}
 @keyframes slL{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
@@ -378,34 +400,45 @@ button.row:active,.tap:active{background:var(--card-press)}
 .swatch.on{box-shadow:0 0 0 3px var(--card),0 0 0 5.5px var(--sc)}
 
 /* ── tab bar ─────────────────────────────────────────────── */
+/* floating liquid-glass pill — ported from the wallet app */
 #tabbar{
-  position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;
-  padding-bottom:env(safe-area-inset-bottom,0px);
-  background:var(--nav);
-  -webkit-backdrop-filter:saturate(180%) blur(20px);
-  backdrop-filter:saturate(180%) blur(20px);
-  box-shadow:0 -.5px 0 var(--sep);
+  position:fixed;z-index:70;display:flex;align-items:center;gap:4px;
+  left:max(12px,env(safe-area-inset-left,0px));
+  right:max(12px,env(safe-area-inset-right,0px));
+  bottom:calc(11px + env(safe-area-inset-bottom,0px));
+  height:60px;padding:6px;border-radius:999px;
+  background:var(--glass);
+  backdrop-filter:blur(26px) saturate(180%);
+  -webkit-backdrop-filter:blur(26px) saturate(180%);
+  border:1px solid var(--glass-line);
+  box-shadow:0 12px 40px rgba(0,0,0,.26), inset 0 1px 0 var(--glass-hi);
+  transition:transform .32s cubic-bezier(.22,1,.36,1), opacity .32s ease;
 }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  #tabbar{background:var(--card)}
+  #tabbar{background:var(--glass-solid)}
 }
+/* shrinks out of the way while the page is moving, settles back when it stops */
+#tabbar.scrolling{transform:scale(.9);opacity:.88}
 #tabbar button{
-  flex:1;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:3px;color:var(--label2);font-size:10px;font-weight:500;letter-spacing:.01em;
-  transition:color .18s;
+  flex:1;height:100%;border-radius:999px;min-width:0;position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:var(--label2);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;
+  transition:color .25s, background .3s cubic-bezier(.22,1,.36,1);
 }
-#tabbar button svg{width:26px;height:26px;display:block}
-#tabbar button.on{color:var(--accent)}
+@media(max-width:359px){ #tabbar button{font-size:7.5px;letter-spacing:.02em} }
+#tabbar button svg{width:23px;height:23px;display:block;
+  transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+#tabbar button.on{color:var(--label);background:var(--glass-active)}
+#tabbar button.on svg{transform:translateY(-1px)}
 #tabbar button:active svg{transform:scale(.88)}
-#tabbar button svg{transition:transform .16s}
 .badge{position:absolute;top:-3px;left:50%;margin-left:4px;min-width:16px;height:16px;border-radius:99px;
   background:var(--red);color:#fff;font-size:10.5px;font-weight:700;display:flex;
   align-items:center;justify-content:center;padding:0 4px;
-  box-shadow:0 0 0 2px var(--nav);pointer-events:none}
+  box-shadow:0 0 0 2px var(--glass-solid);pointer-events:none}
 
 /* ── toast ───────────────────────────────────────────────── */
 #toast{
-  position:fixed;left:50%;bottom:calc(74px + env(safe-area-inset-bottom,0px));
+  position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));
   transform:translate(-50%,14px);z-index:110;
   background:rgba(30,30,32,.94);color:#fff;font-size:14.5px;font-weight:500;
   padding:11px 18px;border-radius:99px;opacity:0;pointer-events:none;
@@ -459,7 +492,7 @@ button.row:active,.tap:active{background:var(--card-press)}
 <!-- ══════════════ TIMETABLE ══════════════ -->
 <section id="timetable">
   <div class="lg"><h1>Classes</h1></div>
-  <div id="dayStrip"></div>
+  <div id="railWrap"><div id="dayStrip"></div></div>
   <div id="ttHead"></div>
   <div id="ttBody"></div>
   <div style="height:26px"></div>
@@ -791,7 +824,17 @@ function showTab(id){
   if(id==='calendar') renderCal();
   if(id==='settings') renderSettings();
 }
-function onScroll(){ $('#nav').classList.toggle('solid', window.scrollY>24); }
+let _tabShrinkT=null;
+function onScroll(){
+  $('#nav').classList.toggle('solid', window.scrollY>24);
+  /* the pill gets out of the way while the page moves, then settles back */
+  const bar=$('#tabbar');
+  if(bar){
+    bar.classList.add('scrolling');
+    clearTimeout(_tabShrinkT);
+    _tabShrinkT=setTimeout(()=>bar.classList.remove('scrolling'),160);
+  }
+}
 window.addEventListener('scroll',onScroll,{passive:true});
 
 /* ══════════════ TOAST ══════════════ */
@@ -1072,39 +1115,88 @@ function centreRail(rail){
   if(!w||!cw) return;
   rail.scrollLeft=Math.max(0, l - w/2 + cw/2);
 }
-function renderTT(){
-  const iso=isoOf(ttDate), dow=dowOf(ttDate), tISO=todayISO();
-
-  /* ── the date rail ──────────────────────────────────────────────
-     One continuous run of days you can scroll freely, so you can sit
-     across a week boundary (Thu–Fri–Sat–Sun–Mon) instead of being
-     snapped to whole Mon–Sun blocks. The month name appears on the
-     first chip of each month so you stay oriented when scrolling far. */
-  const today0=new Date();
+/* which chip is sitting under the centre marker right now */
+function chipAtCentre(rail){
+  if(!rail||!rail.querySelectorAll) return null;
+  const w=rail.clientWidth||0; if(!w) return null;
+  const mid=(rail.scrollLeft||0)+w/2;
+  let best=null, bestD=Infinity;
+  rail.querySelectorAll('.dChip').forEach(c=>{
+    const centre=(c.offsetLeft||0)+(c.offsetWidth||0)/2;
+    const d=Math.abs(centre-mid);
+    if(d<bestD){ bestD=d; best=c; }
+  });
+  return best;
+}
+/* Scrolling the rail selects whatever lands in the middle — the clock-picker
+   behaviour. Debounced so it fires when the flick settles, not per frame. */
+(function(){
+  const rail=document.getElementById('dayStrip'); if(!rail) return;
+  let t=null;
+  rail.addEventListener('scroll',()=>{
+    clearTimeout(t);
+    t=setTimeout(()=>{
+      const c=chipAtCentre(rail);
+      if(!c||!c.dataset||!c.dataset.d) return;
+      if(c.dataset.d===isoOf(ttDate)) return;   /* already showing this day */
+      ttDate=dateOf(c.dataset.d);
+      markRailSelection();
+      renderDay();                              /* rail keeps its scroll position */
+    },110);
+  },{passive:true});
+})();
+/* ── the date rail ────────────────────────────────────────────────
+   Built once and then left alone. Rebuilding it on every day change
+   would reset scrollLeft mid-flick and fight your finger, so scrolling
+   only ever repaints the day *below* it. */
+let railFrom=null, railTo=null;
+function renderRail(force){
+  const rail=$('#dayStrip'); if(!rail) return;
+  const iso=isoOf(ttDate), tISO=todayISO(), today0=new Date();
   let from=addDays(today0,-140), to=addDays(today0,70);
   if(dateOf(iso) < dateOf(isoOf(from))) from=addDays(ttDate,-21);
   if(dateOf(iso) > dateOf(isoOf(to)))   to  =addDays(ttDate, 21);
-  let strip='', prevMonth=null;
-  for(let d=new Date(from); isoOf(d)<=isoOf(to); d=addDays(d,1)){
-    const di=isoOf(d), dw=dowOf(d);
-    const n=slotsOn(dw,di).filter(s=>subById(s.subId)).length;
-    const mLabel = d.getMonth()!==prevMonth ? d.toLocaleDateString(undefined,{month:'short'}) : '';
-    prevMonth=d.getMonth();
-    strip+='<button class="dChip'+(di===iso?' on':'')+(di===tISO?' today':'')+
-      (dw>=5?' wknd':'')+'" data-d="'+di+'">'+
-      '<div class="dM">'+mLabel+'</div>'+
-      '<div class="dW">'+DAYS[dw]+'</div><div class="dN">'+d.getDate()+'</div>'+
-      '<div class="dD"'+(n?'':' style="background:transparent"')+'></div></button>';
+  const needsBuild = force || railFrom!==isoOf(from) || railTo!==isoOf(to) ||
+    !(rail.querySelectorAll&&rail.querySelectorAll('.dChip').length);
+  if(needsBuild){
+    let strip='', prevMonth=null;
+    for(let d=new Date(from); isoOf(d)<=isoOf(to); d=addDays(d,1)){
+      const di=isoOf(d), dw=dowOf(d);
+      const n=slotsOn(dw,di).filter(s=>subById(s.subId)).length;
+      const mLabel = d.getMonth()!==prevMonth ? d.toLocaleDateString(undefined,{month:'short'}) : '';
+      prevMonth=d.getMonth();
+      strip+='<button class="dChip'+(di===tISO?' today':'')+(dw>=5?' wknd':'')+
+        '" data-d="'+di+'">'+
+        '<div class="dM">'+mLabel+'</div>'+
+        '<div class="dW">'+DAYS[dw]+'</div><div class="dN">'+d.getDate()+'</div>'+
+        '<div class="dD"'+(n?'':' style="background:transparent"')+'></div></button>';
+    }
+    rail.innerHTML=strip;
+    railFrom=isoOf(from); railTo=isoOf(to);
+    $$('#dayStrip .dChip').forEach(b=>b.onclick=()=>{
+      if(Date.now()-lastSwipe<400) return;    /* this click came from a swipe, not a tap */
+      goToDay(b.dataset.d,true);
+    });
   }
-  const rail=$('#dayStrip');
-  rail.innerHTML=strip;
-  $$('#dayStrip .dChip').forEach(b=>b.onclick=()=>{
-    if(Date.now()-lastSwipe<400) return;      /* this click came from a swipe, not a tap */
-    ttDate=dateOf(b.dataset.d); renderTT();
-  });
-  /* keep the selected day centred in the rail */
-  centreRail(rail);
+  markRailSelection();
+}
+/* paint the selected chip without touching scroll position */
+function markRailSelection(){
+  const iso=isoOf(ttDate);
+  $$('#dayStrip .dChip').forEach(b=>b.classList.toggle('on', b.dataset.d===iso));
+}
+/* move to a day: repaint the day content, and glide the rail to centre it */
+function goToDay(iso,scroll){
+  ttDate=dateOf(iso);
+  renderRail();
+  renderDay();
+  if(scroll!==false) centreRail($('#dayStrip'));
+}
 
+function renderTT(){ renderRail(); renderDay(); centreRail($('#dayStrip')); }
+
+function renderDay(){
+  const iso=isoOf(ttDate), dow=dowOf(ttDate), tISO=todayISO();
   const diff=Math.round((dateOf(iso)-dateOf(tISO))/864e5);
   const dateTxt=ttDate.toLocaleDateString(undefined,{day:'numeric',month:'short'});
   const rel = diff===0?'Today':diff===1?'Tomorrow':diff===-1?'Yesterday · '+dateTxt
