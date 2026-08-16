@@ -412,13 +412,23 @@ button.row:active,.tap:active{background:var(--card-press)}
   -webkit-backdrop-filter:blur(26px) saturate(180%);
   border:1px solid var(--glass-line);
   box-shadow:0 12px 40px rgba(0,0,0,.26), inset 0 1px 0 var(--glass-hi);
-  transition:transform .32s cubic-bezier(.22,1,.36,1), opacity .32s ease;
+  /* Promote to its own compositing layer and keep it there. Without this the
+     blur is re-sampled on the main thread during momentum scroll and visibly
+     lags/freezes on iOS. */
+  transform:translateZ(0);
+  -webkit-transform:translateZ(0);
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  will-change:opacity;
+  transition:opacity .28s ease;
 }
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   #tabbar{background:var(--glass-solid)}
 }
 /* shrinks out of the way while the page is moving, settles back when it stops */
-#tabbar.scrolling{transform:scale(.9);opacity:.88}
+/* Recedes while the page moves, settles back when it stops. Opacity only —
+   scaling a backdrop-filtered element is what made this glitch on iOS. */
+#tabbar.scrolling{opacity:.82}
 #tabbar button{
   flex:1;height:100%;border-radius:999px;min-width:0;position:relative;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
@@ -784,8 +794,13 @@ function skipImpact(subId){
    Costs out skipping every class still unmarked today: what each
    subject drops to, what it would take to climb back, and whether
    it's worth it.                                                   */
-function skipTodayImpact(){
-  const iso=todayISO(), dow=dowOf(new Date());
+function skipDayLabel(iso){
+  const n=Math.round((dateOf(iso)-dateOf(todayISO()))/864e5);
+  return n===0 ? 'today' : n===1 ? 'tomorrow'
+    : dateOf(iso).toLocaleDateString(undefined,{weekday:'long'});
+}
+function skipDayImpact(iso){
+  const dow=dowOf(dateOf(iso));
   const pending=slotsOn(dow,iso).filter(sl=>subById(sl.subId)&&!S.marks[markKey(iso,sl)]);
   if(!pending.length) return null;
 
@@ -812,8 +827,19 @@ function skipTodayImpact(){
                 : already.length ? 'no'
                 : rows.some(r=>r.had && r.after < S.thr+2) ? 'tight'
                 : 'ok';
-  return {rows, pending, count:n, breaks, already, verdict,
+  return {rows, pending, count:n, breaks, already, verdict, iso,
+          when:skipDayLabel(iso),
           now:pctOf(GP,GT), after:pctOf(GP,GT+n), hasHistory:GT>0};
+}
+const skipTodayImpact=()=>skipDayImpact(todayISO());
+/* Today if there's anything left to skip, otherwise the next day that has
+   classes — so the feature is reachable on a Sunday too, not hidden. */
+function nextSkipDay(){
+  for(let i=0;i<8;i++){
+    const x=skipDayImpact(isoOf(addDays(new Date(),i)));
+    if(x) return x;
+  }
+  return null;
 }
 const SKIP_COLOUR={ok:'var(--green)',tight:'var(--orange)',no:'var(--red)'};
 const SKIP_WORD  ={ok:'Safe',tight:'Tight',no:'Don’t'};
@@ -953,9 +979,18 @@ function openAct(o){
 function closeAct(){ $('#act').classList.remove('on'); if(!$('#sheet').classList.contains('on')) $('#scrim').classList.remove('on'); }
 
 /* ══════════════ MARKING ══════════════ */
+/* Re-render without the page jumping under your finger. Marking a class can
+   change the content above it (a row appears or disappears), which used to
+   shift everything mid-tap. */
+function keepScroll(fn){
+  const y=(typeof window!=='undefined'&&window.scrollY)||0;
+  fn();
+  if(y&&typeof window!=='undefined'&&window.scrollTo) window.scrollTo(0,y);
+}
 function setMark(key,v){
   if(v) S.marks[key]=v; else delete S.marks[key];
-  save(); renderAll();
+  save();
+  keepScroll(renderAll);
 }
 function mkSegHTML(key){
   const m=S.marks[key];
@@ -1085,15 +1120,15 @@ function renderHome(){
       '<div class="tL">'+(over?'Overdue':'Due in 7 days')+'</div></button>'+
     '</div>'+
     (()=>{
-      const n=unmarkedCount(21), sk=skipTodayImpact();
+      const n=unmarkedCount(21), sk=nextSkipDay();
       if(!n && !sk) return '';
       let r='<div class="pad" style="margin-bottom:12px"><div class="list">';
       if(sk) r+='<button class="row tap" id="homeSkip">'+
         '<span class="ico" style="background:'+SKIP_COLOUR[sk.verdict]+';font-weight:700">?</span>'+
-        '<div class="rMain"><div class="rT">Can I skip today?</div>'+
+        '<div class="rMain"><div class="rT">Can I skip '+esc(sk.when)+'?</div>'+
         '<div class="rS">'+(sk.hasHistory
             ? pctFmt(sk.now)+'% → '+pctFmt(sk.after)+'% across '+sk.count+' class'+(sk.count===1?'':'es')
-            : sk.count+' class'+(sk.count===1?'':'es')+' today')+'</div></div>'+
+            : sk.count+' class'+(sk.count===1?'':'es'))+'</div></div>'+
         '<span class="pill '+(sk.verdict==='ok'?'ok':sk.verdict==='tight'?'mid':'no')+'">'+
           SKIP_WORD[sk.verdict]+'</span><span class="chev">›</span></button>';
       if(n) r+='<button class="row tap" id="homeCatch"><span class="ico" style="background:var(--orange)">!</span>'+
@@ -1143,8 +1178,8 @@ function renderHome(){
   bindMkSeg($('#homeClasses'));
   $$('#homeClasses .cMore').forEach(b=>b.onclick=()=>slotActions(b.dataset.slot,b.dataset.iso));
   const ap=$('#allP'), aa=$('#allA');
-  if(ap) ap.onclick=()=>{ todays.forEach(sl=>S.marks[markKey(iso,sl)]='p'); save(); renderAll(); toast('Whole day marked present.'); };
-  if(aa) aa.onclick=()=>{ todays.forEach(sl=>S.marks[markKey(iso,sl)]='a'); save(); renderAll(); toast('Whole day marked absent.'); };
+  if(ap) ap.onclick=()=>{ todays.forEach(sl=>S.marks[markKey(iso,sl)]='p'); save(); keepScroll(renderAll); toast('Whole day marked present.'); };
+  if(aa) aa.onclick=()=>{ todays.forEach(sl=>S.marks[markKey(iso,sl)]='a'); save(); keepScroll(renderAll); toast('Whole day marked absent.'); };
 
   /* ── due next ── */
   const soon=S.dls.filter(d=>!d.done&&daysTo(d.date)<=10).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,5);
@@ -1182,12 +1217,18 @@ let lastSwipe=0;                 /* set by the swipe handler, read by the day ch
 
 /* Scroll the rail so the selected chip sits in the middle. Guarded because
    layout numbers are 0/undefined until the element is actually on screen. */
-function centreRail(rail){
+function centreRail(rail,retry){
   if(!rail) return;
   const sel=rail.querySelector? rail.querySelector('.dChip.on') : null;
   if(!sel) return;
   const w=rail.clientWidth||0, l=sel.offsetLeft||0, cw=sel.offsetWidth||0;
-  if(!w||!cw) return;
+  if(!w||!cw){
+    /* the tab was still hidden when this ran, so there is no layout yet —
+       try once more next frame, otherwise the rail sits stuck at day one */
+    if(!retry && typeof requestAnimationFrame==='function')
+      requestAnimationFrame(()=>centreRail(rail,true));
+    return;
+  }
   rail.scrollLeft=Math.max(0, l - w/2 + cw/2);
 }
 /* which chip is sitting under the centre marker right now */
@@ -1326,7 +1367,7 @@ function renderDay(){
   bindMkSeg(body);
   $$('#ttBody .cMore').forEach(b=>b.onclick=()=>slotActions(b.dataset.slot,b.dataset.iso));
   const ta=$('#ttAdd'); if(ta) ta.onclick=()=>sheetClass(null,{day:dow,date:iso});
-  const markDay=v=>{ list.forEach(sl=>S.marks[markKey(iso,sl)]=v); save(); renderAll();
+  const markDay=v=>{ list.forEach(sl=>S.marks[markKey(iso,sl)]=v); save(); keepScroll(renderAll);
     toast(DAYSL[dow]+' marked '+(v==='p'?'present':'absent')+'.'); };
   const ap=$('#ttAllP'), aa=$('#ttAllA');
   if(ap) ap.onclick=()=>markDay('p');
@@ -1814,13 +1855,13 @@ function monthHTML(mo){
   return h+'</div>';
 }
 /* ══════════════ "SHOULD I SKIP TODAY?" ══════════════ */
-function sheetSkipToday(){
-  const x=skipTodayImpact();
-  if(!x){ toast('Nothing left to skip today.'); return; }
+function sheetSkipToday(x){
+  x=x||nextSkipDay();
+  if(!x){ toast('No classes coming up to skip.'); return; }
   const col=SKIP_COLOUR[x.verdict];
 
   let body='<div class="card" style="margin-bottom:14px">'+
-    '<div class="kicker">If you skip all '+x.count+' class'+(x.count===1?'':'es')+' today</div>'+
+    '<div class="kicker">If you skip all '+x.count+' class'+(x.count===1?'':'es')+' '+esc(x.when)+'</div>'+
     '<div style="display:flex;align-items:baseline;gap:10px;margin-top:9px">'+
       '<span class="tnum" style="font-size:26px;font-weight:800;letter-spacing:-.03em;color:var(--label2)">'+
         (x.hasHistory?pctFmt(x.now)+'%':'—')+'</span>'+
@@ -1854,15 +1895,15 @@ function sheetSkipToday(){
 
   body+='<div style="height:18px"></div>'+
     '<button class="btn '+(x.verdict==='no'?'dangerBtn':'ghost')+' sm" id="skDo">'+
-      'Mark today absent</button>'+
+      'Mark '+esc(x.when)+' absent</button>'+
     '<div class="gNote" style="text-align:center">You can change any of it later from Today.</div>';
 
   openSheet({
-    title:'Skip today?', body, cancelLabel:'Close',
+    title:'Skip '+x.when+'?', body, cancelLabel:'Close',
     after(){
       $('#skDo').onclick=()=>{
-        x.pending.forEach(sl=>S.marks[markKey(todayISO(),sl)]='a');
-        save(); closeSheet(); renderAll();
+        x.pending.forEach(sl=>S.marks[markKey(x.iso,sl)]='a');
+        save(); closeSheet(); keepScroll(renderAll);
         toast(T('Marked absent.','Marked absent.','Marked absent — noted.',
           'Marked absent. Enjoy the lie-in.'));
       };
