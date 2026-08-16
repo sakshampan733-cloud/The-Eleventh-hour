@@ -780,6 +780,68 @@ function skipImpact(subId){
   return {now,after,safe:after>=S.thr,has:A.t>0};
 }
 
+/* ── "what if I skip the whole day?" ──────────────────────────────
+   Costs out skipping every class still unmarked today: what each
+   subject drops to, what it would take to climb back, and whether
+   it's worth it.                                                   */
+function skipTodayImpact(){
+  const iso=todayISO(), dow=dowOf(new Date());
+  const pending=slotsOn(dow,iso).filter(sl=>subById(sl.subId)&&!S.marks[markKey(iso,sl)]);
+  if(!pending.length) return null;
+
+  const bySub={};
+  pending.forEach(sl=>{ (bySub[sl.subId]=bySub[sl.subId]||[]).push(sl); });
+
+  const rows=Object.keys(bySub).map(id=>{
+    const A=attFor(id), n=bySub[id].length;
+    const now=pctOf(A.p,A.t), after=pctOf(A.p,A.t+n);
+    const wasSafe = A.t ? now>=S.thr : true;
+    const safe    = after>=S.thr;
+    return {sub:subById(id), n, now, after, safe, wasSafe, had:A.t,
+            recover: (A.t && !safe) ? mustAttend(A.p, A.t+n) : 0};
+  }).sort((a,b)=>a.after-b.after);
+
+  let GP=0,GT=0; S.subs.forEach(s=>{ const a=attFor(s.id); GP+=a.p; GT+=a.t; });
+  const n=pending.length;
+  /* the ones this skip actually pushes under the line */
+  const breaks  = rows.filter(r=>r.had && r.wasSafe && !r.safe);
+  /* already under before you skip — skipping just digs deeper */
+  const already = rows.filter(r=>r.had && !r.wasSafe);
+
+  const verdict = breaks.length ? 'no'
+                : already.length ? 'no'
+                : rows.some(r=>r.had && r.after < S.thr+2) ? 'tight'
+                : 'ok';
+  return {rows, pending, count:n, breaks, already, verdict,
+          now:pctOf(GP,GT), after:pctOf(GP,GT+n), hasHistory:GT>0};
+}
+const SKIP_COLOUR={ok:'var(--green)',tight:'var(--orange)',no:'var(--red)'};
+const SKIP_WORD  ={ok:'Safe',tight:'Tight',no:'Don’t'};
+function skipVerdictLine(x){
+  if(x.verdict==='no'){
+    const who=(x.breaks[0]||x.already[0]);
+    const name=who?esc(who.sub.name):'a subject';
+    return x.breaks.length
+      ? T('Skipping today puts '+name+' below the required '+S.thr+'%.',
+          'Skipping today drops '+name+' under '+S.thr+'%.',
+          'Not worth it — '+name+' falls below '+S.thr+'%.',
+          'Skip it and '+name+' goes under. Then it’s your problem.')
+      : T(name+' is already below '+S.thr+'%. Skipping increases the shortfall.',
+          name+' is already short — skipping makes it worse.',
+          name+' is already below the line. Today would dig the hole deeper.',
+          name+' is already underwater. By all means, keep digging.');
+  }
+  if(x.verdict==='tight')
+    return T('Permissible, but the margin above '+S.thr+'% becomes slim.',
+      'You stay above '+S.thr+'%, but only just.',
+      'You’d survive it, but there’s not much room left after.',
+      'You’d scrape through. Living dangerously, as usual.');
+  return T('All subjects remain above the required '+S.thr+'%.',
+    'Everything stays above '+S.thr+'%.',
+    'You can afford this one — everything stays comfortable.',
+    'Go on then. The maths says you’ve earned it.');
+}
+
 /* ══════════════ NAV / TABS ══════════════ */
 const TABS=[
   {id:'home',       label:'Today',      icon:ICO.today, title:'Today'},
@@ -1022,13 +1084,25 @@ function renderHome(){
       '<div class="tV"'+(over?' style="color:var(--red)"':'')+'>'+(over?over:week)+'</div>'+
       '<div class="tL">'+(over?'Overdue':'Due in 7 days')+'</div></button>'+
     '</div>'+
-    (()=>{ const n=unmarkedCount(21);
-      return n? '<div class="pad" style="margin-bottom:12px"><div class="list">'+
-        '<button class="row tap" id="homeCatch"><span class="ico" style="background:var(--orange)">!</span>'+
+    (()=>{
+      const n=unmarkedCount(21), sk=skipTodayImpact();
+      if(!n && !sk) return '';
+      let r='<div class="pad" style="margin-bottom:12px"><div class="list">';
+      if(sk) r+='<button class="row tap" id="homeSkip">'+
+        '<span class="ico" style="background:'+SKIP_COLOUR[sk.verdict]+';font-weight:700">?</span>'+
+        '<div class="rMain"><div class="rT">Can I skip today?</div>'+
+        '<div class="rS">'+(sk.hasHistory
+            ? pctFmt(sk.now)+'% → '+pctFmt(sk.after)+'% across '+sk.count+' class'+(sk.count===1?'':'es')
+            : sk.count+' class'+(sk.count===1?'':'es')+' today')+'</div></div>'+
+        '<span class="pill '+(sk.verdict==='ok'?'ok':sk.verdict==='tight'?'mid':'no')+'">'+
+          SKIP_WORD[sk.verdict]+'</span><span class="chev">›</span></button>';
+      if(n) r+='<button class="row tap" id="homeCatch"><span class="ico" style="background:var(--orange)">!</span>'+
         '<div class="rMain"><div class="rT">'+n+' class'+(n===1?'':'es')+' not marked</div>'+
         '<div class="rS">'+T('Outstanding from the last 3 weeks.','From the last 3 weeks.',
           'Catch up on the last 3 weeks.','Three weeks of unlogged classes. Bold.')+
-        '</div></div><span class="chev">›</span></button></div></div>' : ''; })();
+        '</div></div><span class="chev">›</span></button>';
+      return r+'</div></div>';
+    })();
 
   /* ── today's classes ── */
   let h='';
@@ -1099,6 +1173,7 @@ function renderHome(){
   $$('#homeWeek [data-day]').forEach(b=>b.onclick=()=>{ ttDate=dateOf(b.dataset.day); showTab('timetable'); });
   $$('#homeTiles [data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));
   const hc=$('#homeCatch'); if(hc) hc.onclick=sheetCatchUp;
+  const hs=$('#homeSkip');  if(hs) hs.onclick=sheetSkipToday;
 }
 
 /* ══════════════ TIMETABLE (one day at a time) ══════════════ */
@@ -1654,17 +1729,162 @@ function renderMonths(){
   rows.forEach(mo=>{
     const o=byM[mo]; TP+=o.p; TT+=o.t;
     const p=pctOf(o.p,o.t);
-    h+='<div class="row"><div class="rMain">'+
+    h+='<button class="row tap" data-mo="'+mo+'"><div class="rMain">'+
       '<div class="rT">'+new Date(mo+'-01T00:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'})+'</div>'+
       '<div class="rS">'+o.p+' present · '+(o.t-o.p)+' absent · '+o.t+' total</div></div>'+
-      '<span class="pill '+(p>=S.thr?'ok':'no')+'">'+pctFmt(p)+'%</span></div>';
+      '<span class="pill '+(p>=S.thr?'ok':'no')+'">'+pctFmt(p)+'%</span>'+
+      '<span class="chev">›</span></button>';
   });
   const tp=pctOf(TP,TT);
   h+='<div class="row"><div class="rMain"><div class="rT" style="font-weight:600">All marked classes</div>'+
     '<div class="rS">'+TP+' of '+TT+'</div></div>'+
     '<span class="pill '+(tp>=S.thr?'ok':'no')+'">'+pctFmt(tp)+'%</span></div>';
   $('#attMonths').innerHTML=h+'</div></div>';
+  $$('#attMonths [data-mo]').forEach(b=>b.onclick=()=>sheetMonth(b.dataset.mo));
 }
+
+/* ══════════════ MONTH DETAIL ══════════════
+   Everything that was marked in one month, grouped by day. Marks stay
+   editable here so a mistake spotted in the breakdown can be fixed
+   without hunting for the day in the timetable.                       */
+function monthEntries(mo){
+  const byDay={};
+  for(const k in S.marks){
+    if(k.slice(0,7)!==mo) continue;
+    const p=k.split('|');
+    const sub=subById(p[2]); if(!sub) continue;      /* subject since deleted */
+    (byDay[p[0]]=byDay[p[0]]||[]).push({
+      key:k, iso:p[0], kind:p[3]||'th', sub,
+      mark:S.marks[k],
+      slot:S.slots.find(s=>s.id===p[1])||null
+    });
+  }
+  Object.keys(byDay).forEach(d=>byDay[d].sort((a,b)=>{
+    const at=a.slot?t2m(a.slot.start):0, bt=b.slot?t2m(b.slot.start):0;
+    return at-bt;
+  }));
+  return byDay;
+}
+function monthHTML(mo){
+  const byDay=monthEntries(mo);
+  const days=Object.keys(byDay).sort().reverse();      /* newest day first */
+  const title=new Date(mo+'-01T00:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  if(!days.length) return '<div class="empty"><div class="eE">📭</div>'+
+    '<div class="eT">Nothing marked in '+esc(title)+'</div></div>';
+
+  /* month totals — cancelled classes count towards neither side */
+  let P=0,A=0,C=0; const perSub={};
+  days.forEach(d=>byDay[d].forEach(e=>{
+    if(e.mark==='p') P++; else if(e.mark==='a') A++; else C++;
+    const s=perSub[e.sub.id]=perSub[e.sub.id]||{sub:e.sub,p:0,a:0};
+    if(e.mark==='p') s.p++; else if(e.mark==='a') s.a++;
+  }));
+  const held=P+A, pct=pctOf(P,held);
+
+  let h='<div class="pad" style="padding:0"><div class="card" style="margin-bottom:14px">'+
+    '<div style="display:flex;align-items:baseline;gap:10px">'+
+      '<div style="font-size:30px;font-weight:800;letter-spacing:-.03em;'+
+        'color:'+(held? (pct>=S.thr?'var(--green)':'var(--red)') :'var(--label3)')+'" class="tnum">'+
+        (held?pctFmt(pct)+'%':'—')+'</div>'+
+      '<div style="font-size:13.5px;color:var(--label2)">'+P+' present · '+A+' absent'+
+        (C?' · '+C+' cancelled':'')+'</div></div>'+
+    '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">'+
+      Object.keys(perSub).map(id=>{
+        const s=perSub[id], t=s.p+s.a, q=pctOf(s.p,t);
+        return '<span class="pill '+(!t?'':q>=S.thr?'ok':'no')+'">'+esc(s.sub.code)+' '+s.p+'/'+t+'</span>';
+      }).join('')+
+    '</div></div>';
+
+  days.forEach(iso=>{
+    const d=dateOf(iso);
+    h+='<div class="gHead" style="padding-left:4px;padding-right:4px">'+
+      d.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'short'})+'</div>';
+    byDay[iso].forEach(e=>{
+      const sl=e.slot||{kind:e.kind,start:'',end:'',room:''};
+      h+='<div class="cls '+scCls(e.sub)+'">'+
+        '<div class="cTop">'+
+          '<div class="cTime">'+(e.slot?fmtT(e.slot.start)+'<br>'+fmtT(e.slot.end):'—')+'</div>'+
+          '<div class="cName">'+esc(e.sub.name)+kindTag(sl)+onlineTag(sl)+
+            '<div class="cMeta">'+esc(e.sub.code)+
+            (e.slot&&placeOf(e.slot)?' · '+esc(placeOf(e.slot)):'')+
+            (e.slot?'':' · class since removed')+'</div></div>'+
+        '</div>'+mkSegHTML(e.key)+'</div>';
+    });
+  });
+  return h+'</div>';
+}
+/* ══════════════ "SHOULD I SKIP TODAY?" ══════════════ */
+function sheetSkipToday(){
+  const x=skipTodayImpact();
+  if(!x){ toast('Nothing left to skip today.'); return; }
+  const col=SKIP_COLOUR[x.verdict];
+
+  let body='<div class="card" style="margin-bottom:14px">'+
+    '<div class="kicker">If you skip all '+x.count+' class'+(x.count===1?'':'es')+' today</div>'+
+    '<div style="display:flex;align-items:baseline;gap:10px;margin-top:9px">'+
+      '<span class="tnum" style="font-size:26px;font-weight:800;letter-spacing:-.03em;color:var(--label2)">'+
+        (x.hasHistory?pctFmt(x.now)+'%':'—')+'</span>'+
+      '<span style="font-size:19px;color:var(--label3)">→</span>'+
+      '<span class="tnum" style="font-size:30px;font-weight:800;letter-spacing:-.03em;color:'+col+'">'+
+        (x.hasHistory?pctFmt(x.after)+'%':'—')+'</span>'+
+      '<span class="pill '+(x.verdict==='ok'?'ok':x.verdict==='tight'?'mid':'no')+
+        '" style="margin-left:auto">'+SKIP_WORD[x.verdict]+'</span>'+
+    '</div>'+
+    '<div style="font-size:14px;color:var(--label2);margin-top:11px;line-height:1.45">'+
+      esc(skipVerdictLine(x))+'</div></div>';
+
+  body+='<div class="gHead" style="padding-left:4px">Subject by subject</div><div class="list">';
+  x.rows.forEach(r=>{
+    const rc = !r.had ? 'var(--label2)' : r.safe ? 'var(--green)' : 'var(--red)';
+    let note;
+    if(!r.had) note='No classes recorded yet';
+    else if(r.safe) note='Stays above '+S.thr+'%';
+    else if(!isFinite(r.recover)) note='Cannot be recovered at a 100% requirement';
+    else note='Below '+S.thr+'% — '+r.recover+' in a row to recover';
+    body+='<div class="row '+scCls(r.sub)+'">'+
+      '<span class="ico" style="background:var(--sc);font-size:11px;font-weight:700">'+
+        esc(r.sub.code.slice(0,3))+'</span>'+
+      '<div class="rMain"><div class="rT">'+esc(r.sub.name)+
+        (r.n>1?' <span class="tag">'+r.n+' today</span>':'')+'</div>'+
+      '<div class="rS" style="color:'+(r.had&&!r.safe?'var(--red)':'var(--label2)')+'">'+note+'</div></div>'+
+      '<div class="rV tnum" style="color:'+rc+';font-weight:600">'+
+        (r.had? pctFmt(r.now)+'% → '+pctFmt(r.after)+'%' : '—')+'</div></div>';
+  });
+  body+='</div>';
+
+  body+='<div style="height:18px"></div>'+
+    '<button class="btn '+(x.verdict==='no'?'dangerBtn':'ghost')+' sm" id="skDo">'+
+      'Mark today absent</button>'+
+    '<div class="gNote" style="text-align:center">You can change any of it later from Today.</div>';
+
+  openSheet({
+    title:'Skip today?', body, cancelLabel:'Close',
+    after(){
+      $('#skDo').onclick=()=>{
+        x.pending.forEach(sl=>S.marks[markKey(todayISO(),sl)]='a');
+        save(); closeSheet(); renderAll();
+        toast(T('Marked absent.','Marked absent.','Marked absent — noted.',
+          'Marked absent. Enjoy the lie-in.'));
+      };
+    }
+  });
+}
+
+function sheetMonth(mo){
+  const title=new Date(mo+'-01T00:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'});
+  const bind=()=>{
+    const refresh=()=>{ $('#sheetBody').innerHTML=monthHTML(mo); bind(); };
+    $$('#sheetBody .mkSeg').forEach(seg=>{
+      seg.querySelectorAll('button').forEach(b=>b.onclick=e=>{
+        e.stopPropagation();
+        setMark(seg.dataset.key, S.marks[seg.dataset.key]===b.dataset.m ? null : b.dataset.m);
+        refresh();
+      });
+    });
+  };
+  openSheet({title, body:monthHTML(mo), cancelLabel:'Done', after:bind});
+}
+
 function sheetBackfill(sub){
   const A=attFor(sub.id);
   const body='<div class="sheetIntro">Type what your college portal shows. Classes you’ve marked in the app are already inside these numbers, and future marks keep adding on top.</div>'+
