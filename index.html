@@ -633,16 +633,35 @@ const ICO = {
 
 /* ══════════════ STATE ══════════════ */
 const KEY='sem5plan';
-let S={subs:[],slots:[],marks:{},att:{},dls:[],cats:[],thr:67,theme:'auto',tone:'friendly',tab:'home'};
+/* One place that knows every field. Wipe, import and first run all go
+   through here, so adding a setting can't leave one path with `undefined`. */
+function blankState(keep){
+  keep=keep||{};
+  return {subs:[],slots:[],marks:{},att:{},dls:[],cats:[],tab:'home',
+          thr:67, ready:0, travel:0, name:'',
+          theme:keep.theme||'auto', tone:keep.tone||'friendly'};
+}
+/* Repair anything missing or the wrong shape — old saves, hand-edited
+   backups, a file from a previous version. */
+function normalise(st){
+  st=Object.assign(blankState(st),st||{});
+  if(!['light','dark','auto'].includes(st.theme)) st.theme='auto';
+  if(!['pro','plain','friendly','snark'].includes(st.tone)) st.tone='friendly';
+  ['subs','slots','dls','cats'].forEach(k=>{ if(!Array.isArray(st[k])) st[k]=[]; });
+  ['marks','att'].forEach(k=>{ if(!st[k]||typeof st[k]!=='object') st[k]={}; });
+  st.subs.forEach((s,i)=>{
+    if(typeof s.ci!=='number') s.ci=i%8;
+    if(!s.code) s.code=String(s.name||'?').slice(0,3).toUpperCase();
+  });
+  st.thr   =clamp(+st.thr   ||67,1,100);
+  st.ready =clamp(+st.ready ||0,0,300);
+  st.travel=clamp(+st.travel||0,0,300);
+  st.name  =typeof st.name==='string' ? st.name.slice(0,80) : '';
+  return st;
+}
+let S=blankState();
 try{ const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(S,JSON.parse(raw)||{}); }catch(e){}
-
-/* migrations */
-if(!['light','dark','auto'].includes(S.theme)) S.theme='auto';
-if(!['pro','plain','friendly','snark'].includes(S.tone)) S.tone='friendly';
-if(!Array.isArray(S.cats)) S.cats=[];
-if(!Array.isArray(S.subs)) S.subs=[];
-S.subs.forEach((s,i)=>{ if(typeof s.ci!=='number') s.ci=i%8; if(!s.code) s.code=s.name.slice(0,3).toUpperCase(); });
-S.thr=clamp(+S.thr||67,1,100);
+S=normalise(S);
 
 function save(){ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
 
@@ -834,6 +853,27 @@ function skipDayImpact(iso){
 const skipTodayImpact=()=>skipDayImpact(todayISO());
 /* Today if there's anything left to skip, otherwise the next day that has
    classes — so the feature is reachable on a Sunday too, not hidden. */
+/* ── tomorrow, and when to set the alarm ──────────────────────────
+   Travel time is a setting rather than a live Maps lookup: the app has
+   no network by design, and your college doesn't move. Online-only days
+   skip the commute entirely, so you get a later wake-up.            */
+const m2t = m => { m=((Math.round(m)%1440)+1440)%1440;
+  return fmtT(pad2(Math.floor(m/60))+':'+pad2(m%60)); };
+function dayPlan(iso){
+  const d=dateOf(iso), dow=dowOf(d);
+  const list=slotsOn(dow,iso).filter(sl=>subById(sl.subId));
+  if(!list.length) return {iso,d,list:[],none:true};
+  const first=list[0];                       /* slotsOn sorts by start time */
+  const allOnline=list.every(sl=>sl.online);
+  const travel = first.online ? 0 : (S.travel||0);
+  const leaveAt = t2m(first.start)-travel;
+  const wakeAt  = leaveAt-(S.ready||0);
+  return {iso, d, list, first, allOnline, travel,
+          configured:(S.ready||0)>0||(S.travel||0)>0,
+          leaveAt, wakeAt, dayBefore: wakeAt<0};
+}
+const tomorrowPlan = () => dayPlan(isoOf(addDays(new Date(),1)));
+
 function nextSkipDay(){
   for(let i=0;i<8;i++){
     const x=skipDayImpact(isoOf(addDays(new Date(),i)));
@@ -1191,7 +1231,43 @@ function renderHome(){
   bindDueRows($('#homeDue'));
 
   /* ── week strip ── */
-  let w='<div class="gHead">Next 7 days</div><div class="pad"><div class="list">';
+  /* ── tomorrow + wake-up time ── */
+  const tp=tomorrowPlan();
+  let tw='';
+  if(!tp.none){
+    const wake=tp.dayBefore?null:tp.wakeAt;
+    tw='<div class="gHead">Tomorrow · '+
+       tp.d.toLocaleDateString(undefined,{weekday:'long'})+'</div><div class="pad">'+
+      '<div class="card" style="padding:16px 17px">'+
+        (!tp.configured
+          ? '<div style="font-size:15px;font-weight:600">First class '+fmtT(tp.first.start)+'</div>'
+          : wake!=null
+            ? '<div style="display:flex;align-items:baseline;gap:9px">'+
+                '<span style="font-size:13px;color:var(--label2)">Wake by</span>'+
+                '<span class="tnum" style="font-size:29px;font-weight:800;letter-spacing:-.03em">'+
+                  m2t(wake)+'</span></div>'
+            : '<div style="font-size:15px;font-weight:600">Very early start — set an alarm tonight</div>')+
+        '<div style="font-size:13.5px;color:var(--label2);margin-top:7px;line-height:1.5">'+
+          (tp.travel
+            ? 'Leave by <b style="color:var(--label)">'+m2t(tp.leaveAt)+'</b> · '+
+              'first class '+fmtT(tp.first.start)+' at '+esc(tp.first.room||'college')
+            : tp.allOnline
+              ? T('All classes are online. First one at '+fmtT(tp.first.start)+'.',
+                  'Everything’s online tomorrow — first at '+fmtT(tp.first.start)+'.',
+                  'All online tomorrow, so no commute. First one at '+fmtT(tp.first.start)+'.',
+                  'All online. Roll over, open a laptop at '+fmtT(tp.first.start)+'.')
+              : (tp.configured ? 'First class at '+fmtT(tp.first.start)
+                 : 'Set your getting-ready and travel times in Settings and this becomes a wake-up time.'))+
+        '</div>'+
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">'+
+          tp.list.map(sl=>{ const sb=subById(sl.subId);
+            return '<span class="pill '+scCls(sb)+'" style="background:color-mix(in srgb,var(--sc) 15%,transparent);color:var(--sc)">'+
+              fmtT(sl.start)+' '+esc(sb.code)+(sl.online?' · online':'')+'</span>'; }).join('')+
+        '</div>'+
+        '<button class="btn ghost sm" id="homeTmrw" style="margin-top:13px">See tomorrow</button>'+
+      '</div></div>';
+  }
+  let w=tw+'<div class="gHead">Next 7 days</div><div class="pad"><div class="list">';
   for(let i=0;i<7;i++){
     const d=addDays(now,i), diso=isoOf(d);
     const cls=slotsOn(dowOf(d),diso).filter(s=>subById(s.subId)).length;
@@ -1206,9 +1282,12 @@ function renderHome(){
   }
   $('#homeWeek').innerHTML=w+'</div></div>';
   $$('#homeWeek [data-day]').forEach(b=>b.onclick=()=>{ ttDate=dateOf(b.dataset.day); showTab('timetable'); });
+  const ht=$('#homeTmrw');
+  if(ht) ht.onclick=()=>{ ttDate=addDays(new Date(),1); showTab('timetable'); };
   $$('#homeTiles [data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));
   const hc=$('#homeCatch'); if(hc) hc.onclick=sheetCatchUp;
-  const hs=$('#homeSkip');  if(hs) hs.onclick=sheetSkipToday;
+  /* must be wrapped — binding it directly hands the click Event in as `x` */
+  const hs=$('#homeSkip');  if(hs) hs.onclick=()=>sheetSkipToday();
 }
 
 /* ══════════════ TIMETABLE (one day at a time) ══════════════ */
@@ -1856,7 +1935,9 @@ function monthHTML(mo){
 }
 /* ══════════════ "SHOULD I SKIP TODAY?" ══════════════ */
 function sheetSkipToday(x){
-  x=x||nextSkipDay();
+  /* defensive: if this ever gets bound straight to onclick again, an Event
+     would arrive here and silently render an empty sheet */
+  if(!x||!x.rows) x=nextSkipDay();
   if(!x){ toast('No classes coming up to skip.'); return; }
   const col=SKIP_COLOUR[x.verdict];
 
@@ -1909,6 +1990,178 @@ function sheetSkipToday(x){
       };
     }
   });
+}
+
+/* ══════════════ ATTENDANCE APPEAL ══════════════
+   End-of-semester: find every class you were marked absent for, work out
+   how many need reversing to clear the threshold, and draft the message
+   to the professor. Reversing an absence moves it to present — the total
+   held is unchanged — so the maths is ceil(thr*total) - present.        */
+function absencesFor(subId){
+  const out=[];
+  for(const k in S.marks){
+    if(S.marks[k]!=='a') continue;
+    const p=k.split('|');
+    if(p[2]!==subId) continue;
+    out.push({key:k, iso:p[0], kind:p[3]||'th',
+              slot:S.slots.find(s=>s.id===p[1])||null});
+  }
+  return out.sort((a,b)=>a.iso.localeCompare(b.iso));
+}
+/* how many reversals it takes to reach the required percentage */
+function reversalsNeeded(p,t){
+  if(!t) return 0;
+  if(pctOf(p,t)>=S.thr) return 0;
+  return Math.max(0, Math.ceil(S.thr/100*t - p - 1e-9));
+}
+let appealSel={};                 /* key -> true, which absences are ticked */
+function appealHTML(sub){
+  const A=attFor(sub.id), abs=absencesFor(sub.id);
+  const need=reversalsNeeded(A.p,A.t);
+  const picked=abs.filter(a=>appealSel[a.key]);
+  const after=pctOf(A.p+picked.length, A.t);
+
+  let h='<div class="card" style="margin-bottom:14px">'+
+    '<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">'+esc(sub.name)+'</div>'+
+    '<div style="display:flex;align-items:baseline;gap:9px;margin-top:8px">'+
+      '<span class="tnum" style="font-size:26px;font-weight:800;color:'+
+        (pctOf(A.p,A.t)>=S.thr?'var(--green)':'var(--red)')+'">'+pctFmt(pctOf(A.p,A.t))+'%</span>'+
+      (picked.length? '<span style="font-size:18px;color:var(--label3)">→</span>'+
+        '<span class="tnum" style="font-size:26px;font-weight:800;color:'+
+        (after>=S.thr?'var(--green)':'var(--red)')+'">'+pctFmt(after)+'%</span>' : '')+
+      '<span style="font-size:13px;color:var(--label2);margin-left:auto">'+A.p+'/'+A.t+'</span>'+
+    '</div>'+
+    '<div style="font-size:13.5px;color:var(--label2);margin-top:10px;line-height:1.45">'+
+      (!abs.length ? 'No absences recorded for this subject — nothing to appeal.'
+       : !need ? 'Already above '+S.thr+'%. Nothing needs reversing.'
+       : 'You need <b style="color:var(--label)">'+need+'</b> of these '+abs.length+
+         ' absence'+(abs.length===1?'':'s')+' reversed to reach '+S.thr+'%.'+
+         (picked.length? ' You’ve picked <b style="color:var(--label)">'+picked.length+'</b>.' : ''))+
+    '</div></div>';
+
+  if(!abs.length) return h;
+
+  h+='<div class="gHead" style="padding-left:4px">Pick the classes to appeal</div>'+
+     '<div style="display:flex;gap:9px;margin-bottom:10px">'+
+       '<button class="btn ghost sm" id="apAll">Select all</button>'+
+       '<button class="btn ghost sm" id="apNone">Clear</button></div>'+
+     '<div class="list">';
+  abs.forEach(a=>{
+    const on=!!appealSel[a.key], sl=a.slot||{kind:a.kind};
+    h+='<button class="row tap" data-ap="'+esc(a.key)+'">'+
+      '<span class="dlChk'+(on?' on':'')+'">✓</span>'+
+      '<div class="rMain"><div class="rT">'+
+        dateOf(a.iso).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})+
+        kindTag(sl)+onlineTag(sl)+'</div>'+
+      '<div class="rS">'+(a.slot? fmtT(a.slot.start)+'–'+fmtT(a.slot.end)+
+        (placeOf(a.slot)?' · '+esc(placeOf(a.slot)):'') : 'class since removed')+'</div></div>'+
+      '</button>';
+  });
+  h+='</div>';
+
+  h+='<div class="gHead">Why were you away?</div><div class="list">'+
+     '<label class="row"><input type="text" id="apReason" placeholder="medical leave, family emergency…" '+
+       'value="'+esc(appealSel.__reason||'')+'" style="text-align:left"></label></div>'+
+     '<div style="height:14px"></div>'+
+     '<button class="btn sm" id="apMake">Write the message ('+picked.length+')</button>'+
+     '<div class="gNote" style="text-align:center">Nothing is sent from the app — you get text to copy.</div>';
+  return h;
+}
+function appealMessage(sub,picked,reason){
+  const A=attFor(sub.id);
+  const lines=picked.map(a=>{
+    const d=dateOf(a.iso).toLocaleDateString(undefined,
+      {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const when=a.slot? ' ('+fmtT(a.slot.start)+'–'+fmtT(a.slot.end)+')' : '';
+    const kind=KIND_NAME[a.slot?kindOf(a.slot):a.kind];
+    return '  • '+d+when+' — '+kind;
+  }).join('\n');
+  return 'Subject: Attendance rectification request — '+sub.name+' ('+sub.code+')\n\n'+
+    'Respected Sir/Ma’am,\n\n'+
+    'I hope you are well. I am writing to request a review of my attendance record for '+
+    sub.name+'.\n\nI was marked absent for the following '+
+    (picked.length===1?'class':picked.length+' classes')+':\n\n'+lines+'\n\n'+
+    (reason? 'Reason: '+reason+'\n\n' : '')+
+    'My attendance in this subject currently stands at '+pctFmt(pctOf(A.p,A.t))+'% ('+
+    A.p+' of '+A.t+' classes). If you find the above in order, I would be grateful '+
+    'if these could be marked as present.\n\n'+
+    'I am happy to provide any supporting documents you may need. '+
+    'Thank you for your time and consideration.\n\n'+
+    'Respectfully,\n'+(S.name||'[your name]');
+}
+function sheetAppealMessage(sub,picked,reason){
+  const msg=appealMessage(sub,picked,reason);
+  openSheet({
+    title:'Message', cancelLabel:'Done',
+    body:'<div class="sheetIntro">Copy this and send it however you normally reach your professor.</div>'+
+      '<div class="card" style="white-space:pre-wrap;font-size:14px;line-height:1.55;'+
+        'font-family:var(--font);color:var(--label)">'+esc(msg)+'</div>'+
+      '<div style="height:14px"></div>'+
+      '<button class="btn sm" id="apCopy">Copy message</button>'+
+      (S.name?'':'<div class="gNote" style="text-align:center">Add your name in Settings and it signs off properly.</div>'),
+    after(){
+      $('#apCopy').onclick=()=>{
+        let done=false;
+        try{
+          if(navigator.clipboard&&navigator.clipboard.writeText){
+            navigator.clipboard.writeText(msg); done=true;
+          }
+        }catch(e){}
+        toast(done?'Copied.':'Select the text above to copy.');
+      };
+    }
+  });
+}
+function sheetAppeal(sub){
+  appealSel={};
+  const bind=()=>{
+    const refresh=()=>{
+      appealSel.__reason=($('#apReason')&&$('#apReason').value)||appealSel.__reason||'';
+      $('#sheetBody').innerHTML=appealHTML(sub); bind();
+    };
+    $$('#sheetBody [data-ap]').forEach(b=>b.onclick=()=>{
+      const k=b.dataset.ap;
+      if(appealSel[k]) delete appealSel[k]; else appealSel[k]=true;
+      refresh();
+    });
+    const all=$('#apAll'), none=$('#apNone');
+    if(all)  all.onclick =()=>{ absencesFor(sub.id).forEach(a=>appealSel[a.key]=true); refresh(); };
+    if(none) none.onclick=()=>{ const r=appealSel.__reason; appealSel={__reason:r}; refresh(); };
+    const mk=$('#apMake');
+    if(mk) mk.onclick=()=>{
+      const picked=absencesFor(sub.id).filter(a=>appealSel[a.key]);
+      if(!picked.length){ toast('Pick at least one class first.'); return; }
+      const reason=($('#apReason')&&$('#apReason').value.trim())||'';
+      sheetAppealMessage(sub,picked,reason);
+    };
+  };
+  openSheet({title:'Appeal · '+sub.code, body:appealHTML(sub), cancelLabel:'Close', after:bind});
+}
+function sheetAppealPick(){
+  const withAbs=S.subs.map(s=>({sub:s,n:absencesFor(s.id).length,A:attFor(s.id)}))
+                      .filter(x=>x.n>0)
+                      .sort((a,b)=>pctOf(a.A.p,a.A.t)-pctOf(b.A.p,b.A.t));
+  if(!withAbs.length){
+    openSheet({title:'Attendance appeal', cancelLabel:'Done',
+      body:'<div class="empty"><div class="eE">🎉</div><div class="eT">No absences on record</div>'+
+        '<div class="eS">Nothing to appeal — every class you’ve marked is a present.</div></div>'});
+    return;
+  }
+  let h='<div class="sheetIntro">Pick a subject to see every class you were marked absent for, '+
+    'choose which ones to appeal, and get a message to send.</div><div class="list">';
+  withAbs.forEach(x=>{
+    const pct=pctOf(x.A.p,x.A.t), need=reversalsNeeded(x.A.p,x.A.t);
+    h+='<button class="row tap '+scCls(x.sub)+'" data-apsub="'+x.sub.id+'">'+
+      '<span class="ico" style="background:var(--sc);font-size:11px;font-weight:700">'+
+        esc(x.sub.code.slice(0,3))+'</span>'+
+      '<div class="rMain"><div class="rT">'+esc(x.sub.name)+'</div>'+
+      '<div class="rS">'+x.n+' absence'+(x.n===1?'':'s')+
+        (need? ' · '+need+' to reverse for '+S.thr+'%' : ' · already above '+S.thr+'%')+'</div></div>'+
+      '<span class="pill '+(pct>=S.thr?'ok':'no')+'">'+pctFmt(pct)+'%</span>'+
+      '<span class="chev">›</span></button>';
+  });
+  openSheet({title:'Attendance appeal', body:h+'</div>', cancelLabel:'Done',
+    after(){ $$('#sheetBody [data-apsub]').forEach(b=>b.onclick=()=>sheetAppeal(subById(b.dataset.apsub))); }});
 }
 
 function sheetMonth(mo){
@@ -2238,6 +2491,29 @@ function renderSettings(){
       'style="width:66px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
       '<span style="color:var(--label2)">%</span></label></div></div>';
 
+  h+='<div class="gHead">Mornings</div><div class="pad"><div class="list">'+
+    '<label class="row"><div class="rMain"><div class="rT">Getting ready</div>'+
+      '<div class="rS">Shower, breakfast, packing — door to door</div></div>'+
+      '<input type="number" id="setReady" min="0" max="300" value="'+(S.ready||0)+'" '+
+      'style="width:60px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
+      '<span style="color:var(--label2)">min</span></label>'+
+    '<label class="row"><div class="rMain"><div class="rT">Travel to college</div>'+
+      '<div class="rS">Skipped automatically when the first class is online</div></div>'+
+      '<input type="number" id="setTravel" min="0" max="300" value="'+(S.travel||0)+'" '+
+      'style="width:60px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
+      '<span style="color:var(--label2)">min</span></label>'+
+    '</div><div class="gNote">Used for the wake-up time on Today. Set once — your college doesn’t move.</div></div>';
+
+  h+='<div class="gHead">End of semester</div><div class="pad"><div class="list">'+
+    '<button class="row tap" id="apBtn"><span class="ico" style="background:var(--purple)">✉</span>'+
+      '<div class="rMain"><div class="rT">Attendance appeal</div>'+
+      '<div class="rS">Find every class you were marked absent for and draft the request</div></div>'+
+      '<span class="chev">›</span></button>'+
+    '<label class="row"><div class="rMain"><div class="rT">Your name</div>'+
+      '<div class="rS">Signs off the appeal message</div></div>'+
+      '<input type="text" id="setName" placeholder="Optional" value="'+esc(S.name||'')+'"></label>'+
+    '</div></div>';
+
   h+='<div class="gHead">Subjects</div><div class="pad"><div class="list">'+
     (S.subs.length? S.subs.map(s=>'<button class="row tap '+scCls(s)+'" data-sub="'+s.id+'">'+
       '<span class="ico" style="background:var(--sc);font-size:11px;font-weight:700">'+esc(s.code.slice(0,3))+'</span>'+
@@ -2269,6 +2545,10 @@ function renderSettings(){
   $$('#thSeg button').forEach(b=>b.onclick=()=>{ S.theme=b.dataset.th; save(); applyTheme(); renderSettings(); });
   $$('[data-tone]').forEach(b=>b.onclick=()=>{ S.tone=b.dataset.tone; save(); renderSettings(); toast('Tone: '+TONE_OPTS.find(t=>t[0]===S.tone)[1]); });
   $('#setThr').onchange=e=>{ S.thr=clamp(parseInt(e.target.value)||67,1,100); e.target.value=S.thr; save(); renderAll(); };
+  $('#setReady').onchange =e=>{ S.ready =clamp(parseInt(e.target.value)||0,0,300); e.target.value=S.ready;  save(); };
+  $('#setTravel').onchange=e=>{ S.travel=clamp(parseInt(e.target.value)||0,0,300); e.target.value=S.travel; save(); };
+  $('#setName').onchange  =e=>{ S.name=String(e.target.value||'').trim().slice(0,80); save(); };
+  $('#apBtn').onclick=()=>sheetAppealPick();
   $$('[data-sub]').forEach(b=>b.onclick=()=>sheetSubject(subById(b.dataset.sub)));
   $('#addSub').onclick=()=>sheetSubject(null);
   $('#expBtn').onclick=doExport;
@@ -2281,7 +2561,7 @@ function renderSettings(){
   $('#wipeBtn').onclick=()=>openAct({title:'Erase everything?', msg:'Subjects, timetable, attendance and deadlines. This cannot be undone.',
     actions:[{label:'Erase everything', destructive:true, fn:()=>{
       const keepTheme=S.theme, keepTone=S.tone;
-      S={subs:[],slots:[],marks:{},att:{},dls:[],cats:[],thr:67,theme:keepTheme,tone:keepTone,tab:'home'};
+      S=blankState({theme:keepTheme,tone:keepTone});
       save(); renderAll(); showTab('home'); toast('Erased.');
     }}]});
 }
@@ -2303,9 +2583,7 @@ $('#impFile').onchange=e=>{
     try{
       const d=JSON.parse(r.result);
       if(!d||typeof d!=='object'||!Array.isArray(d.subs)) throw 0;
-      S=Object.assign({subs:[],slots:[],marks:{},att:{},dls:[],cats:[],thr:67,theme:S.theme,tone:S.tone,tab:'home'},d);
-      if(!Array.isArray(S.cats)) S.cats=[];
-      S.subs.forEach((s,i)=>{ if(typeof s.ci!=='number') s.ci=i%8; });
+      S=normalise(Object.assign(blankState(S),d));
       save(); renderAll(); showTab('home'); toast('Backup restored.');
     }catch(err){ toast('That file didn’t look right.'); }
   };
