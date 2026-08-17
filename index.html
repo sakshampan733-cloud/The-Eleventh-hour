@@ -69,6 +69,11 @@
 .sc4{--sc:var(--pink)}   .sc5{--sc:var(--teal)}   .sc6{--sc:var(--indigo)} .sc7{--sc:var(--brown)}
 
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+/* Controls must not offer text selection or the iOS Copy/Look-Up bubble —
+   that callout is the giveaway that something is a web page. Real text
+   (class names, the appeal message) stays selectable. */
+button,.row,.tile,.cls,.dChip,.seg,.mkSeg,#tabbar,#nav,.pill,.tag{
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 html{-webkit-text-size-adjust:100%}
 body{
   background:var(--bg); color:var(--label);
@@ -618,7 +623,8 @@ const t2m = t => { const p=String(t||'0:0').split(':'); return (+p[0])*60+(+p[1]
 const fmtT = t => { let [h,m]=String(t).split(':').map(Number); const ap=h>=12?'pm':'am';
   h=h%12||12; return h+(m?':'+pad2(m):'')+ap; };
 const nowMin = () => { const d=new Date(); return d.getHours()*60+d.getMinutes(); };
-const fmtDur = m => m<60 ? m+' min' : (m%60===0 ? (m/60)+' hr' : Math.floor(m/60)+' hr '+(m%60)+' min');
+const fmtDur = m => { m=Math.max(0,Math.round(m||0));
+  return m<60 ? m+' min' : (m%60===0 ? (m/60)+' hr' : Math.floor(m/60)+' hr '+(m%60)+' min'); };
 
 /* ── icons ─────────────────────────────────────────────────── */
 const ICO = {
@@ -655,9 +661,8 @@ function blankState(keep){
           thr:67, name:'', termEnd:'',   /* semester end — powers the runway maths */
           /* morning planner — off until you switch it on in Settings */
           planner:false, readyMin:15, readyMax:30,
-          commute:'self', remindAt:'18:00',
+          commute:'self', remindAt:'18:00', plans:{},   /* per-day 'which classes I'll actually attend' */
           travelAM:40, travelMid:60, travelPM:50, driverHr:17,
-          ready:0, travel:0,          /* superseded; kept so old saves migrate */
           theme:keep.theme||'auto', tone:keep.tone||'friendly'};
 }
 /* Repair anything missing or the wrong shape — old saves, hand-edited
@@ -684,8 +689,7 @@ function normalise(st){
     if(!s.code) s.code=String(s.name||'?').slice(0,3).toUpperCase();
   });
   st.thr   =clamp(+st.thr   ||67,1,100);
-  st.ready =clamp(+st.ready ||0,0,300);
-  st.travel=clamp(+st.travel||0,0,300);
+  delete st.ready; delete st.travel; delete st.driverHr;   /* migrated above */
   st.planner  = !!st.planner;
   st.readyMin =clamp(+st.readyMin ||0,0,240);
   st.readyMax =clamp(+st.readyMax ||0,0,240);
@@ -694,6 +698,12 @@ function normalise(st){
   st.driverHr =clamp(+st.driverHr||17,0,23);
   if(!COMMUTE[st.commute]) st.commute='self';
   if(!/^\d{2}:\d{2}$/.test(st.remindAt||'')) st.remindAt='18:00';
+  /* plans are intentions for a specific day — drop them once the day is gone */
+  if(!st.plans||typeof st.plans!=='object') st.plans={};
+  else { const today=todayISO();
+    Object.keys(st.plans).forEach(k=>{
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(k) || k<today || !Array.isArray(st.plans[k]))
+        delete st.plans[k]; }); }
   st.termEnd  = /^\d{4}-\d{2}-\d{2}$/.test(st.termEnd||'') ? st.termEnd : '';
   st.name  =typeof st.name==='string' ? st.name.slice(0,80) : '';
   return st;
@@ -889,7 +899,6 @@ function skipDayImpact(iso){
           when:skipDayLabel(iso),
           now:pctOf(GP,GT), after:pctOf(GP,GT+n), hasHistory:GT>0};
 }
-const skipTodayImpact=()=>skipDayImpact(todayISO());
 /* Today if there's anything left to skip, otherwise the next day that has
    classes — so the feature is reachable on a Sunday too, not hidden. */
 /* ── tomorrow, and when to set the alarm ──────────────────────────
@@ -913,17 +922,50 @@ const plannerReady = () => S.planner &&
   ((S.readyMin||0)>0||(S.readyMax||0)>0) &&
   ((S.travelAM||0)>0||(S.travelMid||0)>0||(S.travelPM||0)>0);
 
+/* ── what you actually intend to attend that day ──────────────────
+   Picking an option in "Worth going?" stores a plan for that date.
+   Everything downstream — pickup time, wake time, the morning
+   countdown — keys off the first class you're ACTUALLY going to,
+   not the first one on the timetable.                            */
+function liveSlots(iso){
+  return slotsOn(dowOf(dateOf(iso)),iso)
+    .filter(sl=>subById(sl.subId) && S.marks[markKey(iso,sl)]!=='c');
+}
+const planFor = iso => (S.plans&&Array.isArray(S.plans[iso])) ? S.plans[iso] : null;
+/* Resolve a stored plan against what's actually on that day. A plan whose
+   classes have since been deleted or cancelled is STALE — fall back to the
+   normal day rather than silently claiming you're not going. An empty plan
+   is different: that's you deliberately choosing to stay home. */
+function resolvePlan(iso){
+  const ids=planFor(iso), live=liveSlots(iso);
+  if(!ids)        return {going:live, planned:false, stale:false};
+  if(!ids.length) return {going:[],   planned:true,  stale:false};
+  const kept=live.filter(sl=>ids.indexOf(sl.id)>=0);
+  if(!kept.length) return {going:live, planned:false, stale:true};
+  return {going:kept, planned:true, stale:false};
+}
+function setPlan(iso,ids){
+  if(!S.plans) S.plans={};
+  if(ids===null) delete S.plans[iso]; else S.plans[iso]=ids.slice();
+  save();
+}
 function dayPlan(iso){
   const d=dateOf(iso), dow=dowOf(d);
-  const list=slotsOn(dow,iso).filter(sl=>subById(sl.subId));
+  const list=liveSlots(iso);
   if(!list.length) return {iso,d,list:[],none:true};
-  const first=list[0];                       /* slotsOn sorts by start time */
-  const allOnline=list.every(sl=>sl.online);
+  const rp=resolvePlan(iso);
+  const going=rp.going, planned=rp.planned;
+  const first=going[0]||null;                /* the class you're actually going to */
+  if(!first) return {iso,d,list,going:[],planned,skippingAll:true,
+                     none:false,configured:plannerReady(),
+                     leaveAt:null,wakeAt:null,travel:0};
+  const allOnline=going.every(sl=>sl.online);
   const start=t2m(first.start), configured=plannerReady();
   const travel = (configured && !first.online) ? travelFor(start) : 0;
   const leaveAt = configured ? start-travel : null;
   const wakeAt  = configured ? leaveAt-(S.readyMax||0) : null;
-  return {iso, d, list, first, allOnline, travel, start, configured,
+  return {iso, d, list, going, planned, skippingAll:false,
+          first, allOnline, travel, start, configured,
           leaveAt, wakeAt,
           wakeRushed: configured ? leaveAt-(S.readyMin||0) : null,
           dayBefore: configured && wakeAt<0};
@@ -935,7 +977,7 @@ const tomorrowPlan = () => dayPlan(isoOf(addDays(new Date(),1)));
 function morningStatus(){
   if(!plannerReady()) return null;
   const p=dayPlan(todayISO());
-  if(p.none) return null;
+  if(p.none||p.skippingAll) return null;
   const now=nowMin();
   if(now>=t2m(p.first.end)) return null;          /* first class already done */
   const untilLeave=p.leaveAt-now, untilClass=p.start-now;
@@ -1078,6 +1120,7 @@ function dayOptions(iso){
       worst: rows.reduce((w,r)=>Math.max(w,RUNWAY_RANK[r.rw.level]),0),
       gone:   rows.some(r=>r.rw.level==='gone'),
       unsafe: rows.some(r=>r.rw.level==='gone'||r.rw.level==='risk'),
+      ids: attend.map(sl=>sl.id),
       label: !attend.length ? 'Don’t go at all'
            : run.length===blocks.length ? 'Go for everything'
            : m2t(run[0].start)+'–'+m2t(run[run.length-1].end)+' only'
@@ -1165,14 +1208,18 @@ function navButtons(){
   const bk=$('#nbBack'); if(bk) bk.onclick=()=>showTab(lastTab);
 }
 let lastTab='home';
+const scrollMem={};                 /* each tab remembers where you were */
 function showTab(id){
+  if(S.tab&&S.tab!==id) scrollMem[S.tab]=(typeof window!=='undefined'&&window.scrollY)||0;
   if(id!=='settings') lastTab=id;
   S.tab=id; save();
   $$('main section').forEach(s=>s.classList.toggle('on',s.id===id));
   const t=TABS.find(x=>x.id===id);
   $('#navTitle').textContent = t?t.title:'Settings';
   renderTabs(); navButtons();
-  window.scrollTo(0,0); onScroll();
+  const y=scrollMem[id]||0;
+  if(typeof window!=='undefined'&&window.scrollTo) window.scrollTo(0,y);
+  onScroll();
   if(id==='home') renderHome();
   if(id==='timetable') renderTT();
   if(id==='attendance') renderAtt();
@@ -1192,49 +1239,6 @@ function onScroll(){
   }
 }
 window.addEventListener('scroll',onScroll,{passive:true});
-
-/* ══════════════ LONG PRESS ══════════════
-   Press and hold a card to get its shortcuts, the way holding an app
-   icon does. Any element with data-lp="key" opens that menu.        */
-const LP_MENUS={
-  attendance:()=>({title:'Attendance', actions:[
-    {label:'Open attendance', fn:()=>showTab('attendance')},
-    {label:'Catch up on unmarked', fn:sheetCatchUp},
-    {label:'Attendance appeal', fn:sheetAppealPick}]}),
-  due:()=>({title:'Deadlines', actions:[
-    {label:'Open due list', fn:()=>showTab('deadlines')},
-    {label:'Add a deadline', fn:()=>sheetDeadline(null)}]}),
-  today:()=>{
-    const iso=todayISO(), dow=dowOf(new Date());
-    const list=slotsOn(dow,iso).filter(sl=>subById(sl.subId));
-    const mark=v=>{ list.forEach(sl=>S.marks[markKey(iso,sl)]=v); save(); keepScroll(renderAll);
-      toast('Whole day marked '+(v==='p'?'present':'absent')+'.'); };
-    return {title:'Today', msg:list.length?list.length+' classes':'No classes today',
-      actions:list.length?[
-        {label:'Mark all present', fn:()=>mark('p')},
-        {label:'Mark all absent',  fn:()=>mark('a')},
-        {label:'Can I skip?', fn:()=>sheetSkipToday()}]:[
-        {label:'Open the timetable', fn:()=>showTab('timetable')}]};
-  },
-  tomorrow:()=>({title:'Tomorrow', actions:[
-    {label:'Is it worth going?', fn:()=>sheetWorthGoing(isoOf(addDays(new Date(),1)))},
-    {label:'See tomorrow’s classes', fn:()=>{ ttDate=addDays(new Date(),1); showTab('timetable'); }},
-    {label:'Morning settings', fn:()=>showTab('settings')}]})
-};
-function bindLongPress(root){
-  (root||document).querySelectorAll('[data-lp]').forEach(el=>{
-    let timer=null, moved=false;
-    const fire=()=>{ const m=LP_MENUS[el.dataset.lp]; if(m) openAct(m()); };
-    const start=()=>{ moved=false; clearTimeout(timer);
-      timer=setTimeout(()=>{ if(!moved){ lastSwipe=Date.now(); fire(); } },480); };
-    const stop =()=>clearTimeout(timer);
-    el.addEventListener('touchstart',start,{passive:true});
-    el.addEventListener('touchmove',()=>{ moved=true; stop(); },{passive:true});
-    el.addEventListener('touchend',stop,{passive:true});
-    el.addEventListener('touchcancel',stop,{passive:true});
-    el.addEventListener('contextmenu',e=>{ if(e.preventDefault) e.preventDefault(); fire(); });
-  });
-}
 
 /* ══════════════ TOAST ══════════════ */
 let toastT;
@@ -1262,6 +1266,42 @@ function closeSheet(){
   sheetSave=null; document.body.style.overflow='';
 }
 $('#sheetCancel').onclick=closeSheet;
+/* drag the sheet down to dismiss — from the grabber/header, or from the
+   body once it's scrolled to the top, so it never fights normal scrolling */
+(function(){
+  const sheet=document.getElementById('sheet');
+  const bar=document.getElementById('sheetBar');
+  const body=document.getElementById('sheetBody');
+  if(!sheet) return;
+  let y0=null, dy=0, dragging=false;
+  const fromTop=e=>{
+    const t=e.target;
+    if(bar&&bar.contains&&bar.contains(t)) return true;
+    if(t&&t.classList&&t.classList.contains('grab')) return true;
+    return !body || (body.scrollTop||0)<=0;
+  };
+  sheet.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1||!fromTop(e)){ y0=null; return; }
+    y0=e.touches[0].clientY; dy=0; dragging=false;
+  },{passive:true});
+  sheet.addEventListener('touchmove',e=>{
+    if(y0===null) return;
+    dy=e.touches[0].clientY-y0;
+    if(dy<=0){ if(dragging){ sheet.style.transform=''; dragging=false; } return; }
+    dragging=true;
+    sheet.style.transition='none';
+    sheet.style.transform='translateY('+dy.toFixed(1)+'px)';
+  },{passive:true});
+  const release=()=>{
+    if(y0===null) return;
+    const d=dy; y0=null; dy=0;
+    sheet.style.transition=''; sheet.style.transform='';
+    if(dragging && d>90) closeSheet();
+    dragging=false;
+  };
+  sheet.addEventListener('touchend',release,{passive:true});
+  sheet.addEventListener('touchcancel',release,{passive:true});
+})();
 $('#scrim').onclick=()=>{ closeSheet(); closeAct(); };
 $('#sheetDone').onclick=()=>{ if(sheetSave && sheetSave()!==false) closeSheet(); };
 function sheetError(msg){
@@ -1429,14 +1469,28 @@ function renderHome(){
   const remindMin=t2m(S.remindAt||'18:00');
   const isEvening=nowMin()>=remindMin;
   const ms=morningStatus();
-  if(!ms && isEvening && tpH && !tpH.none && tpH.configured){
+  if(!ms && isEvening && tpH && !tpH.none && tpH.skippingAll){
+    hero='<div id="hero" style="border-left-color:var(--label3)"><div class="hTop">'+
+      '<div class="hK" style="color:var(--label2)">Tomorrow</div>'+
+      '<div class="hN">Not going in</div>'+
+      '<div class="hM">You’ve planned to skip '+tpH.list.length+' class'+
+        (tpH.list.length===1?'':'es')+' tomorrow.</div>'+
+      '<div style="display:flex;gap:9px;margin-top:13px">'+
+        '<button class="btn ghost sm" id="heroWorth">Change plan</button></div>'+
+      '</div></div>'+hero;
+  } else if(!ms && isEvening && tpH && !tpH.none && tpH.configured){
     const wake=tpH.dayBefore?null:tpH.wakeAt;
-    hero='<div id="hero" data-lp="tomorrow" style="border-left-color:var(--purple)"><div class="hTop">'+
+    hero='<div id="hero" style="border-left-color:var(--purple)"><div class="hTop">'+
       '<div class="hK" style="color:var(--purple)">'+esc(cm.head)+'</div>'+
       '<div class="hN">'+esc(cm.verb)+' '+m2t(tpH.leaveAt)+'</div>'+
       '<div class="hM">'+tpH.d.toLocaleDateString(undefined,{weekday:'long'})+
-        ' · first class '+fmtT(tpH.first.start)+
-        (wake!=null?' · wake by <b>'+m2t(wake)+'</b>':'')+'</div>'+
+        ' · '+(tpH.planned?'your first <b>planned</b> class ':'first class ')+fmtT(tpH.first.start)+
+        (wake!=null?' · wake by <b>'+m2t(wake)+'</b>':'')+
+        (tpH.planned&&tpH.going.length<tpH.list.length
+          ? '<br><span style="color:var(--accent)">Skipping '+
+            (tpH.list.length-tpH.going.length)+' earlier class'+
+            ((tpH.list.length-tpH.going.length)===1?'':'es')+' by your plan</span>' : '')+
+        '</div>'+
       '<div style="display:flex;gap:9px;margin-top:13px">'+
         (cm.msg?'<button class="btn ghost sm" id="heroCopy">Copy message</button>':'')+
         '<button class="btn ghost sm" id="heroWorth">Worth going?</button>'+
@@ -1468,7 +1522,6 @@ function renderHome(){
   }
   $('#heroWrap').innerHTML=hero;
   bindMkSeg($('#heroWrap'));
-  bindLongPress($('#heroWrap'));
 
   /* ── tiles ── */
   let GP=0,GT=0; S.subs.forEach(s=>{const a=attFor(s.id); GP+=a.p; GT+=a.t;});
@@ -1476,11 +1529,11 @@ function renderHome(){
   const week=S.dls.filter(d=>!d.done&&daysTo(d.date)>=0&&daysTo(d.date)<=7).length;
   const over=S.dls.filter(d=>!d.done&&daysTo(d.date)<0).length;
   $('#homeTiles').innerHTML='<div class="tiles">'+
-    '<button class="tile tap" data-go="attendance" data-lp="attendance" style="text-align:left">'+
+    '<button class="tile tap" data-go="attendance" style="text-align:left">'+
       '<div class="tV" style="color:'+(GT? (gp>=S.thr?'var(--green)':'var(--red)') :'var(--label)')+'">'+
         (GT?pctFmt(gp)+'%':'—')+'</div>'+
       '<div class="tL">Overall attendance'+(GT?' · '+GP+'/'+GT:'')+'</div></button>'+
-    '<button class="tile tap" data-go="deadlines" data-lp="due" style="text-align:left">'+
+    '<button class="tile tap" data-go="deadlines" style="text-align:left">'+
       '<div class="tV"'+(over?' style="color:var(--red)"':'')+'>'+(over?over:week)+'</div>'+
       '<div class="tL">'+(over?'Overdue':'Due in 7 days')+'</div></button>'+
     '</div>'+
@@ -1559,11 +1612,23 @@ function renderHome(){
   /* ── tomorrow + wake-up time ── */
   const tp=tomorrowPlan();
   let tw='';
-  if(!tp.none){
+  if(!tp.none && tp.skippingAll){
+    /* planned not to go — no times to show, just what you're skipping */
+    tw+='<div class="gHead">Tomorrow · '+
+      tp.d.toLocaleDateString(undefined,{weekday:'long'})+'</div><div class="pad">'+
+      '<div class="card" style="padding:16px 17px">'+
+      '<div style="font-size:15px;font-weight:600">Not going in</div>'+
+      '<div style="font-size:13.5px;color:var(--label2);margin-top:6px">'+
+        'Skipping all '+tp.list.length+' class'+(tp.list.length===1?'':'es')+'.</div>'+
+      '<div style="display:flex;gap:9px;margin-top:13px">'+
+        '<button class="btn ghost sm" id="homeWorth">Change plan</button>'+
+        '<button class="btn ghost sm" id="homeTmrw">See tomorrow</button></div>'+
+      '</div></div>';
+  } else if(!tp.none){
     const wake=tp.dayBefore?null:tp.wakeAt;
     tw+='<div class="gHead">Tomorrow · '+
        tp.d.toLocaleDateString(undefined,{weekday:'long'})+'</div><div class="pad">'+
-      '<div class="card" data-lp="tomorrow" style="padding:16px 17px">'+
+      '<div class="card" style="padding:16px 17px">'+
         (!tp.configured
           ? '<div style="font-size:15px;font-weight:600">First class '+fmtT(tp.first.start)+'</div>'
           : wake!=null
@@ -1584,9 +1649,14 @@ function renderHome(){
               : (tp.configured ? 'First class at '+fmtT(tp.first.start)
                  : 'Turn on the morning planner in Settings and this becomes a wake-up time.'))+
         '</div>'+
+        (tp.planned&&!tp.skippingAll&&tp.going.length<tp.list.length
+          ? '<div style="font-size:12.5px;color:var(--accent);margin-top:8px;font-weight:600">'+
+            'Planned: '+tp.going.length+' of '+tp.list.length+' classes</div>' : '')+
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">'+
           tp.list.map(sl=>{ const sb=subById(sl.subId);
-            return '<span class="pill '+scCls(sb)+'" style="background:color-mix(in srgb,var(--sc) 15%,transparent);color:var(--sc)">'+
+            const skipped=tp.planned && tp.going.indexOf(sl)<0;
+            return '<span class="pill '+scCls(sb)+'" style="background:color-mix(in srgb,var(--sc) 15%,transparent);'+
+              'color:var(--sc)'+(skipped?';opacity:.4;text-decoration:line-through':'')+'">'+
               fmtT(sl.start)+' '+esc(sb.code)+(sl.online?' · online':'')+'</span>'; }).join('')+
         '</div>'+
         '<div style="display:flex;gap:9px;margin-top:13px">'+
@@ -1625,8 +1695,6 @@ function renderHome(){
   const hwg=$('#heroWorth');
   if(hwg) hwg.onclick=()=>sheetWorthGoing(isoOf(addDays(new Date(),1)));
   $$('#homeTiles [data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));
-  bindLongPress($('#homeTiles'));
-  bindLongPress($('#homeWeek'));
   const hc=$('#homeCatch'); if(hc) hc.onclick=sheetCatchUp;
   /* must be wrapped — binding it directly hands the click Event in as `x` */
   const hs=$('#homeSkip');  if(hs) hs.onclick=()=>sheetSkipToday();
@@ -2557,14 +2625,35 @@ function sheetWorthGoing(iso){
     if(i){ const gap=b.start-x.blocks[i-1].end;
       body+='<div style="font-size:12px;color:var(--orange);padding:5px 0 5px 12px;'+
         'border-left:2px dashed var(--sep);margin-left:6px">'+fmtDur(gap)+' gap</div>'; }
-    body+='<div style="display:flex;gap:10px;align-items:baseline;padding:3px 0">'+
-      '<span class="tnum" style="font-size:13px;font-weight:600;width:96px;flex-shrink:0">'+
-        m2t(b.start)+'–'+m2t(b.end)+'</span>'+
-      '<span style="font-size:13.5px;color:var(--label2)">'+
-        b.slots.map(sl=>esc(subById(sl.subId).code)+(sl.online?' (online)':'')).join(', ')+
-      '</span></div>';
+    b.slots.forEach(sl=>{
+      body+='<button class="row tap" data-cx="'+sl.id+'" style="padding:7px 0;min-height:0">'+
+        '<span class="tnum" style="font-size:13px;font-weight:600;width:96px;flex-shrink:0;text-align:left">'+
+          fmtT(sl.start)+'–'+fmtT(sl.end)+'</span>'+
+        '<div class="rMain"><div class="rT" style="font-size:14px">'+
+          esc(subById(sl.subId).name)+(sl.online?' <span class="tag online">Online</span>':'')+
+        '</div></div>'+
+        '<span style="font-size:12px;color:var(--label3)">cancel</span></button>';
+    });
   });
-  body+='</div></div>';
+  /* anything already called off, so it can be put back */
+  const off=slotsOn(dowOf(dateOf(iso)),iso).filter(sl=>
+    subById(sl.subId) && S.marks[markKey(iso,sl)]==='c');
+  if(off.length){
+    body+='<div style="margin-top:10px;padding-top:9px;border-top:.5px solid var(--sep)">'+
+      '<div style="font-size:11.5px;color:var(--label3);text-transform:uppercase;'+
+        'letter-spacing:.05em;font-weight:700;margin-bottom:6px">Cancelled</div>';
+    off.forEach(sl=>{
+      body+='<button class="row tap" data-cx="'+sl.id+'" style="padding:6px 0;min-height:0;opacity:.55">'+
+        '<span class="tnum" style="font-size:13px;width:96px;flex-shrink:0;text-align:left;'+
+          'text-decoration:line-through">'+fmtT(sl.start)+'–'+fmtT(sl.end)+'</span>'+
+        '<div class="rMain"><div class="rT" style="font-size:14px;text-decoration:line-through">'+
+          esc(subById(sl.subId).name)+'</div></div>'+
+        '<span style="font-size:12px;color:var(--accent)">restore</span></button>';
+    });
+    body+='</div>';
+  }
+  body+='</div><div class="gNote" style="padding:8px 4px 0">'+
+    'Tap a class to mark it cancelled — the options below update straight away.</div></div>';
 
   body+='<div class="gHead" style="padding-left:4px">Your options</div><div class="pad" style="padding:0">';
   x.opts.forEach(o=>{
@@ -2588,6 +2677,17 @@ function sheetWorthGoing(iso){
                 (o.wakeAt!=null?' · wake '+m2t(o.wakeAt):'')
               : ''))+
       '</div>'+
+      (function(){
+        const cur=planFor(iso);
+        const isPlan = cur ? (cur.length===o.ids.length &&
+                              o.ids.every(function(i){return cur.indexOf(i)>=0;}))
+                           : o.run.length===x.blocks.length;
+        return isPlan
+          ? '<div style="font-size:12.5px;font-weight:700;color:var(--accent);margin-top:10px">'+
+              '✓ This is your plan</div>'
+          : '<button class="btn ghost sm" data-pick="'+esc(o.ids.join(','))+'" '+
+              'style="margin-top:11px">Plan for this</button>';
+      })()+
       (o.rows.length
         ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+
           o.rows.map(function(r){
@@ -2603,7 +2703,27 @@ function sheetWorthGoing(iso){
   });
   body+='</div>';
 
-  openSheet({title:'Worth going?', body, cancelLabel:'Done'});
+  openSheet({title:'Worth going?', body, cancelLabel:'Done',
+    after(){
+      $$('#sheetBody [data-cx]').forEach(b=>b.onclick=()=>{
+        const sl=S.slots.find(x=>x.id===b.dataset.cx); if(!sl) return;
+        const k=markKey(iso,sl);
+        S.marks[k]=== 'c' ? delete S.marks[k] : S.marks[k]='c';
+        save(); renderAll(); sheetWorthGoing(iso);
+      });
+      $$('#sheetBody [data-pick]').forEach(b=>b.onclick=()=>{
+        const raw=b.dataset.pick;
+        const ids=raw?raw.split(','):[];
+        /* going to everything is the default — store nothing */
+        const allIds=x.all.map(sl=>sl.id);
+        const isAll = ids.length===allIds.length && allIds.every(i=>ids.indexOf(i)>=0);
+        setPlan(iso, isAll?null:ids);
+        renderAll();
+        sheetWorthGoing(iso);          /* redraw with the new plan marked */
+        toast(isAll?'Planned: the full day.'
+             :ids.length?'Plan saved — times updated.':'Planned: not going.');
+      });
+    }});
 }
 
 function sheetMonth(mo){
@@ -3191,17 +3311,49 @@ function renderAll(){
 }
 applyTheme();
 if(!TABS.some(t=>t.id===S.tab) && S.tab!=='settings') S.tab='home';
+
+/* ── where to open ──────────────────────────────────────────────
+   Coming back after a gap, or having last been in Settings, you
+   almost always want Today — not wherever you happened to stop.
+   Within a few minutes it behaves like a resume instead.        */
+const SEEN_KEY='eh-last-seen';
+function markSeen(){ try{ localStorage.setItem(SEEN_KEY,String(Date.now())); }catch(e){} }
+(function(){
+  let last=0; try{ last=+localStorage.getItem(SEEN_KEY)||0; }catch(e){}
+  const gap=Date.now()-last;
+  if(!last || gap>15*60000 || S.tab==='settings') S.tab='home';
+})();
 showTab(S.tab);
+markSeen();
 showIntro(false);
 
-/* re-render when the app comes back after a while (day may have changed) */
-let hiddenAt=0;
+/* ── coming back ────────────────────────────────────────────────
+   A day rollover matters more than elapsed time: at 00:05 the whole
+   app is about a different day, so snap the timetable and calendar
+   to the new today rather than leaving yesterday on screen.      */
+let hiddenAt=0, renderedFor=todayISO();
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden) hiddenAt=Date.now();
-  else if(Date.now()-hiddenAt>60000) renderAll();
+  if(document.hidden){ hiddenAt=Date.now(); markSeen(); return; }
+  const today=todayISO();
+  const rolled = today!==renderedFor;
+  const away   = Date.now()-hiddenAt;
+  if(rolled){
+    renderedFor=today;
+    ttDate=new Date(); calSel=today;
+    const n=new Date(); calY=n.getFullYear(); calM=n.getMonth();
+    if(away>15*60000) showTab('home'); else renderAll();
+  } else if(away>15*60000 && S.tab==='settings'){ showTab('home'); }
+  else if(away>60000){ renderAll(); }
+  markSeen();
 });
-/* keep "in class now" fresh */
-setInterval(()=>{ if(S.tab==='home' && !$('#sheet').classList.contains('on')) renderHome(); }, 60000);
+/* keep the countdown and "in class now" honest without a visible redraw */
+setInterval(()=>{
+  if($('#sheet').classList.contains('on')) return;
+  if(todayISO()!==renderedFor){        /* midnight passed with the app open */
+    renderedFor=todayISO(); ttDate=new Date(); calSel=renderedFor; renderAll(); return;
+  }
+  if(S.tab==='home') renderHome();
+}, 60000);
 </script>
 </body>
 </html>
