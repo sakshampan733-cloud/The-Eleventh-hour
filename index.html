@@ -499,6 +499,7 @@ button.row:active,.tap:active{background:var(--card-press)}
   <div id="heroWrap"></div>
   <div id="homeTiles"></div>
   <div id="homeClasses"></div>
+  <div id="homeNext"></div>
   <div id="homeDue"></div>
   <div id="homeWeek"></div>
   <div style="height:26px"></div>
@@ -712,7 +713,9 @@ let S=blankState();
 try{ const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(S,JSON.parse(raw)||{}); }catch(e){}
 S=normalise(S);
 
-function save(){ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
+function save(){
+  try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){}
+}
 
 /* ══════════════ TONE ══════════════
    S.tone: pro | plain | friendly | snark                        */
@@ -971,6 +974,22 @@ function dayPlan(iso){
           dayBefore: configured && wakeAt<0};
 }
 const tomorrowPlan = () => dayPlan(isoOf(addDays(new Date(),1)));
+
+/* The next day you actually have class — today if classes are still to come,
+   otherwise the next one within a fortnight. Weekends and cancelled days are
+   skipped, so the card never says "tomorrow: nothing". */
+function nextClassDay(){
+  const mins=nowMin();
+  for(let i=0;i<15;i++){
+    const iso=isoOf(addDays(new Date(),i));
+    const p=dayPlan(iso);
+    if(p.none) continue;
+    /* today only counts while something is still ahead of you */
+    if(i===0 && !p.list.some(sl=>t2m(sl.end)>mins)) continue;
+    return {iso, offset:i, plan:p};
+  }
+  return null;
+}
 
 /* ── the morning question: how long have I got, and can I shower? ──
    Recomputed against the clock every minute while Today is open.     */
@@ -1401,10 +1420,14 @@ function renderHome(){
   $('#todayDate').textContent = now.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'});
 
   const todays=slotsOn(dow,iso).filter(sl=>subById(sl.subId));
+  /* "what's next" must follow the classes you actually plan to attend —
+     pointing at an 8am you've already decided to skip is worse than useless */
+  const rpT=resolvePlan(iso);
+  const goingToday=rpT.going;
 
   /* ── hero ── */
-  const live   = todays.find(sl=>mins>=t2m(sl.start)&&mins<t2m(sl.end));
-  const next   = todays.find(sl=>t2m(sl.start)>mins);
+  const live   = goingToday.find(sl=>mins>=t2m(sl.start)&&mins<t2m(sl.end));
+  const next   = goingToday.find(sl=>t2m(sl.start)>mins);
   const unmark = todays.filter(sl=>!S.marks[markKey(iso,sl)]).length;
   let hero='';
 
@@ -1539,8 +1562,30 @@ function renderHome(){
     '</div>'+
     (()=>{
       const n=unmarkedCount(21), sk=nextSkipDay();
-      if(!n && !sk) return '';
+      /* "Is it worth going?" is a headline feature — it sits near the top
+         of Today with the answer already previewed, not buried behind a tab. */
+      const nd=nextClassDay();
+      const wx=nd?dayOptions(nd.iso):null;
+      if(!n && !sk && !wx) return '';
       let r='<div class="pad" style="margin-bottom:12px"><div class="list">';
+      if(wx){
+        const when = nd.offset===0?'today'
+                   : nd.offset===1?'tomorrow'
+                   : nd.plan.d.toLocaleDateString(undefined,{weekday:'long'});
+        const b=wx.best, plannedNow=nd.plan.planned;
+        const col = b.gone?'var(--red)':b.worst>=1?'var(--orange)':'var(--green)';
+        const sub = plannedNow
+          ? 'Planned: '+(nd.plan.skippingAll?'not going'
+              :nd.plan.going.length+' of '+nd.plan.list.length+' classes')
+          : (wx.full.dead>0 ? wx.all.length+' classes · '+fmtDur(wx.full.dead)+' of waiting'
+                            : wx.all.length+' classes · back to back');
+        r+='<button class="row tap" id="homeWorthRow">'+
+          '<span class="ico" style="background:'+col+';font-weight:700">?</span>'+
+          '<div class="rMain"><div class="rT">Worth going '+esc(when)+'?</div>'+
+          '<div class="rS">'+esc(sub)+'</div></div>'+
+          (plannedNow?'<span class="pill ok">planned</span>':'')+
+          '<span class="chev">›</span></button>';
+      }
       if(sk) r+='<button class="row tap" id="homeSkip">'+
         '<span class="ico" style="background:'+SKIP_COLOUR[sk.verdict]+';font-weight:700">?</span>'+
         '<div class="rMain"><div class="rT">Skip '+esc(sk.when)+'?</div>'+
@@ -1569,14 +1614,16 @@ function renderHome(){
       const sub=subById(sl.subId), key=markKey(iso,sl), m=S.marks[key];
       const imp=skipImpact(sub.id);
       const past=t2m(sl.end)<=mins;
-      h+='<div class="cls '+scCls(sub)+(m?' done':'')+'">'+
+      const skipped = rpT.planned && goingToday.indexOf(sl)<0;
+      h+='<div class="cls '+scCls(sub)+(m?' done':'')+(skipped?' done':'')+'">'+
         '<div class="cTop">'+
           '<div class="cTime">'+fmtT(sl.start)+'<br>'+fmtT(sl.end)+'</div>'+
           '<div class="cName">'+esc(sub.name)+
             kindTag(sl)+onlineTag(sl)+
             (sl.once?' <span class="tag">Once</span>':'')+
             '<div class="cMeta">'+esc(sub.code)+(placeOf(sl)?' · '+esc(placeOf(sl)):'')+
-            (m?' · '+({p:'Present',a:'Absent',c:'Cancelled'}[m]):'')+'</div>'+
+            (m?' · '+({p:'Present',a:'Absent',c:'Cancelled'}[m]):'')+
+            (skipped&&!m?' · <span style="color:var(--accent)">skipping by plan</span>':'')+'</div>'+
           '</div>'+
           '<button class="cMore" data-slot="'+sl.id+'" data-iso="'+iso+'">⋯</button>'+
         '</div>'+
@@ -1609,62 +1656,63 @@ function renderHome(){
   bindDueRows($('#homeDue'));
 
   /* ── week strip ── */
-  /* ── tomorrow + wake-up time ── */
-  const tp=tomorrowPlan();
-  let tw='';
-  if(!tp.none && tp.skippingAll){
-    /* planned not to go — no times to show, just what you're skipping */
-    tw+='<div class="gHead">Tomorrow · '+
-      tp.d.toLocaleDateString(undefined,{weekday:'long'})+'</div><div class="pad">'+
-      '<div class="card" style="padding:16px 17px">'+
-      '<div style="font-size:15px;font-weight:600">Not going in</div>'+
-      '<div style="font-size:13.5px;color:var(--label2);margin-top:6px">'+
-        'Skipping all '+tp.list.length+' class'+(tp.list.length===1?'':'es')+'.</div>'+
+  /* ── the next day you have class ─────────────────────────────────
+     Sits directly under today's classes, because "when do I wake up
+     and is it worth going" is the question you actually open this for.
+     Labelled with the day so it can never be mistaken for today.     */
+  (function(){
+    const nd=nextClassDay();
+    if(!nd){ $('#homeNext').innerHTML=''; return; }
+    const p=nd.plan, isTom=nd.offset===1;
+    const dayName = nd.offset===0 ? 'Later today'
+                  : isTom ? 'Tomorrow · '+p.d.toLocaleDateString(undefined,{weekday:'long'})
+                  : p.d.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'short'});
+    const wake = (p.configured && !p.skippingAll && !p.dayBefore) ? p.wakeAt : null;
+    const cmx = commute();
+    let n='<div class="gHead">'+esc(dayName)+'</div><div class="pad">'+
+      '<div class="card" style="padding:16px 17px">';
+    if(p.skippingAll){
+      n+='<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">Not going in</div>'+
+         '<div style="font-size:13.5px;color:var(--label2);margin-top:5px">'+
+         'You planned to skip all '+p.list.length+' class'+(p.list.length===1?'':'es')+'.</div>';
+    } else if(wake!=null){
+      n+='<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'+
+           '<span style="font-size:13px;color:var(--label2)">Wake by</span>'+
+           '<span class="tnum" style="font-size:30px;font-weight:800;letter-spacing:-.03em">'+
+             m2t(wake)+'</span>'+
+           '<span style="font-size:13px;color:var(--label2)">'+esc(cmx.verb)+' '+
+             m2t(p.leaveAt)+'</span>'+
+         '</div>'+
+         '<div style="font-size:13.5px;color:var(--label2);margin-top:6px">'+
+           'First class '+fmtT(p.first.start)+' · '+esc(subById(p.first.subId).name)+
+           (p.travel?' · '+p.travel+' min travel':' · online')+'</div>';
+    } else {
+      n+='<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">First class '+
+           fmtT(p.first.start)+'</div>'+
+         '<div style="font-size:13.5px;color:var(--label2);margin-top:5px">'+
+           (p.configured ? esc(cmx.verb)+' '+m2t(p.leaveAt)
+            : 'Turn on the morning planner in Settings for a wake-up time')+'</div>';
+    }
+    if(p.planned && !p.skippingAll && p.going.length<p.list.length)
+      n+='<div style="font-size:12.5px;color:var(--accent);margin-top:8px;font-weight:600">'+
+         'Planned: '+p.going.length+' of '+p.list.length+' classes</div>';
+    n+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">'+
+      p.list.map(function(sl){ const sb=subById(sl.subId);
+        const skip=p.planned && p.going.indexOf(sl)<0;
+        return '<span class="pill '+scCls(sb)+'" style="background:color-mix(in srgb,var(--sc) 15%,transparent);'+
+          'color:var(--sc)'+(skip?';opacity:.4;text-decoration:line-through':'')+'">'+
+          fmtT(sl.start)+' '+esc(sb.code)+(sl.online?' · online':'')+'</span>'; }).join('')+
+      '</div>'+
       '<div style="display:flex;gap:9px;margin-top:13px">'+
-        '<button class="btn ghost sm" id="homeWorth">Change plan</button>'+
-        '<button class="btn ghost sm" id="homeTmrw">See tomorrow</button></div>'+
-      '</div></div>';
-  } else if(!tp.none){
-    const wake=tp.dayBefore?null:tp.wakeAt;
-    tw+='<div class="gHead">Tomorrow · '+
-       tp.d.toLocaleDateString(undefined,{weekday:'long'})+'</div><div class="pad">'+
-      '<div class="card" style="padding:16px 17px">'+
-        (!tp.configured
-          ? '<div style="font-size:15px;font-weight:600">First class '+fmtT(tp.first.start)+'</div>'
-          : wake!=null
-            ? '<div style="display:flex;align-items:baseline;gap:9px">'+
-                '<span style="font-size:13px;color:var(--label2)">Wake by</span>'+
-                '<span class="tnum" style="font-size:29px;font-weight:800;letter-spacing:-.03em">'+
-                  m2t(wake)+'</span></div>'
-            : '<div style="font-size:15px;font-weight:600">Very early start — set an alarm tonight</div>')+
-        '<div style="font-size:13.5px;color:var(--label2);margin-top:7px;line-height:1.5">'+
-          (tp.travel
-            ? 'Leave by <b style="color:var(--label)">'+m2t(tp.leaveAt)+'</b> · '+
-              'first class '+fmtT(tp.first.start)+' at '+esc(tp.first.room||'college')
-            : tp.allOnline
-              ? T('All classes are online. First one at '+fmtT(tp.first.start)+'.',
-                  'Everything’s online tomorrow — first at '+fmtT(tp.first.start)+'.',
-                  'All online tomorrow, so no commute. First one at '+fmtT(tp.first.start)+'.',
-                  'All online. Roll over, open a laptop at '+fmtT(tp.first.start)+'.')
-              : (tp.configured ? 'First class at '+fmtT(tp.first.start)
-                 : 'Turn on the morning planner in Settings and this becomes a wake-up time.'))+
-        '</div>'+
-        (tp.planned&&!tp.skippingAll&&tp.going.length<tp.list.length
-          ? '<div style="font-size:12.5px;color:var(--accent);margin-top:8px;font-weight:600">'+
-            'Planned: '+tp.going.length+' of '+tp.list.length+' classes</div>' : '')+
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">'+
-          tp.list.map(sl=>{ const sb=subById(sl.subId);
-            const skipped=tp.planned && tp.going.indexOf(sl)<0;
-            return '<span class="pill '+scCls(sb)+'" style="background:color-mix(in srgb,var(--sc) 15%,transparent);'+
-              'color:var(--sc)'+(skipped?';opacity:.4;text-decoration:line-through':'')+'">'+
-              fmtT(sl.start)+' '+esc(sb.code)+(sl.online?' · online':'')+'</span>'; }).join('')+
-        '</div>'+
-        '<div style="display:flex;gap:9px;margin-top:13px">'+
-          '<button class="btn ghost sm" id="homeWorth">Worth going?</button>'+
-          '<button class="btn ghost sm" id="homeTmrw">See tomorrow</button></div>'+
-      '</div></div>';
-  }
-  let w=tw+'<div class="gHead">Next 7 days</div><div class="pad"><div class="list">';
+        '<button class="btn ghost sm" id="nextWorth">'+(p.planned?'Change plan':'Worth going?')+'</button>'+
+        '<button class="btn ghost sm" id="nextOpen">See the day</button>'+
+      '</div></div></div>';
+    $('#homeNext').innerHTML=n;
+    const nw=$('#nextWorth'); if(nw) nw.onclick=()=>sheetWorthGoing(nd.iso);
+    const no=$('#nextOpen');  if(no) no.onclick=()=>{ ttDate=dateOf(nd.iso); showTab('timetable'); };
+  })();
+
+  let w='<div class="gHead">Next 7 days</div><div class="pad"><div class="list">';
   for(let i=0;i<7;i++){
     const d=addDays(now,i), diso=isoOf(d);
     const cls=slotsOn(dowOf(d),diso).filter(s=>subById(s.subId)).length;
@@ -1698,6 +1746,8 @@ function renderHome(){
   const hc=$('#homeCatch'); if(hc) hc.onclick=sheetCatchUp;
   /* must be wrapped — binding it directly hands the click Event in as `x` */
   const hs=$('#homeSkip');  if(hs) hs.onclick=()=>sheetSkipToday();
+  const hwr=$('#homeWorthRow');
+  if(hwr) hwr.onclick=()=>{ const d=nextClassDay(); if(d) sheetWorthGoing(d.iso); };
 }
 
 /* ══════════════ TIMETABLE (one day at a time) ══════════════ */
