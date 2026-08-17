@@ -631,6 +631,20 @@ const ICO = {
   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>'
 };
 
+/* ── how you actually get there ───────────────────────────────────
+   Not everyone has a driver. The maths is identical either way — only
+   the wording and whether there's a message worth copying changes.  */
+const COMMUTE={
+  self:   {label:'I make my own way', head:'Set off',        verb:'Set off at',       msg:false},
+  driver: {label:'A driver picks me up', head:'Tell your driver', verb:'Pickup at',   msg:true,
+           text:(t,c)=>'Tomorrow please come at '+t+' — my first class is at '+c+'.'},
+  cab:    {label:'I book a cab',      head:'Book your cab',  verb:'Book for',         msg:true,
+           text:(t,c)=>'Need a cab at '+t+' tomorrow — first class '+c+'.'},
+  transit:{label:'Metro or bus',      head:'Leave for the metro', verb:'Leave by',    msg:false},
+  walk:   {label:'I walk or cycle',   head:'Set off',        verb:'Set off at',       msg:false}
+};
+const commute = () => COMMUTE[S.commute] || COMMUTE.self;
+
 /* ══════════════ STATE ══════════════ */
 const KEY='sem5plan';
 /* One place that knows every field. Wipe, import and first run all go
@@ -641,6 +655,7 @@ function blankState(keep){
           thr:67, name:'', termEnd:'',   /* semester end — powers the runway maths */
           /* morning planner — off until you switch it on in Settings */
           planner:false, readyMin:15, readyMax:30,
+          commute:'self', remindAt:'18:00',
           travelAM:40, travelMid:60, travelPM:50, driverHr:17,
           ready:0, travel:0,          /* superseded; kept so old saves migrate */
           theme:keep.theme||'auto', tone:keep.tone||'friendly'};
@@ -655,6 +670,10 @@ function normalise(st){
   if(st.travel && st.travelAM===undefined){ st.travelAM=st.travelMid=st.travelPM=st.travel; }
   /* they'd already set these before the toggle existed — keep it working */
   if((st.ready||st.travel) && st.planner===undefined) st.planner=true;
+  /* the old reminder was a bare hour number — same trap: this must run
+     BEFORE defaults land, or blankState's '18:00' masks the saved value */
+  if(st.driverHr!==undefined && st.remindAt===undefined)
+    st.remindAt=pad2(clamp(+st.driverHr||18,0,23))+':00';
   st=Object.assign(blankState(st),st);
   if(!['light','dark','auto'].includes(st.theme)) st.theme='auto';
   if(!['pro','plain','friendly','snark'].includes(st.tone)) st.tone='friendly';
@@ -673,6 +692,8 @@ function normalise(st){
   if(st.readyMax<st.readyMin) st.readyMax=st.readyMin;
   ['travelAM','travelMid','travelPM'].forEach(k=>{ st[k]=clamp(+st[k]||0,0,300); });
   st.driverHr =clamp(+st.driverHr||17,0,23);
+  if(!COMMUTE[st.commute]) st.commute='self';
+  if(!/^\d{2}:\d{2}$/.test(st.remindAt||'')) st.remindAt='18:00';
   st.termEnd  = /^\d{4}-\d{2}-\d{2}$/.test(st.termEnd||'') ? st.termEnd : '';
   st.name  =typeof st.name==='string' ? st.name.slice(0,80) : '';
   return st;
@@ -1172,6 +1193,49 @@ function onScroll(){
 }
 window.addEventListener('scroll',onScroll,{passive:true});
 
+/* ══════════════ LONG PRESS ══════════════
+   Press and hold a card to get its shortcuts, the way holding an app
+   icon does. Any element with data-lp="key" opens that menu.        */
+const LP_MENUS={
+  attendance:()=>({title:'Attendance', actions:[
+    {label:'Open attendance', fn:()=>showTab('attendance')},
+    {label:'Catch up on unmarked', fn:sheetCatchUp},
+    {label:'Attendance appeal', fn:sheetAppealPick}]}),
+  due:()=>({title:'Deadlines', actions:[
+    {label:'Open due list', fn:()=>showTab('deadlines')},
+    {label:'Add a deadline', fn:()=>sheetDeadline(null)}]}),
+  today:()=>{
+    const iso=todayISO(), dow=dowOf(new Date());
+    const list=slotsOn(dow,iso).filter(sl=>subById(sl.subId));
+    const mark=v=>{ list.forEach(sl=>S.marks[markKey(iso,sl)]=v); save(); keepScroll(renderAll);
+      toast('Whole day marked '+(v==='p'?'present':'absent')+'.'); };
+    return {title:'Today', msg:list.length?list.length+' classes':'No classes today',
+      actions:list.length?[
+        {label:'Mark all present', fn:()=>mark('p')},
+        {label:'Mark all absent',  fn:()=>mark('a')},
+        {label:'Can I skip?', fn:()=>sheetSkipToday()}]:[
+        {label:'Open the timetable', fn:()=>showTab('timetable')}]};
+  },
+  tomorrow:()=>({title:'Tomorrow', actions:[
+    {label:'Is it worth going?', fn:()=>sheetWorthGoing(isoOf(addDays(new Date(),1)))},
+    {label:'See tomorrow’s classes', fn:()=>{ ttDate=addDays(new Date(),1); showTab('timetable'); }},
+    {label:'Morning settings', fn:()=>showTab('settings')}]})
+};
+function bindLongPress(root){
+  (root||document).querySelectorAll('[data-lp]').forEach(el=>{
+    let timer=null, moved=false;
+    const fire=()=>{ const m=LP_MENUS[el.dataset.lp]; if(m) openAct(m()); };
+    const start=()=>{ moved=false; clearTimeout(timer);
+      timer=setTimeout(()=>{ if(!moved){ lastSwipe=Date.now(); fire(); } },480); };
+    const stop =()=>clearTimeout(timer);
+    el.addEventListener('touchstart',start,{passive:true});
+    el.addEventListener('touchmove',()=>{ moved=true; stop(); },{passive:true});
+    el.addEventListener('touchend',stop,{passive:true});
+    el.addEventListener('touchcancel',stop,{passive:true});
+    el.addEventListener('contextmenu',e=>{ if(e.preventDefault) e.preventDefault(); fire(); });
+  });
+}
+
 /* ══════════════ TOAST ══════════════ */
 let toastT;
 function toast(msg){
@@ -1245,6 +1309,14 @@ function mkSegHTML(key){
     '<button data-m="p"'+(m==='p'?' class="on"':'')+'>Present</button>'+
     '<button data-m="a"'+(m==='a'?' class="on"':'')+'>Absent</button>'+
     '<button data-m="c"'+(m==='c'?' class="on"':'')+'>Cancelled</button></div>';
+}
+/* A future class can't be attended yet, but you often know in advance that
+   it's been called off — so cancelling is allowed ahead of time. */
+function cancelHTML(key){
+  const on=S.marks[key]==='c';
+  return '<div class="mkSeg" data-key="'+key+'" style="grid-template-columns:1fr">'+
+    '<button data-m="c"'+(on?' class="on"':'')+'>'+
+      (on?'Cancelled — tap to undo':'Mark as cancelled')+'</button></div>';
 }
 function bindMkSeg(root){
   (root||document).querySelectorAll('.mkSeg').forEach(seg=>{
@@ -1349,9 +1421,27 @@ function renderHome(){
       '<div class="hM">'+(tCount? 'Tomorrow: '+tCount+' class'+(tCount===1?'':'es')+'.'
         : 'Nothing tomorrow either.')+'</div></div></div>';
   }
-  /* ── morning planner: sits above everything, because at 7am it's the
-        only thing that matters ── */
+  /* ── the one thing that matters right now, at the very top ──
+     Morning: when to leave. Evening: when to go tomorrow. Nothing
+     below the fold for either. ── */
+  const cm=commute();
+  const tpH=tomorrowPlan();
+  const remindMin=t2m(S.remindAt||'18:00');
+  const isEvening=nowMin()>=remindMin;
   const ms=morningStatus();
+  if(!ms && isEvening && tpH && !tpH.none && tpH.configured){
+    const wake=tpH.dayBefore?null:tpH.wakeAt;
+    hero='<div id="hero" data-lp="tomorrow" style="border-left-color:var(--purple)"><div class="hTop">'+
+      '<div class="hK" style="color:var(--purple)">'+esc(cm.head)+'</div>'+
+      '<div class="hN">'+esc(cm.verb)+' '+m2t(tpH.leaveAt)+'</div>'+
+      '<div class="hM">'+tpH.d.toLocaleDateString(undefined,{weekday:'long'})+
+        ' · first class '+fmtT(tpH.first.start)+
+        (wake!=null?' · wake by <b>'+m2t(wake)+'</b>':'')+'</div>'+
+      '<div style="display:flex;gap:9px;margin-top:13px">'+
+        (cm.msg?'<button class="btn ghost sm" id="heroCopy">Copy message</button>':'')+
+        '<button class="btn ghost sm" id="heroWorth">Worth going?</button>'+
+      '</div></div></div>'+hero;
+  }
   if(ms){
     const col=MORNING_COLOUR[ms.level];
     const big = ms.untilLeave<0
@@ -1378,6 +1468,7 @@ function renderHome(){
   }
   $('#heroWrap').innerHTML=hero;
   bindMkSeg($('#heroWrap'));
+  bindLongPress($('#heroWrap'));
 
   /* ── tiles ── */
   let GP=0,GT=0; S.subs.forEach(s=>{const a=attFor(s.id); GP+=a.p; GT+=a.t;});
@@ -1385,11 +1476,11 @@ function renderHome(){
   const week=S.dls.filter(d=>!d.done&&daysTo(d.date)>=0&&daysTo(d.date)<=7).length;
   const over=S.dls.filter(d=>!d.done&&daysTo(d.date)<0).length;
   $('#homeTiles').innerHTML='<div class="tiles">'+
-    '<button class="tile tap" data-go="attendance" style="text-align:left">'+
+    '<button class="tile tap" data-go="attendance" data-lp="attendance" style="text-align:left">'+
       '<div class="tV" style="color:'+(GT? (gp>=S.thr?'var(--green)':'var(--red)') :'var(--label)')+'">'+
         (GT?pctFmt(gp)+'%':'—')+'</div>'+
       '<div class="tL">Overall attendance'+(GT?' · '+GP+'/'+GT:'')+'</div></button>'+
-    '<button class="tile tap" data-go="deadlines" style="text-align:left">'+
+    '<button class="tile tap" data-go="deadlines" data-lp="due" style="text-align:left">'+
       '<div class="tV"'+(over?' style="color:var(--red)"':'')+'>'+(over?over:week)+'</div>'+
       '<div class="tL">'+(over?'Overdue':'Due in 7 days')+'</div></button>'+
     '</div>'+
@@ -1399,7 +1490,7 @@ function renderHome(){
       let r='<div class="pad" style="margin-bottom:12px"><div class="list">';
       if(sk) r+='<button class="row tap" id="homeSkip">'+
         '<span class="ico" style="background:'+SKIP_COLOUR[sk.verdict]+';font-weight:700">?</span>'+
-        '<div class="rMain"><div class="rT">Can I skip '+esc(sk.when)+'?</div>'+
+        '<div class="rMain"><div class="rT">Skip '+esc(sk.when)+'?</div>'+
         '<div class="rS">'+(sk.hasHistory
             ? pctFmt(sk.now)+'% → '+pctFmt(sk.after)+'% across '+sk.count+' class'+(sk.count===1?'':'es')
             : sk.count+' class'+(sk.count===1?'':'es'))+'</div></div>'+
@@ -1468,27 +1559,11 @@ function renderHome(){
   /* ── tomorrow + wake-up time ── */
   const tp=tomorrowPlan();
   let tw='';
-  /* evening: what to tell the driver, shown from your chosen hour onwards */
-  if(!tp.none && tp.configured && !tp.first.online && new Date().getHours()>=(S.driverHr||17)){
-    const msg='Tomorrow please come at '+m2t(tp.leaveAt)+' — my first class is at '+
-      fmtT(tp.first.start)+'.';
-    tw+='<div class="gHead">Before you forget</div><div class="pad">'+
-      '<div class="card" style="border-left:4px solid var(--purple)">'+
-        '<div class="kicker" style="color:var(--purple)">Tell your driver</div>'+
-        '<div style="display:flex;align-items:baseline;gap:9px;margin-top:8px">'+
-          '<span class="tnum" style="font-size:29px;font-weight:800;letter-spacing:-.03em">'+
-            m2t(tp.leaveAt)+'</span>'+
-          '<span style="font-size:13.5px;color:var(--label2)">pickup tomorrow</span></div>'+
-        '<div style="font-size:13.5px;color:var(--label2);margin-top:7px;line-height:1.45">'+
-          esc(msg)+'</div>'+
-        '<button class="btn ghost sm" id="homeDriver" style="margin-top:12px">Copy message</button>'+
-      '</div></div>';
-  }
   if(!tp.none){
     const wake=tp.dayBefore?null:tp.wakeAt;
     tw+='<div class="gHead">Tomorrow · '+
        tp.d.toLocaleDateString(undefined,{weekday:'long'})+'</div><div class="pad">'+
-      '<div class="card" style="padding:16px 17px">'+
+      '<div class="card" data-lp="tomorrow" style="padding:16px 17px">'+
         (!tp.configured
           ? '<div style="font-size:15px;font-weight:600">First class '+fmtT(tp.first.start)+'</div>'
           : wake!=null
@@ -1538,15 +1613,20 @@ function renderHome(){
   if(ht) ht.onclick=()=>{ ttDate=addDays(new Date(),1); showTab('timetable'); };
   const hw=$('#homeWorth');
   if(hw) hw.onclick=()=>sheetWorthGoing(isoOf(addDays(new Date(),1)));
-  const hd=$('#homeDriver');
-  if(hd) hd.onclick=()=>{
-    const t2=tomorrowPlan();
-    const msg='Tomorrow please come at '+m2t(t2.leaveAt)+' — my first class is at '+fmtT(t2.first.start)+'.';
+  const hcp=$('#heroCopy');
+  if(hcp) hcp.onclick=()=>{
+    const t2=tomorrowPlan(), c=commute();
+    if(!t2||t2.none||!c.text) return;
+    const msg=c.text(m2t(t2.leaveAt), fmtT(t2.first.start));
     let done=false;
     try{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(msg); done=true; } }catch(e){}
-    toast(done?'Copied.':'Select the text above to copy.');
+    toast(done?'Copied.':'Couldn’t copy here.');
   };
+  const hwg=$('#heroWorth');
+  if(hwg) hwg.onclick=()=>sheetWorthGoing(isoOf(addDays(new Date(),1)));
   $$('#homeTiles [data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));
+  bindLongPress($('#homeTiles'));
+  bindLongPress($('#homeWeek'));
   const hc=$('#homeCatch'); if(hc) hc.onclick=sheetCatchUp;
   /* must be wrapped — binding it directly hands the click Event in as `x` */
   const hs=$('#homeSkip');  if(hs) hs.onclick=()=>sheetSkipToday();
@@ -1693,8 +1773,9 @@ function renderDay(){
             ' · '+fmtDur(t2m(sl.end)-t2m(sl.start))+'</div></div>'+
           '<button class="cMore" data-slot="'+sl.id+'" data-iso="'+iso+'">⋯</button>'+
         '</div>'+
-        (markable ? mkSegHTML(key)
-          : '<div class="cSkip" style="color:var(--label3)">Marking opens on the day</div>')+
+        (markable ? mkSegHTML(key) : cancelHTML(key))+
+        (markable ? '' : '<div class="cSkip" style="color:var(--label3)">'+
+          'Present/absent opens on the day</div>')+
         '</div>';
     });
     if(markable && list.filter(sl=>!S.marks[markKey(iso,sl)]).length>1)
@@ -1850,6 +1931,10 @@ function slotActions(slotId,iso){
     title:(sub?sub.name:'Class')+' · '+fmtT(sl.start),
     msg: sl.once ? 'A one-off class on '+iso : 'Repeats every '+DAYSL[sl.day],
     actions:[
+      {label: S.marks[markKey(iso,sl)]==='c' ? 'Un-cancel for this day' : 'Cancel just this day',
+       fn:()=>{ const k=markKey(iso,sl);
+         setMark(k, S.marks[k]==='c' ? null : 'c');
+         toast(S.marks[k]==='c'?'Marked cancelled.':'Cancellation removed.'); }},
       {label:'Edit this class', fn:()=>sheetClass(sl)},
       {label:'Delete', destructive:true, fn:()=>{
         openAct({title:'Delete this class?',
@@ -2884,14 +2969,17 @@ function renderSettings(){
           '<span style="color:var(--label2)">min</span></label>'; }).join('')+
       '</div><div class="gNote">Traffic isn’t the same all day, so each band is separate. '+
         'Online classes skip the commute automatically.</div>'+
-      '<div class="gHead tight">Driver reminder</div><div class="list">'+
-        '<label class="row"><div class="rMain"><div class="rT">Show from</div>'+
-          '<div class="rS">Tomorrow’s pickup time appears on Today after this hour</div></div>'+
-          '<input type="number" id="setDriverHr" min="0" max="23" value="'+(S.driverHr||17)+'" '+
-          'style="width:56px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
-          '<span style="color:var(--label2)">:00</span></label>'+
-      '</div><div class="gNote">The app can’t send notifications — it has no connection by design. '+
-        'This shows the reminder whenever you open it in the evening.</div>'
+      '<div class="gHead tight">How you get there</div><div class="list">'+
+        '<label class="row"><div class="rMain"><div class="rT">Getting to college</div>'+
+          '<div class="rS">Changes the wording, and whether there’s a message to send</div></div>'+
+          '<select id="setCommute">'+Object.keys(COMMUTE).map(function(k){
+            return '<option value="'+k+'"'+(S.commute===k?' selected':'')+'>'+
+              esc(COMMUTE[k].label)+'</option>'; }).join('')+'</select></label>'+
+        '<label class="row"><div class="rMain"><div class="rT">Plan the evening before</div>'+
+          '<div class="rS">From this time, Today shows tomorrow’s departure instead of today’s</div></div>'+
+          '<input type="time" id="setRemindAt" value="'+esc(S.remindAt||'18:00')+'"></label>'+
+      '</div><div class="gNote">The app has no connection, so it can’t buzz your phone — '+
+        'it puts tomorrow’s departure at the top of Today whenever you open it after that time.</div>'
     : '<div class="gNote">Off — nothing extra shows on Today.</div>')+
     '</div>';
 
@@ -2945,7 +3033,11 @@ function renderSettings(){
   numSet('#setReadyMin','readyMin',240);
   numSet('#setReadyMax','readyMax',240);
   TRAVEL_BANDS.forEach(b=>numSet('#set_'+b[0],b[0],300));
-  numSet('#setDriverHr','driverHr',23);
+  const cmSel=$('#setCommute');
+  if(cmSel) cmSel.onchange=e=>{ S.commute=COMMUTE[e.target.value]?e.target.value:'self'; save(); renderSettings(); };
+  const rmAt=$('#setRemindAt');
+  if(rmAt) rmAt.onchange=e=>{
+    S.remindAt=/^\d{2}:\d{2}$/.test(e.target.value)?e.target.value:'18:00'; save(); };
   $('#setName').onchange  =e=>{ S.name=String(e.target.value||'').trim().slice(0,80); save(); };
   $('#apBtn').onclick=()=>sheetAppealPick();
   $('#setTermEnd').onchange=e=>{
