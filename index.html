@@ -638,13 +638,24 @@ const KEY='sem5plan';
 function blankState(keep){
   keep=keep||{};
   return {subs:[],slots:[],marks:{},att:{},dls:[],cats:[],tab:'home',
-          thr:67, ready:0, travel:0, name:'',
+          thr:67, name:'', termEnd:'',   /* semester end — powers the runway maths */
+          /* morning planner — off until you switch it on in Settings */
+          planner:false, readyMin:15, readyMax:30,
+          travelAM:40, travelMid:60, travelPM:50, driverHr:17,
+          ready:0, travel:0,          /* superseded; kept so old saves migrate */
           theme:keep.theme||'auto', tone:keep.tone||'friendly'};
 }
 /* Repair anything missing or the wrong shape — old saves, hand-edited
    backups, a file from a previous version. */
 function normalise(st){
-  st=Object.assign(blankState(st),st||{});
+  st=Object.assign({},st||{});
+  /* migrate the old single ready/travel pair FIRST — if defaults land
+     first, readyMax is already 30 and the saved value is lost */
+  if(st.ready  && st.readyMax===undefined)  st.readyMax=st.ready;
+  if(st.travel && st.travelAM===undefined){ st.travelAM=st.travelMid=st.travelPM=st.travel; }
+  /* they'd already set these before the toggle existed — keep it working */
+  if((st.ready||st.travel) && st.planner===undefined) st.planner=true;
+  st=Object.assign(blankState(st),st);
   if(!['light','dark','auto'].includes(st.theme)) st.theme='auto';
   if(!['pro','plain','friendly','snark'].includes(st.tone)) st.tone='friendly';
   ['subs','slots','dls','cats'].forEach(k=>{ if(!Array.isArray(st[k])) st[k]=[]; });
@@ -656,6 +667,13 @@ function normalise(st){
   st.thr   =clamp(+st.thr   ||67,1,100);
   st.ready =clamp(+st.ready ||0,0,300);
   st.travel=clamp(+st.travel||0,0,300);
+  st.planner  = !!st.planner;
+  st.readyMin =clamp(+st.readyMin ||0,0,240);
+  st.readyMax =clamp(+st.readyMax ||0,0,240);
+  if(st.readyMax<st.readyMin) st.readyMax=st.readyMin;
+  ['travelAM','travelMid','travelPM'].forEach(k=>{ st[k]=clamp(+st[k]||0,0,300); });
+  st.driverHr =clamp(+st.driverHr||17,0,23);
+  st.termEnd  = /^\d{4}-\d{2}-\d{2}$/.test(st.termEnd||'') ? st.termEnd : '';
   st.name  =typeof st.name==='string' ? st.name.slice(0,80) : '';
   return st;
 }
@@ -826,27 +844,27 @@ function skipDayImpact(iso){
   const bySub={};
   pending.forEach(sl=>{ (bySub[sl.subId]=bySub[sl.subId]||[]).push(sl); });
 
+  const rem=remainingBySub(iso);
   const rows=Object.keys(bySub).map(id=>{
     const A=attFor(id), n=bySub[id].length;
     const now=pctOf(A.p,A.t), after=pctOf(A.p,A.t+n);
-    const wasSafe = A.t ? now>=S.thr : true;
-    const safe    = after>=S.thr;
-    return {sub:subById(id), n, now, after, safe, wasSafe, had:A.t,
-            recover: (A.t && !safe) ? mustAttend(A.p, A.t+n) : 0};
-  }).sort((a,b)=>a.after-b.after);
+    const rw=runwayVerdict(id, rem?rem[id]||0:null, n);
+    return {sub:subById(id), n, now, after, had:A.t, rw,
+            safe: rw.level==='ok'||rw.level==='none',
+            wasSafe: A.t ? now>=S.thr : true,
+            recover: (A.t && after<S.thr) ? mustAttend(A.p, A.t+n) : 0};
+  }).sort((a,b)=>RUNWAY_RANK[b.rw.level]-RUNWAY_RANK[a.rw.level] || a.after-b.after);
 
   let GP=0,GT=0; S.subs.forEach(s=>{ const a=attFor(s.id); GP+=a.p; GT+=a.t; });
   const n=pending.length;
   /* the ones this skip actually pushes under the line */
-  const breaks  = rows.filter(r=>r.had && r.wasSafe && !r.safe);
-  /* already under before you skip — skipping just digs deeper */
-  const already = rows.filter(r=>r.had && !r.wasSafe);
-
-  const verdict = breaks.length ? 'no'
-                : already.length ? 'no'
-                : rows.some(r=>r.had && r.after < S.thr+2) ? 'tight'
-                : 'ok';
-  return {rows, pending, count:n, breaks, already, verdict, iso,
+  /* judged on whether the threshold stays REACHABLE, not on today's number */
+  const breaks  = rows.filter(r=>r.rw.level==='gone');
+  const already = rows.filter(r=>r.rw.level==='risk');
+  const worst   = rows.reduce((w,r)=>Math.max(w,RUNWAY_RANK[r.rw.level]),0);
+  const verdict = worst>=2 ? 'no' : worst===1 ? 'tight' : 'ok';
+  return {rows, pending, count:n, breaks, already, verdict, iso, rem,
+          weeksLeft:termWeeksLeft(),
           when:skipDayLabel(iso),
           now:pctOf(GP,GT), after:pctOf(GP,GT+n), hasHistory:GT>0};
 }
@@ -859,20 +877,77 @@ const skipTodayImpact=()=>skipDayImpact(todayISO());
    skip the commute entirely, so you get a later wake-up.            */
 const m2t = m => { m=((Math.round(m)%1440)+1440)%1440;
   return fmtT(pad2(Math.floor(m/60))+':'+pad2(m%60)); };
+/* The commute is not one number — an 8am run is nothing like a midday one,
+   so travel is banded by when you'd actually be on the road. */
+const TRAVEL_BANDS=[
+  ['travelAM', 0,       9*60,  'before 9am'],
+  ['travelMid',9*60,   15*60,  '9am – 3pm'],
+  ['travelPM', 15*60,  24*60,  'after 3pm']
+];
+function travelFor(startMin){
+  const b=TRAVEL_BANDS.find(x=>startMin>=x[1]&&startMin<x[2])||TRAVEL_BANDS[2];
+  return clamp(+S[b[0]]||0,0,300);
+}
+const plannerReady = () => S.planner &&
+  ((S.readyMin||0)>0||(S.readyMax||0)>0) &&
+  ((S.travelAM||0)>0||(S.travelMid||0)>0||(S.travelPM||0)>0);
+
 function dayPlan(iso){
   const d=dateOf(iso), dow=dowOf(d);
   const list=slotsOn(dow,iso).filter(sl=>subById(sl.subId));
   if(!list.length) return {iso,d,list:[],none:true};
   const first=list[0];                       /* slotsOn sorts by start time */
   const allOnline=list.every(sl=>sl.online);
-  const travel = first.online ? 0 : (S.travel||0);
-  const leaveAt = t2m(first.start)-travel;
-  const wakeAt  = leaveAt-(S.ready||0);
-  return {iso, d, list, first, allOnline, travel,
-          configured:(S.ready||0)>0||(S.travel||0)>0,
-          leaveAt, wakeAt, dayBefore: wakeAt<0};
+  const start=t2m(first.start), configured=plannerReady();
+  const travel = (configured && !first.online) ? travelFor(start) : 0;
+  const leaveAt = configured ? start-travel : null;
+  const wakeAt  = configured ? leaveAt-(S.readyMax||0) : null;
+  return {iso, d, list, first, allOnline, travel, start, configured,
+          leaveAt, wakeAt,
+          wakeRushed: configured ? leaveAt-(S.readyMin||0) : null,
+          dayBefore: configured && wakeAt<0};
 }
 const tomorrowPlan = () => dayPlan(isoOf(addDays(new Date(),1)));
+
+/* ── the morning question: how long have I got, and can I shower? ──
+   Recomputed against the clock every minute while Today is open.     */
+function morningStatus(){
+  if(!plannerReady()) return null;
+  const p=dayPlan(todayISO());
+  if(p.none) return null;
+  const now=nowMin();
+  if(now>=t2m(p.first.end)) return null;          /* first class already done */
+  const untilLeave=p.leaveAt-now, untilClass=p.start-now;
+  const level = untilLeave<0            ? 'late'
+              : untilLeave>=(S.readyMax||0) ? 'relaxed'
+              : untilLeave>=(S.readyMin||0) ? 'quick'
+              : 'tight';
+  return {p, now, untilLeave, untilClass, level,
+          arriveAt: now+(p.travel||0)};
+}
+const MORNING_COLOUR={relaxed:'var(--green)',quick:'var(--orange)',tight:'var(--orange)',late:'var(--red)'};
+function morningLine(m){
+  const shower=S.readyMax||0, quick=S.readyMin||0;
+  if(m.level==='late') return T(
+    'Departure time has passed. Arrival would be '+m2t(m.arriveAt)+'.',
+    'You should have left already — leaving now puts you there at '+m2t(m.arriveAt)+'.',
+    'Past your leave time. Go now and you arrive '+m2t(m.arriveAt)+'.',
+    'You are late. Leaving this instant gets you there at '+m2t(m.arriveAt)+'.');
+  if(m.level==='relaxed') return T(
+    'Sufficient time for the full '+shower+' minute routine.',
+    'Enough time for a proper shower and breakfast.',
+    'You’ve got time for the full routine — shower included.',
+    'Full shower available. Savour it, it won’t last.');
+  if(m.level==='quick') return T(
+    'Time for the '+quick+' minute routine only.',
+    'Quick version only — shower fast.',
+    'Enough for the quick routine. Skip the leisurely bit.',
+    'Quick wash only. You know how this goes.');
+  return T('Insufficient time to get ready. Leave as soon as possible.',
+    'No time to get ready properly — go now.',
+    'Cutting it very fine. Grab what you need and go.',
+    'No shower today. We both saw this coming.');
+}
 
 function nextSkipDay(){
   for(let i=0;i<8;i++){
@@ -881,12 +956,142 @@ function nextSkipDay(){
   }
   return null;
 }
+/* ── runway: how much semester is left to fix things in ───────────
+   The whole point. Missing a class in August is cheap because there
+   are eighty more; missing the same class in December is not. Given
+   the term end date we can count what's actually left and answer the
+   real question — is the threshold still REACHABLE — instead of the
+   useless one, are you above it today.                              */
+function remainingBySub(fromISO){
+  if(!S.termEnd) return null;
+  const end=dateOf(S.termEnd), out={};
+  let d=dateOf(fromISO);
+  for(let i=0;i<400;i++){
+    const iso=isoOf(d);
+    if(dateOf(iso)>end) break;
+    slotsOn(dowOf(d),iso).forEach(sl=>{
+      if(!subById(sl.subId)) return;
+      if(S.marks[markKey(iso,sl)]) return;     /* already settled */
+      out[sl.subId]=(out[sl.subId]||0)+1;
+    });
+    d=addDays(d,1);
+  }
+  return out;
+}
+/* How many of the remaining classes you can still miss and finish at or
+   above the threshold. Negative means the threshold is already out of
+   reach even attending everything left. */
+function slackFor(subId,remaining){
+  const A=attFor(subId), T=S.thr/100, k=remaining||0;
+  return Math.floor(A.p + k - T*(A.t + k) + 1e-9);
+}
+const termWeeksLeft=()=>{
+  if(!S.termEnd) return null;
+  return Math.max(0,Math.ceil(daysTo(S.termEnd)/7));
+};
+/* verdict for missing `n` classes of one subject, given the runway */
+function runwayVerdict(subId,remaining,n){
+  const A=attFor(subId);
+  if(!A.t && !remaining) return {level:'none'};
+  if(remaining===null||remaining===undefined)      /* no term date set */
+    return {level: pctOf(A.p,A.t+n)>=S.thr?'ok':'risk', unknown:true};
+  const slack=slackFor(subId,remaining);
+  const after=slack-n;
+  return {level: after<0 ? 'gone' : after<=2 ? 'tight' : 'ok',
+          slack, after, remaining};
+}
+const RUNWAY_RANK={ok:0,tight:1,risk:2,gone:3,none:0};
+
+/* ── "is the trip even worth it?" ─────────────────────────────────
+   Different question from "can I skip one class". Once cancellations
+   land you can end up with 8–9 and 12–1 and three dead hours between.
+   You arrive once and leave once, so the sensible choices are the
+   contiguous runs of class-blocks — plus not going at all.          */
+const GAP_MIN=45;                 /* a gap longer than this splits the day */
+function dayBlocks(iso){
+  const dow=dowOf(dateOf(iso));
+  const list=slotsOn(dow,iso).filter(sl=>
+    subById(sl.subId) && S.marks[markKey(iso,sl)]!=='c');   /* cancelled ones are gone */
+  const blocks=[];
+  list.forEach(sl=>{
+    const s=t2m(sl.start), e=t2m(sl.end);
+    const last=blocks[blocks.length-1];
+    if(last && s-last.end<=GAP_MIN){ last.slots.push(sl); last.end=Math.max(last.end,e); }
+    else blocks.push({slots:[sl], start:s, end:e});
+  });
+  return blocks;
+}
+function dayOptions(iso){
+  const blocks=dayBlocks(iso);
+  if(!blocks.length) return null;
+  const rem=remainingBySub(iso);        /* null when no term end is set */
+  const all=[].concat.apply([],blocks.map(b=>b.slots));
+  const settled=sl=>{ const m=S.marks[markKey(iso,sl)]; return m==='p'||m==='a'; };
+
+  const build=(run)=>{
+    const attend=[].concat.apply([],run.map(b=>b.slots));
+    const inRun=id=>attend.some(s=>s.id===id);
+    const skipped=all.filter(sl=>!inRun(sl.id)&&!settled(sl));
+    /* attendance effect: every skipped class adds a total, no present */
+    const bySub={};
+    skipped.forEach(sl=>{ bySub[sl.subId]=(bySub[sl.subId]||0)+1; });
+    const rows=Object.keys(bySub).map(id=>{
+      const A=attFor(id), n=bySub[id];
+      const now=pctOf(A.p,A.t), after=pctOf(A.p,A.t+n);
+      const rw=runwayVerdict(id, rem?rem[id]||0:null, n);
+      return {sub:subById(id), n, now, after, had:A.t, rw,
+              safe: rw.level==='ok'||rw.level==='none'};
+    }).sort((a,b)=>RUNWAY_RANK[b.rw.level]-RUNWAY_RANK[a.rw.level] || a.after-b.after);
+
+    const onCampus = attend.length ? run[run.length-1].end-run[0].start : 0;
+    const contact  = attend.reduce((n,sl)=>n+(t2m(sl.end)-t2m(sl.start)),0);
+    const first    = attend[0]||null;
+    const travel   = (first && !first.online && plannerReady()) ? travelFor(t2m(first.start)) : 0;
+    return {
+      run, attend, skipped, rows,
+      count:attend.length, onCampus, contact, dead:onCampus-contact,
+      allOnline: attend.length? attend.every(s=>s.online) : false,
+      first, travel,
+      leaveHome: first ? t2m(first.start)-travel : null,
+      wakeAt: (first&&plannerReady()) ? t2m(first.start)-travel-(S.readyMax||0) : null,
+      worst: rows.reduce((w,r)=>Math.max(w,RUNWAY_RANK[r.rw.level]),0),
+      gone:   rows.some(r=>r.rw.level==='gone'),
+      unsafe: rows.some(r=>r.rw.level==='gone'||r.rw.level==='risk'),
+      label: !attend.length ? 'Don’t go at all'
+           : run.length===blocks.length ? 'Go for everything'
+           : m2t(run[0].start)+'–'+m2t(run[run.length-1].end)+' only'
+    };
+  };
+
+  const opts=[];
+  for(let i=0;i<blocks.length;i++)
+    for(let j=i;j<blocks.length;j++) opts.push(build(blocks.slice(i,j+1)));
+  opts.push(build([]));
+
+  /* best = nothing drops below the line, then least dead time, then most classes */
+  const best=opts.slice().sort((a,b)=>
+    (a.worst-b.worst) || (a.dead-b.dead) || (b.count-a.count))[0];
+  return {iso, blocks, all, opts, best, rem,
+          weeksLeft: termWeeksLeft(),
+          full: opts.find(o=>o.run.length===blocks.length)};
+}
 const SKIP_COLOUR={ok:'var(--green)',tight:'var(--orange)',no:'var(--red)'};
 const SKIP_WORD  ={ok:'Safe',tight:'Tight',no:'Don’t'};
 function skipVerdictLine(x){
+  const wk = x.weeksLeft;
+  if(wk==null) return T(
+    'Set a semester end date in Settings for a recoverability estimate.',
+    'Set your semester end date in Settings for better advice.',
+    'Tell me when term ends (Settings) and I can say whether you’ve got time to make this up.',
+    'No end date set, so I can’t tell you whether you have time. Settings.');
   if(x.verdict==='no'){
     const who=(x.breaks[0]||x.already[0]);
     const name=who?esc(who.sub.name):'a subject';
+    if(x.breaks.length) return T(
+      'With '+wk+' week'+(wk===1?'':'s')+' left, '+name+' can no longer reach '+S.thr+'% if this is missed.',
+      'Only '+wk+' week'+(wk===1?'':'s')+' left — miss this and '+name+' can’t get back to '+S.thr+'%.',
+      'There isn’t enough term left. Miss this and '+name+' can’t reach '+S.thr+'% however hard you try after.',
+      'Miss this and '+name+' is mathematically finished. '+wk+' week'+(wk===1?'':'s')+' left.');
     return x.breaks.length
       ? T('Skipping today puts '+name+' below the required '+S.thr+'%.',
           'Skipping today drops '+name+' under '+S.thr+'%.',
@@ -897,15 +1102,17 @@ function skipVerdictLine(x){
           name+' is already below the line. Today would dig the hole deeper.',
           name+' is already underwater. By all means, keep digging.');
   }
+  const spare=x.rows.reduce(function(m,r){
+    return (r.rw.after!=null && (m==null||r.rw.after<m)) ? r.rw.after : m; },null);
   if(x.verdict==='tight')
-    return T('Permissible, but the margin above '+S.thr+'% becomes slim.',
-      'You stay above '+S.thr+'%, but only just.',
-      'You’d survive it, but there’s not much room left after.',
-      'You’d scrape through. Living dangerously, as usual.');
-  return T('All subjects remain above the required '+S.thr+'%.',
-    'Everything stays above '+S.thr+'%.',
-    'You can afford this one — everything stays comfortable.',
-    'Go on then. The maths says you’ve earned it.');
+    return T('Recoverable, but little margin remains across '+wk+' remaining week'+(wk===1?'':'s')+'.',
+      'You can still get back to '+S.thr+'%, but the margin is thin.',
+      'Still recoverable — but you’d be down to '+(spare==null?'very few':spare)+' spare classes.',
+      'Recoverable. Barely. '+(spare==null?'':spare+' spare classes left.'));
+  return T('Recoverable within the '+wk+' remaining week'+(wk===1?'':'s')+'.',
+    'You’ve got '+wk+' weeks left — easily made up.',
+    'Plenty of term left to make this up'+(spare==null?'':' — '+spare+' spare classes after this')+'.',
+    'Fine. '+wk+' weeks left, and '+(spare==null?'room':spare+' spare classes')+' to play with.');
 }
 
 /* ══════════════ NAV / TABS ══════════════ */
@@ -1142,6 +1349,33 @@ function renderHome(){
       '<div class="hM">'+(tCount? 'Tomorrow: '+tCount+' class'+(tCount===1?'':'es')+'.'
         : 'Nothing tomorrow either.')+'</div></div></div>';
   }
+  /* ── morning planner: sits above everything, because at 7am it's the
+        only thing that matters ── */
+  const ms=morningStatus();
+  if(ms){
+    const col=MORNING_COLOUR[ms.level];
+    const big = ms.untilLeave<0
+      ? T('Late by '+fmtDur(-ms.untilLeave),'Late by '+fmtDur(-ms.untilLeave),
+          'Late by '+fmtDur(-ms.untilLeave),'Late by '+fmtDur(-ms.untilLeave))
+      : ms.untilLeave<1 ? 'Leave now' : 'Leave in '+fmtDur(ms.untilLeave);
+    hero='<div id="hero" style="border-left-color:'+col+'"><div class="hTop">'+
+      '<div class="hK" style="color:'+col+'"><span class="dot" style="background:'+col+'"></span>'+
+        'Getting to college</div>'+
+      '<div class="hN" style="color:'+col+'">'+big+'</div>'+
+      '<div class="hM">'+esc(morningLine(ms))+'</div>'+
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:13px;'+
+        'padding-top:12px;border-top:.5px solid var(--sep)">'+
+        '<span style="font-size:11.5px;color:var(--label2);display:flex;flex-direction:column;gap:2px">'+
+          '<b style="font-size:15px;color:var(--label);font-weight:700">'+m2t(ms.p.leaveAt)+'</b>leave by</span>'+
+        '<span style="font-size:11.5px;color:var(--label2);display:flex;flex-direction:column;gap:2px">'+
+          '<b style="font-size:15px;color:var(--label);font-weight:700">'+fmtT(ms.p.first.start)+'</b>'+
+          esc(subById(ms.p.first.subId).code)+' starts</span>'+
+        (ms.p.travel? '<span style="font-size:11.5px;color:var(--label2);display:flex;flex-direction:column;gap:2px">'+
+          '<b style="font-size:15px;color:var(--label);font-weight:700">'+ms.p.travel+' min</b>on the road</span>' : '')+
+        '<span style="font-size:11.5px;color:var(--label2);display:flex;flex-direction:column;gap:2px">'+
+          '<b style="font-size:15px;color:var(--label);font-weight:700">'+fmtDur(Math.max(0,ms.untilClass))+'</b>until class</span>'+
+      '</div></div></div>'+hero;
+  }
   $('#heroWrap').innerHTML=hero;
   bindMkSeg($('#heroWrap'));
 
@@ -1234,9 +1468,25 @@ function renderHome(){
   /* ── tomorrow + wake-up time ── */
   const tp=tomorrowPlan();
   let tw='';
+  /* evening: what to tell the driver, shown from your chosen hour onwards */
+  if(!tp.none && tp.configured && !tp.first.online && new Date().getHours()>=(S.driverHr||17)){
+    const msg='Tomorrow please come at '+m2t(tp.leaveAt)+' — my first class is at '+
+      fmtT(tp.first.start)+'.';
+    tw+='<div class="gHead">Before you forget</div><div class="pad">'+
+      '<div class="card" style="border-left:4px solid var(--purple)">'+
+        '<div class="kicker" style="color:var(--purple)">Tell your driver</div>'+
+        '<div style="display:flex;align-items:baseline;gap:9px;margin-top:8px">'+
+          '<span class="tnum" style="font-size:29px;font-weight:800;letter-spacing:-.03em">'+
+            m2t(tp.leaveAt)+'</span>'+
+          '<span style="font-size:13.5px;color:var(--label2)">pickup tomorrow</span></div>'+
+        '<div style="font-size:13.5px;color:var(--label2);margin-top:7px;line-height:1.45">'+
+          esc(msg)+'</div>'+
+        '<button class="btn ghost sm" id="homeDriver" style="margin-top:12px">Copy message</button>'+
+      '</div></div>';
+  }
   if(!tp.none){
     const wake=tp.dayBefore?null:tp.wakeAt;
-    tw='<div class="gHead">Tomorrow · '+
+    tw+='<div class="gHead">Tomorrow · '+
        tp.d.toLocaleDateString(undefined,{weekday:'long'})+'</div><div class="pad">'+
       '<div class="card" style="padding:16px 17px">'+
         (!tp.configured
@@ -1257,14 +1507,16 @@ function renderHome(){
                   'All online tomorrow, so no commute. First one at '+fmtT(tp.first.start)+'.',
                   'All online. Roll over, open a laptop at '+fmtT(tp.first.start)+'.')
               : (tp.configured ? 'First class at '+fmtT(tp.first.start)
-                 : 'Set your getting-ready and travel times in Settings and this becomes a wake-up time.'))+
+                 : 'Turn on the morning planner in Settings and this becomes a wake-up time.'))+
         '</div>'+
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">'+
           tp.list.map(sl=>{ const sb=subById(sl.subId);
             return '<span class="pill '+scCls(sb)+'" style="background:color-mix(in srgb,var(--sc) 15%,transparent);color:var(--sc)">'+
               fmtT(sl.start)+' '+esc(sb.code)+(sl.online?' · online':'')+'</span>'; }).join('')+
         '</div>'+
-        '<button class="btn ghost sm" id="homeTmrw" style="margin-top:13px">See tomorrow</button>'+
+        '<div style="display:flex;gap:9px;margin-top:13px">'+
+          '<button class="btn ghost sm" id="homeWorth">Worth going?</button>'+
+          '<button class="btn ghost sm" id="homeTmrw">See tomorrow</button></div>'+
       '</div></div>';
   }
   let w=tw+'<div class="gHead">Next 7 days</div><div class="pad"><div class="list">';
@@ -1284,6 +1536,16 @@ function renderHome(){
   $$('#homeWeek [data-day]').forEach(b=>b.onclick=()=>{ ttDate=dateOf(b.dataset.day); showTab('timetable'); });
   const ht=$('#homeTmrw');
   if(ht) ht.onclick=()=>{ ttDate=addDays(new Date(),1); showTab('timetable'); };
+  const hw=$('#homeWorth');
+  if(hw) hw.onclick=()=>sheetWorthGoing(isoOf(addDays(new Date(),1)));
+  const hd=$('#homeDriver');
+  if(hd) hd.onclick=()=>{
+    const t2=tomorrowPlan();
+    const msg='Tomorrow please come at '+m2t(t2.leaveAt)+' — my first class is at '+fmtT(t2.first.start)+'.';
+    let done=false;
+    try{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(msg); done=true; } }catch(e){}
+    toast(done?'Copied.':'Select the text above to copy.');
+  };
   $$('#homeTiles [data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));
   const hc=$('#homeCatch'); if(hc) hc.onclick=sheetCatchUp;
   /* must be wrapped — binding it directly hands the click Event in as `x` */
@@ -1439,6 +1701,8 @@ function renderDay(){
       h='<div style="display:flex;gap:9px;margin-bottom:12px">'+
         '<button class="btn ghost sm" id="ttAllP">All present</button>'+
         '<button class="btn ghost sm" id="ttAllA" style="color:var(--red)">All absent</button></div>'+h;
+    if(dayBlocks(iso).length>1)
+      h+='<button class="btn ghost sm" id="ttWorth" style="margin-top:4px">Worth going this day?</button>';
     h+='<button class="btn ghost sm" id="ttAdd" style="margin-top:4px">+ Add a class to '+DAYSL[dow]+'</button>';
   }
   const body=$('#ttBody');
@@ -1446,6 +1710,7 @@ function renderDay(){
   bindMkSeg(body);
   $$('#ttBody .cMore').forEach(b=>b.onclick=()=>slotActions(b.dataset.slot,b.dataset.iso));
   const ta=$('#ttAdd'); if(ta) ta.onclick=()=>sheetClass(null,{day:dow,date:iso});
+  const twg=$('#ttWorth'); if(twg) twg.onclick=()=>sheetWorthGoing(iso);
   const markDay=v=>{ list.forEach(sl=>S.marks[markKey(iso,sl)]=v); save(); keepScroll(renderAll);
     toast(DAYSL[dow]+' marked '+(v==='p'?'present':'absent')+'.'); };
   const ap=$('#ttAllP'), aa=$('#ttAllA');
@@ -1790,6 +2055,7 @@ function renderAtt(){
     $('#attMonths').innerHTML=''; return;
   }
 
+  const rem=remainingBySub(todayISO());
   let h='<div class="gHead">By subject</div><div class="pad">';
   S.subs.forEach(sub=>{
     const A=attFor(sub.id), p=pctOf(A.p,A.t);
@@ -1808,6 +2074,16 @@ function renderAtt(){
       '<div class="bar"><div class="fl" style="width:'+clamp(p,0,100)+'%;background:'+c+'"></div>'+
         '<div class="rq" style="left:'+S.thr+'%"></div></div>'+
       '<div style="font-size:13.5px;color:var(--label2);margin-top:10px;line-height:1.4">'+bunkLine(A.p,A.t)+'</div>'+
+      (function(){
+        if(!rem) return '';
+        const k=rem[sub.id]||0, sl=slackFor(sub.id,k);
+        if(!k) return '';
+        return '<div style="font-size:13px;margin-top:6px;line-height:1.4;color:'+
+          (sl<0?'var(--red)':sl<=2?'var(--orange)':'var(--label2)')+'">'+
+          k+' classes left this term · '+
+          (sl<0 ? '<b>'+S.thr+'% is out of reach now</b>'
+                : 'you can miss <b>'+sl+'</b> more and still finish at '+S.thr+'%')+'</div>';
+      })()+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;font-size:12.5px;color:var(--label2)">'+
         (A.th.t||A.tu.t||A.pr.t
           ? cmpChip('Theory',A.th,'IA')+cmpChip('Tutorial',A.tu,'CA')+cmpChip('Practical',A.pr,'PR')
@@ -2164,6 +2440,87 @@ function sheetAppealPick(){
     after(){ $$('#sheetBody [data-apsub]').forEach(b=>b.onclick=()=>sheetAppeal(subById(b.dataset.apsub))); }});
 }
 
+/* ══════════════ "WORTH GOING?" ══════════════ */
+function sheetWorthGoing(iso){
+  iso=iso||isoOf(addDays(new Date(),1));
+  const x=dayOptions(iso);
+  const dayName=dateOf(iso).toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'short'});
+  if(!x){
+    openSheet({title:'Worth going?', cancelLabel:'Done',
+      body:'<div class="empty"><div class="eE">🛌</div><div class="eT">Nothing on '+esc(dayName)+'</div>'+
+        '<div class="eS">No classes scheduled, or everything is cancelled.</div></div>'});
+    return;
+  }
+
+  /* the shape of the day, so you can see the gaps */
+  let body='<div class="card" style="margin-bottom:14px">'+
+    '<div class="kicker">'+esc(dayName)+'</div>'+
+    '<div style="font-size:14px;color:var(--label2);margin-top:8px;line-height:1.5">'+
+      x.all.length+' class'+(x.all.length===1?'':'es')+' across '+
+      x.blocks.length+' block'+(x.blocks.length===1?'':'s')+
+      (x.full.dead>0 ? ' · <b style="color:var(--orange)">'+fmtDur(x.full.dead)+
+        ' of waiting</b> if you go for all of it' : ' · back to back, no waiting')+
+      (x.weeksLeft!=null
+        ? '<br>'+x.weeksLeft+' week'+(x.weeksLeft===1?'':'s')+' of term left — '+
+          (x.weeksLeft>6 ? 'plenty of room to make things up.'
+           : x.weeksLeft>2 ? 'not much room left to make things up.'
+           : 'almost no room left to make things up.')
+        : '<br><b>Set your semester end date in Settings</b> and this can tell you '+
+          'whether you still have time to make a class up.')+
+    '</div><div style="margin-top:12px">';
+  x.blocks.forEach((b,i)=>{
+    if(i){ const gap=b.start-x.blocks[i-1].end;
+      body+='<div style="font-size:12px;color:var(--orange);padding:5px 0 5px 12px;'+
+        'border-left:2px dashed var(--sep);margin-left:6px">'+fmtDur(gap)+' gap</div>'; }
+    body+='<div style="display:flex;gap:10px;align-items:baseline;padding:3px 0">'+
+      '<span class="tnum" style="font-size:13px;font-weight:600;width:96px;flex-shrink:0">'+
+        m2t(b.start)+'–'+m2t(b.end)+'</span>'+
+      '<span style="font-size:13.5px;color:var(--label2)">'+
+        b.slots.map(sl=>esc(subById(sl.subId).code)+(sl.online?' (online)':'')).join(', ')+
+      '</span></div>';
+  });
+  body+='</div></div>';
+
+  body+='<div class="gHead" style="padding-left:4px">Your options</div><div class="pad" style="padding:0">';
+  x.opts.forEach(o=>{
+    const isBest=o===x.best;
+    const col=o.gone?'var(--red)':o.worst>=1?'var(--orange)':
+              isBest?'var(--green)':'var(--label3)';
+    body+='<div class="card" style="padding:14px 15px;margin-bottom:10px;border-left:4px solid '+col+'">'+
+      '<div style="display:flex;align-items:baseline;gap:8px">'+
+        '<div style="font-size:15.5px;font-weight:700;letter-spacing:-.01em">'+esc(o.label)+'</div>'+
+        (isBest?'<span class="pill ok">suggested</span>':'')+
+        (o.gone?'<span class="pill no">can’t recover</span>':
+         o.worst>=1?'<span class="pill mid">cuts it fine</span>':'')+
+      '</div>'+
+      '<div style="font-size:13px;color:var(--label2);margin-top:6px;line-height:1.5">'+
+        (!o.count
+          ? 'Stay home. '+(o.skipped.length?o.skipped.length+' class'+(o.skipped.length===1?'':'es')+' missed.':'')
+          : fmtDur(o.onCampus)+' on campus for '+fmtDur(o.contact)+' of class'+
+            (o.dead>0?' · <b style="color:var(--orange)">'+fmtDur(o.dead)+' waiting</b>':' · no waiting')+
+            (o.leaveHome!=null&&o.travel
+              ? '<br>Leave home '+m2t(o.leaveHome)+
+                (o.wakeAt!=null?' · wake '+m2t(o.wakeAt):'')
+              : ''))+
+      '</div>'+
+      (o.rows.length
+        ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'+
+          o.rows.map(function(r){
+            const cls=r.rw.level==='gone'?'no':r.rw.level==='tight'?'mid':'ok';
+            const tail = r.rw.unknown||r.rw.remaining===undefined ? ''
+              : r.rw.after<0 ? ' · out of reach'
+              : ' · '+r.rw.after+' spare';
+            return '<span class="pill '+cls+'">'+esc(r.sub.code)+' '+
+              (r.had?pctFmt(r.now)+'%→'+pctFmt(r.after)+'%':'no data')+tail+'</span>';
+          }).join('')+'</div>'
+        : '<div style="font-size:12.5px;color:var(--green);margin-top:9px">Nothing missed</div>')+
+      '</div>';
+  });
+  body+='</div>';
+
+  openSheet({title:'Worth going?', body, cancelLabel:'Done'});
+}
+
 function sheetMonth(mo){
   const title=new Date(mo+'-01T00:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'});
   const bind=()=>{
@@ -2484,6 +2841,14 @@ function renderSettings(){
       (S.tone===t[0]?'<span class="chk">✓</span>':'')+'</button>').join('')+
     '</div><div class="gNote">Right now: “'+esc(greetLine())+'”</div></div>';
 
+  h+='<div class="gHead">Semester</div><div class="pad"><div class="list">'+
+    '<label class="row"><div class="rMain"><div class="rT">Term ends</div>'+
+      '<div class="rS">'+(S.termEnd
+        ? (termWeeksLeft()+' week'+(termWeeksLeft()===1?'':'s')+' left — advice gets stricter as this approaches')
+        : 'Without this the app can’t tell you whether there’s time to make a class up')+'</div></div>'+
+      '<input type="date" id="setTermEnd" value="'+esc(S.termEnd||'')+'"></label>'+
+    '</div></div>';
+
   h+='<div class="gHead">Attendance</div><div class="pad"><div class="list">'+
     '<label class="row"><div class="rMain"><div class="rT">Minimum required</div>'+
       '<div class="rS">Used for every safe-to-skip calculation</div></div>'+
@@ -2491,18 +2856,44 @@ function renderSettings(){
       'style="width:66px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
       '<span style="color:var(--label2)">%</span></label></div></div>';
 
-  h+='<div class="gHead">Mornings</div><div class="pad"><div class="list">'+
-    '<label class="row"><div class="rMain"><div class="rT">Getting ready</div>'+
-      '<div class="rS">Shower, breakfast, packing — door to door</div></div>'+
-      '<input type="number" id="setReady" min="0" max="300" value="'+(S.ready||0)+'" '+
+  h+='<div class="gHead">Morning planner</div><div class="pad"><div class="list">'+
+    '<div class="row"><div class="rMain"><div class="rT">Morning planner</div>'+
+      '<div class="rS">Works out when to leave, when to wake, and what to tell your driver</div></div>'+
+      '<div class="seg" id="plSeg" style="width:120px">'+
+        '<button data-v="off"'+(S.planner?'':' class="on"')+'>Off</button>'+
+        '<button data-v="on"'+(S.planner?' class="on"':'')+'>On</button></div></div>'+
+    '</div>'+
+    (S.planner ?
+      '<div class="gHead tight">Getting ready</div><div class="list">'+
+        '<label class="row"><div class="rMain"><div class="rT">In a rush</div>'+
+          '<div class="rS">Bare minimum, no shower</div></div>'+
+'<input type="number" id="setReadyMin" min="0" max="300" value="'+(S.readyMin||0)+'" '+
       'style="width:60px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
-      '<span style="color:var(--label2)">min</span></label>'+
-    '<label class="row"><div class="rMain"><div class="rT">Travel to college</div>'+
-      '<div class="rS">Skipped automatically when the first class is online</div></div>'+
-      '<input type="number" id="setTravel" min="0" max="300" value="'+(S.travel||0)+'" '+
+      '<span style="color:var(--label2)">min</span>'+        '</label>'+
+        '<label class="row"><div class="rMain"><div class="rT">Properly</div>'+
+          '<div class="rS">Shower and breakfast</div></div>'+
+'<input type="number" id="setReadyMax" min="0" max="300" value="'+(S.readyMax||0)+'" '+
       'style="width:60px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
-      '<span style="color:var(--label2)">min</span></label>'+
-    '</div><div class="gNote">Used for the wake-up time on Today. Set once — your college doesn’t move.</div></div>';
+      '<span style="color:var(--label2)">min</span>'+        '</label>'+
+      '</div>'+
+      '<div class="gHead tight">Travel to college</div><div class="list">'+
+        TRAVEL_BANDS.map(function(b){ return '' +
+          '<label class="row"><div class="rMain"><div class="rT">Leaving '+b[3]+'</div></div>'+
+          '<input type="number" id="set_'+b[0]+'" min="0" max="300" value="'+(S[b[0]]||0)+'" '+
+          'style="width:60px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
+          '<span style="color:var(--label2)">min</span></label>'; }).join('')+
+      '</div><div class="gNote">Traffic isn’t the same all day, so each band is separate. '+
+        'Online classes skip the commute automatically.</div>'+
+      '<div class="gHead tight">Driver reminder</div><div class="list">'+
+        '<label class="row"><div class="rMain"><div class="rT">Show from</div>'+
+          '<div class="rS">Tomorrow’s pickup time appears on Today after this hour</div></div>'+
+          '<input type="number" id="setDriverHr" min="0" max="23" value="'+(S.driverHr||17)+'" '+
+          'style="width:56px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
+          '<span style="color:var(--label2)">:00</span></label>'+
+      '</div><div class="gNote">The app can’t send notifications — it has no connection by design. '+
+        'This shows the reminder whenever you open it in the evening.</div>'
+    : '<div class="gNote">Off — nothing extra shows on Today.</div>')+
+    '</div>';
 
   h+='<div class="gHead">End of semester</div><div class="pad"><div class="list">'+
     '<button class="row tap" id="apBtn"><span class="ico" style="background:var(--purple)">✉</span>'+
@@ -2545,10 +2936,23 @@ function renderSettings(){
   $$('#thSeg button').forEach(b=>b.onclick=()=>{ S.theme=b.dataset.th; save(); applyTheme(); renderSettings(); });
   $$('[data-tone]').forEach(b=>b.onclick=()=>{ S.tone=b.dataset.tone; save(); renderSettings(); toast('Tone: '+TONE_OPTS.find(t=>t[0]===S.tone)[1]); });
   $('#setThr').onchange=e=>{ S.thr=clamp(parseInt(e.target.value)||67,1,100); e.target.value=S.thr; save(); renderAll(); };
-  $('#setReady').onchange =e=>{ S.ready =clamp(parseInt(e.target.value)||0,0,300); e.target.value=S.ready;  save(); };
-  $('#setTravel').onchange=e=>{ S.travel=clamp(parseInt(e.target.value)||0,0,300); e.target.value=S.travel; save(); };
+  $$('#plSeg button').forEach(b=>b.onclick=()=>{
+    S.planner = b.dataset.v==='on'; save(); renderSettings(); });
+  const numSet=(id,key,max)=>{ const el=$(id); if(!el) return;
+    el.onchange=e=>{ S[key]=clamp(parseInt(e.target.value)||0,0,max);
+      if(key==='readyMax'&&S.readyMax<S.readyMin) S.readyMax=S.readyMin;
+      e.target.value=S[key]; save(); }; };
+  numSet('#setReadyMin','readyMin',240);
+  numSet('#setReadyMax','readyMax',240);
+  TRAVEL_BANDS.forEach(b=>numSet('#set_'+b[0],b[0],300));
+  numSet('#setDriverHr','driverHr',23);
   $('#setName').onchange  =e=>{ S.name=String(e.target.value||'').trim().slice(0,80); save(); };
   $('#apBtn').onclick=()=>sheetAppealPick();
+  $('#setTermEnd').onchange=e=>{
+    const v=e.target.value;
+    S.termEnd=/^\d{4}-\d{2}-\d{2}$/.test(v)?v:'';
+    save(); renderSettings();
+  };
   $$('[data-sub]').forEach(b=>b.onclick=()=>sheetSubject(subById(b.dataset.sub)));
   $('#addSub').onclick=()=>sheetSubject(null);
   $('#expBtn').onclick=doExport;
