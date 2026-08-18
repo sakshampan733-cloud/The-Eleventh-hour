@@ -995,17 +995,29 @@ function nextClassDay(){
    Recomputed against the clock every minute while Today is open.     */
 function morningStatus(){
   if(!plannerReady()) return null;
-  const p=dayPlan(todayISO());
+  const iso=todayISO();
+  const p=dayPlan(iso);
   if(p.none||p.skippingAll) return null;
   const now=nowMin();
-  if(now>=t2m(p.first.end)) return null;          /* first class already done */
-  const untilLeave=p.leaveAt-now, untilClass=p.start-now;
-  const level = untilLeave<0            ? 'late'
-              : untilLeave>=(S.readyMax||0) ? 'relaxed'
-              : untilLeave>=(S.readyMin||0) ? 'quick'
+  /* A class you've already marked is dealt with — present, absent or
+     cancelled alike. Travel advice is only about classes you still have
+     to physically get to, so telling you you're late for one you've
+     already recorded present is worse than saying nothing. */
+  const pending=p.going.filter(sl=>!S.marks[markKey(iso,sl)] && t2m(sl.end)>now);
+  if(!pending.length) return null;
+  const first=pending[0];
+  const start=t2m(first.start);
+  const travel=first.online?0:travelFor(start);
+  const leaveAt=start-travel;
+  const untilLeave=leaveAt-now, untilClass=start-now;
+  const level = untilLeave<0                  ? 'late'
+              : untilLeave>=(S.readyMax||0)   ? 'relaxed'
+              : untilLeave>=(S.readyMin||0)   ? 'quick'
               : 'tight';
-  return {p, now, untilLeave, untilClass, level,
-          arriveAt: now+(p.travel||0)};
+  /* hand back a plan-shaped object keyed to the class actually pending */
+  const pp=Object.assign({},p,{first,start,travel,leaveAt,
+    wakeAt:leaveAt-(S.readyMax||0)});
+  return {p:pp, now, untilLeave, untilClass, level, arriveAt: now+travel};
 }
 const MORNING_COLOUR={relaxed:'var(--green)',quick:'var(--orange)',tight:'var(--orange)',late:'var(--red)'};
 function morningLine(m){
@@ -1426,8 +1438,11 @@ function renderHome(){
   const goingToday=rpT.going;
 
   /* ── hero ── */
-  const live   = goingToday.find(sl=>mins>=t2m(sl.start)&&mins<t2m(sl.end));
-  const next   = goingToday.find(sl=>t2m(sl.start)>mins);
+  /* any mark — present, absent or cancelled — means the class is handled,
+     so the hero moves on instead of still reporting it as live */
+  const live   = goingToday.find(sl=>mins>=t2m(sl.start)&&mins<t2m(sl.end)
+                                     && !S.marks[markKey(iso,sl)]);
+  const next   = goingToday.find(sl=>t2m(sl.start)>mins && !S.marks[markKey(iso,sl)]);
   const unmark = todays.filter(sl=>!S.marks[markKey(iso,sl)]).length;
   let hero='';
 
