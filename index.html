@@ -662,8 +662,8 @@ function blankState(keep){
           thr:67, name:'', termEnd:'',   /* semester end — powers the runway maths */
           /* morning planner — off until you switch it on in Settings */
           planner:false, readyMin:15, readyMax:30,
-          commute:'self', remindAt:'18:00', plans:{},   /* per-day 'which classes I'll actually attend' */
-          travelAM:40, travelMid:60, travelPM:50, driverHr:17,
+          commute:'self', plans:{}, enroute:null,   /* per-day 'which classes I'll actually attend' */
+          travelAM:40, travelMid:60, travelPM:50,
           theme:keep.theme||'auto', tone:keep.tone||'friendly'};
 }
 /* Repair anything missing or the wrong shape — old saves, hand-edited
@@ -676,10 +676,6 @@ function normalise(st){
   if(st.travel && st.travelAM===undefined){ st.travelAM=st.travelMid=st.travelPM=st.travel; }
   /* they'd already set these before the toggle existed — keep it working */
   if((st.ready||st.travel) && st.planner===undefined) st.planner=true;
-  /* the old reminder was a bare hour number — same trap: this must run
-     BEFORE defaults land, or blankState's '18:00' masks the saved value */
-  if(st.driverHr!==undefined && st.remindAt===undefined)
-    st.remindAt=pad2(clamp(+st.driverHr||18,0,23))+':00';
   st=Object.assign(blankState(st),st);
   if(!['light','dark','auto'].includes(st.theme)) st.theme='auto';
   if(!['pro','plain','friendly','snark'].includes(st.tone)) st.tone='friendly';
@@ -690,16 +686,17 @@ function normalise(st){
     if(!s.code) s.code=String(s.name||'?').slice(0,3).toUpperCase();
   });
   st.thr   =clamp(+st.thr   ||67,1,100);
-  delete st.ready; delete st.travel; delete st.driverHr;   /* migrated above */
+  delete st.ready; delete st.travel; delete st.driverHr; delete st.remindAt;   /* migrated above */
   st.planner  = !!st.planner;
   st.readyMin =clamp(+st.readyMin ||0,0,240);
   st.readyMax =clamp(+st.readyMax ||0,0,240);
   if(st.readyMax<st.readyMin) st.readyMax=st.readyMin;
   ['travelAM','travelMid','travelPM'].forEach(k=>{ st[k]=clamp(+st[k]||0,0,300); });
-  st.driverHr =clamp(+st.driverHr||17,0,23);
   if(!COMMUTE[st.commute]) st.commute='self';
-  if(!/^\d{2}:\d{2}$/.test(st.remindAt||'')) st.remindAt='18:00';
   /* plans are intentions for a specific day — drop them once the day is gone */
+  /* "on my way" only means anything for today */
+  if(!st.enroute || st.enroute.iso!==todayISO() || typeof st.enroute.at!=='number')
+    st.enroute=null;
   if(!st.plans||typeof st.plans!=='object') st.plans={};
   else { const today=todayISO();
     Object.keys(st.plans).forEach(k=>{
@@ -984,8 +981,10 @@ function nextClassDay(){
     const iso=isoOf(addDays(new Date(),i));
     const p=dayPlan(iso);
     if(p.none) continue;
-    /* today only counts while something is still ahead of you */
-    if(i===0 && !p.list.some(sl=>t2m(sl.end)>mins)) continue;
+    /* Today only counts while something is genuinely still ahead: not yet
+       over AND not already marked. Once you've marked the last one, the day
+       is done and the next class day is what you need — no clock involved. */
+    if(i===0 && !p.list.some(sl=>t2m(sl.end)>mins && !S.marks[markKey(iso,sl)])) continue;
     return {iso, offset:i, plan:p};
   }
   return null;
@@ -1010,18 +1009,40 @@ function morningStatus(){
   const travel=first.online?0:travelFor(start);
   const leaveAt=start-travel;
   const untilLeave=leaveAt-now, untilClass=start-now;
-  const level = untilLeave<0                  ? 'late'
+  /* if you've said you're on your way, stop counting down to a departure
+     that already happened and start counting to arrival instead.
+     There is nothing to arrive for if the next class is online, so the
+     travelling state only applies when you're actually heading somewhere. */
+  const er = (S.enroute && S.enroute.iso===iso && !first.online) ? S.enroute : null;
+  const level = er                            ? 'enroute'
+              : untilLeave<0                  ? 'late'
               : untilLeave>=(S.readyMax||0)   ? 'relaxed'
               : untilLeave>=(S.readyMin||0)   ? 'quick'
               : 'tight';
   /* hand back a plan-shaped object keyed to the class actually pending */
   const pp=Object.assign({},p,{first,start,travel,leaveAt,
     wakeAt:leaveAt-(S.readyMax||0)});
-  return {p:pp, now, untilLeave, untilClass, level, arriveAt: now+travel};
+  const arriveAt = er ? er.at+travel : now+travel;
+  return {p:pp, now, untilLeave, untilClass, level, arriveAt, enroute:er,
+          lateBy: Math.max(0, arriveAt-start)};
 }
-const MORNING_COLOUR={relaxed:'var(--green)',quick:'var(--orange)',tight:'var(--orange)',late:'var(--red)'};
+const MORNING_COLOUR={relaxed:'var(--green)',quick:'var(--orange)',tight:'var(--orange)',
+                      late:'var(--red)',enroute:'var(--accent)'};
 function morningLine(m){
   const shower=S.readyMax||0, quick=S.readyMin||0;
+  if(m.level==='enroute'){
+    const cls=subById(m.p.first.subId);
+    if(m.lateBy<=0) return T(
+      'On route. Arrival '+m2t(m.arriveAt)+', ahead of the '+fmtT(m.p.first.start)+' start.',
+      'On your way — you’ll get there by '+m2t(m.arriveAt)+', in good time.',
+      'On your way, and you’ll make it — in at '+m2t(m.arriveAt)+'.',
+      'On your way and actually on time. Note the date.');
+    return T(
+      'On route. Arrival '+m2t(m.arriveAt)+', '+fmtDur(m.lateBy)+' after the start.',
+      'On your way — arriving '+m2t(m.arriveAt)+', about '+fmtDur(m.lateBy)+' late.',
+      'On your way. You’ll walk in around '+fmtDur(m.lateBy)+' late — not the end of the world.',
+      'On your way, '+fmtDur(m.lateBy)+' late. Walk in like you meant it.');
+  }
   if(m.level==='late') return T(
     'Departure time has passed. Arrival would be '+m2t(m.arriveAt)+'.',
     'You should have left already — leaving now puts you there at '+m2t(m.arriveAt)+'.',
@@ -1103,9 +1124,10 @@ const RUNWAY_RANK={ok:0,tight:1,risk:2,gone:3,none:0};
    contiguous runs of class-blocks — plus not going at all.          */
 const GAP_MIN=45;                 /* a gap longer than this splits the day */
 function dayBlocks(iso){
-  const dow=dowOf(dateOf(iso));
-  const list=slotsOn(dow,iso).filter(sl=>
-    subById(sl.subId) && S.marks[markKey(iso,sl)]!=='c');   /* cancelled ones are gone */
+  /* Only in-person classes make campus blocks. An online class is taken from
+     home, so it can never create a gap you'd have to sit through — treating
+     it as campus time invents waiting that doesn't exist. */
+  const list=liveSlots(iso).filter(sl=>!sl.online);
   const blocks=[];
   list.forEach(sl=>{
     const s=t2m(sl.start), e=t2m(sl.end);
@@ -1116,17 +1138,22 @@ function dayBlocks(iso){
   return blocks;
 }
 function dayOptions(iso){
-  const blocks=dayBlocks(iso);
-  if(!blocks.length) return null;
-  const rem=remainingBySub(iso);        /* null when no term end is set */
-  const all=[].concat.apply([],blocks.map(b=>b.slots));
+  const live=liveSlots(iso);
+  if(!live.length) return null;
+  const onlineSlots=live.filter(sl=>sl.online);
+  const blocks=dayBlocks(iso);                 /* in-person only */
+  const rem=remainingBySub(iso);
+  const all=live;
   const settled=sl=>{ const m=S.marks[markKey(iso,sl)]; return m==='p'||m==='a'; };
 
-  const build=(run)=>{
-    const attend=[].concat.apply([],run.map(b=>b.slots));
-    const inRun=id=>attend.some(s=>s.id===id);
-    const skipped=all.filter(sl=>!inRun(sl.id)&&!settled(sl));
-    /* attendance effect: every skipped class adds a total, no present */
+  /* `run` is a contiguous stretch of campus blocks; online classes ride along
+     free unless you explicitly write the whole day off. */
+  const build=(run, withOnline)=>{
+    const onsite=[].concat.apply([],run.map(b=>b.slots));
+    const attend=onsite.concat(withOnline?onlineSlots:[]);
+    const inSet=id=>attend.some(s=>s.id===id);
+    const skipped=all.filter(sl=>!inSet(sl.id)&&!settled(sl));
+
     const bySub={};
     skipped.forEach(sl=>{ bySub[sl.subId]=(bySub[sl.subId]||0)+1; });
     const rows=Object.keys(bySub).map(id=>{
@@ -1137,13 +1164,23 @@ function dayOptions(iso){
               safe: rw.level==='ok'||rw.level==='none'};
     }).sort((a,b)=>RUNWAY_RANK[b.rw.level]-RUNWAY_RANK[a.rw.level] || a.after-b.after);
 
-    const onCampus = attend.length ? run[run.length-1].end-run[0].start : 0;
+    /* campus time and dead time come from the in-person classes alone */
+    const onCampus = onsite.length ? run[run.length-1].end-run[0].start : 0;
+    const campusContact = onsite.reduce((n,sl)=>n+(t2m(sl.end)-t2m(sl.start)),0);
     const contact  = attend.reduce((n,sl)=>n+(t2m(sl.end)-t2m(sl.start)),0);
-    const first    = attend[0]||null;
-    const travel   = (first && !first.online && plannerReady()) ? travelFor(t2m(first.start)) : 0;
+    const first    = onsite[0]||null;          /* only a campus class needs travel */
+    const travel   = (first && plannerReady()) ? travelFor(t2m(first.start)) : 0;
+    const onlineCount = withOnline?onlineSlots.length:0;
+
+    let label;
+    if(!attend.length)                 label='Skip everything';
+    else if(!onsite.length)            label='Stay home — online only';
+    else if(run.length===blocks.length)label = onlineCount ? 'Everything (online from home)' : 'Go for everything';
+    else                               label = fmtT(onsite[0].start)+'–'+
+                                               fmtT(onsite[onsite.length-1].end)+' on campus';
     return {
-      run, attend, skipped, rows,
-      count:attend.length, onCampus, contact, dead:onCampus-contact,
+      run, attend, onsite, skipped, rows, onlineCount,
+      count:attend.length, onCampus, contact, dead:onCampus-campusContact,
       allOnline: attend.length? attend.every(s=>s.online) : false,
       first, travel,
       leaveHome: first ? t2m(first.start)-travel : null,
@@ -1152,23 +1189,22 @@ function dayOptions(iso){
       gone:   rows.some(r=>r.rw.level==='gone'),
       unsafe: rows.some(r=>r.rw.level==='gone'||r.rw.level==='risk'),
       ids: attend.map(sl=>sl.id),
-      label: !attend.length ? 'Don’t go at all'
-           : run.length===blocks.length ? 'Go for everything'
-           : m2t(run[0].start)+'–'+m2t(run[run.length-1].end)+' only'
+      label
     };
   };
 
   const opts=[];
   for(let i=0;i<blocks.length;i++)
-    for(let j=i;j<blocks.length;j++) opts.push(build(blocks.slice(i,j+1)));
-  opts.push(build([]));
+    for(let j=i;j<blocks.length;j++) opts.push(build(blocks.slice(i,j+1),true));
+  if(onlineSlots.length) opts.push(build([],true));   /* stay home, still attend online */
+  opts.push(build([],false));                          /* write the day off entirely */
 
-  /* best = nothing drops below the line, then least dead time, then most classes */
   const best=opts.slice().sort((a,b)=>
     (a.worst-b.worst) || (a.dead-b.dead) || (b.count-a.count))[0];
-  return {iso, blocks, all, opts, best, rem,
-          weeksLeft: termWeeksLeft(),
-          full: opts.find(o=>o.run.length===blocks.length)};
+  const full=opts.find(o=>o.run.length===blocks.length && o.onlineCount===onlineSlots.length)
+           || opts[0];
+  return {iso, blocks, all, onlineSlots, opts, best, rem,
+          weeksLeft: termWeeksLeft(), full};
 }
 const SKIP_COLOUR={ok:'var(--green)',tight:'var(--orange)',no:'var(--red)'};
 const SKIP_WORD  ={ok:'Safe',tight:'Tight',no:'Don’t'};
@@ -1503,25 +1539,30 @@ function renderHome(){
      Morning: when to leave. Evening: when to go tomorrow. Nothing
      below the fold for either. ── */
   const cm=commute();
-  const tpH=tomorrowPlan();
-  const remindMin=t2m(S.remindAt||'18:00');
-  const isEvening=nowMin()>=remindMin;
   const ms=morningStatus();
-  if(!ms && isEvening && tpH && !tpH.none && tpH.skippingAll){
+  /* No configured hour: the timetable already says when today is finished.
+     Once nothing is left to attend today, the next class day becomes the
+     thing you need — whether that's this evening or Sunday night. */
+  const ndH=nextClassDay();
+  const aheadToday = !!(ndH && ndH.offset===0);
+  const tpH = (ndH && ndH.offset>0) ? ndH.plan : null;
+  const nextDayName = tpH ? (ndH.offset===1 ? 'Tomorrow'
+                     : tpH.d.toLocaleDateString(undefined,{weekday:'long'})) : '';
+  if(!ms && !aheadToday && tpH && tpH.skippingAll){
     hero='<div id="hero" style="border-left-color:var(--label3)"><div class="hTop">'+
-      '<div class="hK" style="color:var(--label2)">Tomorrow</div>'+
+      '<div class="hK" style="color:var(--label2)">'+esc(nextDayName)+'</div>'+
       '<div class="hN">Not going in</div>'+
       '<div class="hM">You’ve planned to skip '+tpH.list.length+' class'+
-        (tpH.list.length===1?'':'es')+' tomorrow.</div>'+
+        (tpH.list.length===1?'':'es')+'.</div>'+
       '<div style="display:flex;gap:9px;margin-top:13px">'+
         '<button class="btn ghost sm" id="heroWorth">Change plan</button></div>'+
       '</div></div>'+hero;
-  } else if(!ms && isEvening && tpH && !tpH.none && tpH.configured){
+  } else if(!ms && !aheadToday && tpH && tpH.configured){
     const wake=tpH.dayBefore?null:tpH.wakeAt;
     hero='<div id="hero" style="border-left-color:var(--purple)"><div class="hTop">'+
       '<div class="hK" style="color:var(--purple)">'+esc(cm.head)+'</div>'+
       '<div class="hN">'+esc(cm.verb)+' '+m2t(tpH.leaveAt)+'</div>'+
-      '<div class="hM">'+tpH.d.toLocaleDateString(undefined,{weekday:'long'})+
+      '<div class="hM">'+esc(nextDayName)+
         ' · '+(tpH.planned?'your first <b>planned</b> class ':'first class ')+fmtT(tpH.first.start)+
         (wake!=null?' · wake by <b>'+m2t(wake)+'</b>':'')+
         (tpH.planned&&tpH.going.length<tpH.list.length
@@ -1536,13 +1577,14 @@ function renderHome(){
   }
   if(ms){
     const col=MORNING_COLOUR[ms.level];
-    const big = ms.untilLeave<0
-      ? T('Late by '+fmtDur(-ms.untilLeave),'Late by '+fmtDur(-ms.untilLeave),
-          'Late by '+fmtDur(-ms.untilLeave),'Late by '+fmtDur(-ms.untilLeave))
-      : ms.untilLeave<1 ? 'Leave now' : 'Leave in '+fmtDur(ms.untilLeave);
+    const big = ms.level==='enroute'
+      ? 'Arriving '+m2t(ms.arriveAt)
+      : ms.untilLeave<0 ? 'Leave now — arrive '+m2t(ms.arriveAt)
+      : ms.untilLeave<1 ? 'Leave now'
+      : 'Leave in '+fmtDur(ms.untilLeave);
     hero='<div id="hero" style="border-left-color:'+col+'"><div class="hTop">'+
       '<div class="hK" style="color:'+col+'"><span class="dot" style="background:'+col+'"></span>'+
-        'Getting to college</div>'+
+        (ms.level==='enroute'?'On your way':'Getting to college')+'</div>'+
       '<div class="hN" style="color:'+col+'">'+big+'</div>'+
       '<div class="hM">'+esc(morningLine(ms))+'</div>'+
       '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:13px;'+
@@ -1556,10 +1598,21 @@ function renderHome(){
           '<b style="font-size:15px;color:var(--label);font-weight:700">'+ms.p.travel+' min</b>on the road</span>' : '')+
         '<span style="font-size:11.5px;color:var(--label2);display:flex;flex-direction:column;gap:2px">'+
           '<b style="font-size:15px;color:var(--label);font-weight:700">'+fmtDur(Math.max(0,ms.untilClass))+'</b>until class</span>'+
-      '</div></div></div>'+hero;
+      '</div>'+
+      '<div style="display:flex;gap:9px;margin-top:12px">'+
+        (ms.level==='enroute'
+          ? '<button class="btn ghost sm" id="heroArrived">Not on my way</button>'
+          : '<button class="btn ghost sm" id="heroGo">I’m on my way</button>')+
+      '</div>'+
+      '</div></div>'+hero;
   }
   $('#heroWrap').innerHTML=hero;
   bindMkSeg($('#heroWrap'));
+  const hgo=$('#heroGo');
+  if(hgo) hgo.onclick=()=>{ S.enroute={iso:todayISO(),at:nowMin()}; save();
+    keepScroll(renderAll); toast('On your way — arrival time updated.'); };
+  const harr=$('#heroArrived');
+  if(harr) harr.onclick=()=>{ S.enroute=null; save(); keepScroll(renderAll); };
 
   /* ── tiles ── */
   let GP=0,GT=0; S.subs.forEach(s=>{const a=attFor(s.id); GP+=a.p; GT+=a.t;});
@@ -1748,7 +1801,7 @@ function renderHome(){
   if(hw) hw.onclick=()=>sheetWorthGoing(isoOf(addDays(new Date(),1)));
   const hcp=$('#heroCopy');
   if(hcp) hcp.onclick=()=>{
-    const t2=tomorrowPlan(), c=commute();
+    const nd2=nextClassDay(); const t2=nd2?nd2.plan:null; const c=commute();
     if(!t2||t2.none||!c.text) return;
     const msg=c.text(m2t(t2.leaveAt), fmtT(t2.first.start));
     let done=false;
@@ -1756,7 +1809,7 @@ function renderHome(){
     toast(done?'Copied.':'Couldn’t copy here.');
   };
   const hwg=$('#heroWorth');
-  if(hwg) hwg.onclick=()=>sheetWorthGoing(isoOf(addDays(new Date(),1)));
+  if(hwg) hwg.onclick=()=>{ const d=nextClassDay(); if(d) sheetWorthGoing(d.iso); };
   $$('#homeTiles [data-go]').forEach(b=>b.onclick=()=>showTab(b.dataset.go));
   const hc=$('#homeCatch'); if(hc) hc.onclick=sheetCatchUp;
   /* must be wrapped — binding it directly hands the click Event in as `x` */
@@ -2256,6 +2309,10 @@ function renderAtt(){
           '<div class="rMain"><div class="rT">'+n+' class'+(n===1?'':'es')+' not marked</div>'+
           '<div class="rS">From the last 3 weeks — log them now</div></div>'+
           '<span class="chev">›</span></button>' : ''; })()+
+      '<button class="row tap" id="attTrip"><span class="ico" style="background:var(--teal)">\u2708</span>'+
+        '<div class="rMain"><div class="rT">Planning time off?</div>'+
+        '<div class="rS">See what a trip costs before you book it</div></div>'+
+        '<span class="chev">\u203a</span></button>'+
       '<label class="row"><div class="rMain"><div class="rT">Minimum required</div>'+
       '<div class="rS">Everything below is measured against this</div></div>'+
       '<input type="number" id="attThr" min="1" max="100" value="'+S.thr+'" '+
@@ -2263,6 +2320,7 @@ function renderAtt(){
       '<span style="color:var(--label2)">%</span></label></div></div>';
   $('#attThr').onchange=e=>{ S.thr=clamp(parseInt(e.target.value)||67,1,100); save(); renderAll(); };
   const ac=$('#attCatch'); if(ac) ac.onclick=sheetCatchUp;
+  const at=$('#attTrip');  if(at) at.onclick=()=>sheetTrip();
 
   if(!S.subs.length){
     $('#attList').innerHTML='<div class="empty"><div class="eE">📊</div>'+
@@ -2791,6 +2849,170 @@ function sheetWorthGoing(iso){
     }});
 }
 
+
+
+/* ══════════════ OFFLINE READINESS ══════════════
+   A real check, not a badge. The file makes no network requests at all, so
+   the only things that can actually stop it working offline are storage
+   being blocked, or it being served from a URL the browser hasn't cached. */
+function offlineReport(){
+  let proto='';
+  try{ proto=(location&&location.protocol)||''; }catch(e){}
+  const local = proto==='file:' || proto==='';
+  let storage='blocked', bytes=0;
+  try{
+    const probe='__eh_probe__';
+    localStorage.setItem(probe,'1');
+    if(localStorage.getItem(probe)==='1') storage='working';
+    localStorage.removeItem(probe);
+    bytes=(localStorage.getItem(KEY)||'').length;
+  }catch(e){ storage='blocked'; }
+  let online=null;
+  try{ if(typeof navigator!=='undefined' && 'onLine' in navigator) online=!!navigator.onLine; }catch(e){}
+  const standalone = (function(){
+    try{ return !!(navigator.standalone ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)); }
+    catch(e){ return false; }
+  })();
+  /* Three real states, not a badge:
+       blocked  — storage is off, nothing works properly at all
+       hosted   — loaded from a URL. Every request the app makes is zero, but
+                  the page itself still came off a server, and a browser is
+                  free to drop its copy. Offline is likely, not guaranteed.
+       local    — the file is on the device. This is the only unconditional yes. */
+  /* hosted: is the worker actually in charge, or still settling? */
+  let sw='none';
+  try{
+    if(!local && 'serviceWorker' in navigator)
+      sw = navigator.serviceWorker.controller ? 'active' : 'pending';
+  }catch(e){}
+  const level = storage!=='working' ? 'blocked'
+              : local               ? 'local'
+              : sw==='active'       ? 'cached'
+              : sw==='pending'      ? 'pending'
+              : 'hosted';
+  return {proto, local, storage, bytes, online, standalone, level, sw,
+          ready: storage==='working'};
+}
+
+/* ══════════════ TIME OFF ══════════════
+   "I'm away 4th–15th — what does that cost me, and can I still recover?"
+   Counts every class in the window that isn't already settled, then judges
+   it against the runway exactly like a single-day skip.                  */
+function absenceRange(fromISO,toISO){
+  if(!fromISO||!toISO) return null;
+  if(dateOf(toISO)<dateOf(fromISO)){ const t=fromISO; fromISO=toISO; toISO=t; }
+  const bySub={}, byDay=[];
+  let total=0, d=dateOf(fromISO);
+  for(let i=0;i<400;i++){
+    const iso=isoOf(d);
+    if(dateOf(iso)>dateOf(toISO)) break;
+    const hits=liveSlots(iso).filter(sl=>!S.marks[markKey(iso,sl)]);
+    if(hits.length){
+      byDay.push({iso,d:dateOf(iso),slots:hits});
+      hits.forEach(sl=>{ bySub[sl.subId]=(bySub[sl.subId]||0)+1; total++; });
+    }
+    d=addDays(d,1);
+  }
+  const rem=remainingBySub(todayISO());
+  const rows=Object.keys(bySub).map(id=>{
+    const A=attFor(id), n=bySub[id];
+    const now=pctOf(A.p,A.t), after=pctOf(A.p,A.t+n);
+    const rw=runwayVerdict(id, rem?rem[id]||0:null, n);
+    return {sub:subById(id), n, now, after, had:A.t, rw};
+  }).sort((a,b)=>RUNWAY_RANK[b.rw.level]-RUNWAY_RANK[a.rw.level] || a.after-b.after);
+  const worst=rows.reduce((w,r)=>Math.max(w,RUNWAY_RANK[r.rw.level]),0);
+  const days=Math.round((dateOf(toISO)-dateOf(fromISO))/864e5)+1;
+  return {fromISO,toISO,days,total,byDay,rows,worst,
+          verdict: worst>=2?'gone':worst===1?'tight':'ok',
+          weeksLeft:termWeeksLeft()};
+}
+/* the longest trip you could take starting that day and still recover */
+function longestSafeTrip(fromISO,cap){
+  cap=cap||45;
+  let best=0;
+  for(let n=1;n<=cap;n++){
+    const r=absenceRange(fromISO, isoOf(addDays(dateOf(fromISO),n-1)));
+    if(!r || r.worst>=2) break;
+    best=n;
+  }
+  return best;
+}
+let tripFrom=null, tripTo=null;
+function tripHTML(){
+  const from=tripFrom||todayISO(), to=tripTo||isoOf(addDays(dateOf(from),6));
+  const r=absenceRange(from,to);
+  let h='<div class="sheetIntro">Pick the days you\u2019ll be away. Every class in that '+
+    'window counts as missed, and it\u2019s judged against how much term is left.</div>'+
+    '<div class="list">'+
+      '<label class="row"><div class="rMain"><div class="rT">Leaving</div></div>'+
+        '<input type="date" id="tripFrom" value="'+esc(from)+'"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Back on</div></div>'+
+        '<input type="date" id="tripTo" value="'+esc(to)+'"></label>'+
+    '</div>';
+  if(!r) return h;
+  const col = r.verdict==='gone'?'var(--red)':r.verdict==='tight'?'var(--orange)':'var(--green)';
+  const word= r.verdict==='gone'?'Can\u2019t recover':r.verdict==='tight'?'Risky':'Safe';
+  h+='<div style="height:14px"></div><div class="card" style="border-left:4px solid '+col+'">'+
+    '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'+
+      '<span class="tnum" style="font-size:30px;font-weight:800;letter-spacing:-.03em;color:'+col+'">'+
+        r.total+'</span>'+
+      '<span style="font-size:13.5px;color:var(--label2)">class'+(r.total===1?'':'es')+
+        ' missed over '+r.days+' day'+(r.days===1?'':'s')+'</span>'+
+      '<span class="pill '+(r.verdict==='gone'?'no':r.verdict==='tight'?'mid':'ok')+
+        '" style="margin-left:auto">'+word+'</span></div>';
+  if(r.weeksLeft!=null)
+    h+='<div style="font-size:13px;color:var(--label2);margin-top:9px;line-height:1.45">'+
+      r.weeksLeft+' week'+(r.weeksLeft===1?'':'s')+' of term left after this. '+
+      (r.verdict==='gone'?'At least one subject can no longer reach '+S.thr+'%.'
+       :r.verdict==='tight'?'Recoverable, but with almost no margin left.'
+       :'Comfortably recoverable if you attend the rest.')+'</div>';
+  else
+    h+='<div class="gNote" style="padding:9px 0 0">Set your term end date in Settings '+
+       'for a recoverability verdict.</div>';
+  const safeN=longestSafeTrip(from);
+  if(safeN>0 && r.verdict!=='ok')
+    h+='<div style="font-size:13px;color:var(--label2);margin-top:8px">'+
+      'Leaving the same day, <b style="color:var(--label)">'+safeN+' day'+(safeN===1?'':'s')+
+      '</b> is the longest trip that still recovers.</div>';
+  h+='</div>';
+  if(!r.total) return h+'<div class="empty"><div class="eE">\ud83c\udfd6\ufe0f</div>'+
+    '<div class="eT">No classes in that window</div>'+
+    '<div class="eS">Nothing to lose — go.</div></div>';
+  h+='<div class="gHead" style="padding-left:4px">What it costs</div><div class="list">';
+  r.rows.forEach(row=>{
+    const cls=row.rw.level==='gone'?'no':row.rw.level==='tight'?'mid':'ok';
+    const tail = row.rw.after==null||row.rw.unknown ? ''
+      : row.rw.after<0 ? ' \u00b7 out of reach' : ' \u00b7 '+row.rw.after+' spare after';
+    h+='<div class="row '+scCls(row.sub)+'">'+
+      '<span class="ico" style="background:var(--sc);font-size:11px;font-weight:700">'+
+        esc(row.sub.code.slice(0,3))+'</span>'+
+      '<div class="rMain"><div class="rT">'+esc(row.sub.name)+'</div>'+
+      '<div class="rS">'+row.n+' class'+(row.n===1?'':'es')+' missed'+esc(tail)+'</div></div>'+
+      '<span class="pill '+cls+'">'+(row.had?pctFmt(row.now)+'%\u2192'+pctFmt(row.after)+'%':'no data')+
+      '</span></div>';
+  });
+  h+='</div>';
+  h+='<div class="gHead">Days you\u2019d miss</div><div class="list">';
+  r.byDay.forEach(day=>{
+    h+='<div class="row"><div class="rMain"><div class="rT">'+
+      day.d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})+'</div>'+
+      '<div class="rS">'+day.slots.map(sl=>esc(subById(sl.subId).code)+
+        (sl.online?' (online)':'')).join(', ')+'</div></div>'+
+      '<span class="rV">'+day.slots.length+'</span></div>';
+  });
+  return h+'</div>';
+}
+function sheetTrip(){
+  const bind=()=>{
+    const f=$('#tripFrom'), t=$('#tripTo');
+    const redraw=()=>{ $('#sheetBody').innerHTML=tripHTML(); bind(); };
+    if(f) f.onchange=e=>{ tripFrom=e.target.value||null; redraw(); };
+    if(t) t.onchange=e=>{ tripTo=e.target.value||null; redraw(); };
+  };
+  openSheet({title:'Time off', body:tripHTML(), cancelLabel:'Done', after:bind});
+}
+
 function sheetMonth(mo){
   const title=new Date(mo+'-01T00:00:00').toLocaleDateString(undefined,{month:'long',year:'numeric'});
   const bind=()=>{
@@ -3160,11 +3382,8 @@ function renderSettings(){
           '<select id="setCommute">'+Object.keys(COMMUTE).map(function(k){
             return '<option value="'+k+'"'+(S.commute===k?' selected':'')+'>'+
               esc(COMMUTE[k].label)+'</option>'; }).join('')+'</select></label>'+
-        '<label class="row"><div class="rMain"><div class="rT">Plan the evening before</div>'+
-          '<div class="rS">From this time, Today shows tomorrow’s departure instead of today’s</div></div>'+
-          '<input type="time" id="setRemindAt" value="'+esc(S.remindAt||'18:00')+'"></label>'+
-      '</div><div class="gNote">The app has no connection, so it can’t buzz your phone — '+
-        'it puts tomorrow’s departure at the top of Today whenever you open it after that time.</div>'
+      '</div><div class="gNote">Once today’s classes are done, Today automatically '+
+        'switches to the next day you have class — no timer to set.</div>'
     : '<div class="gNote">Off — nothing extra shows on Today.</div>')+
     '</div>';
 
@@ -3188,6 +3407,60 @@ function renderSettings(){
     '<button class="row tap" id="addSub"><span class="ico" style="background:var(--accent)">+</span>'+
       '<div class="rMain"><div class="rT" style="color:var(--accent)">Add a subject</div></div></button>'+
     '</div></div>';
+
+  h+=(function(){
+    const o=offlineReport();
+    const solid = o.level==='local' || o.level==='cached';
+    const col = o.level==='blocked' ? 'var(--red)'
+              : solid               ? 'var(--green)' : 'var(--orange)';
+    const head= o.level==='blocked' ? 'Storage is blocked'
+              : o.level==='local'   ? 'Ready to use offline'
+              : o.level==='cached'  ? 'Ready to use offline'
+              : o.level==='pending' ? 'Saving the app — reopen once'
+              : 'Offline should work — not guaranteed';
+    const sub = o.level==='blocked'
+      ? 'This browser won’t let the app save. Private browsing usually causes this.'
+      : o.level==='local'
+        ? 'The whole app is this one file, already on your device. Nothing to download, ever.'
+      : o.level==='cached'
+        ? 'The app has stored itself on this phone. It opens with no signal, '+
+          'and picks up any new version the next time you open it with one.'
+      : o.level==='pending'
+        ? 'The app is storing itself now. Open it once more with signal and '+
+          'it’ll be good with none.'
+      : 'You opened this from a web address, so the page itself came off a server. '+
+        'Your work is saved on the device either way, but to be certain the app '+
+        'always opens, put sw.js next to index.html — or just save the file to '+
+        'your phone and open it from there.';
+    return '<div class="gHead">Offline</div><div class="pad"><div class="card" '+
+      'style="border-left:4px solid '+col+'">'+
+      '<div style="display:flex;align-items:center;gap:9px">'+
+        '<span class="ico" style="background:'+col+';font-size:14px">'+(solid?'\u2713':o.level==='blocked'?'\u2717':'!')+'</span>'+
+        '<div><div style="font-size:16px;font-weight:700;letter-spacing:-.01em">'+head+'</div>'+
+        '<div style="font-size:13px;color:var(--label2);margin-top:2px;line-height:1.4">'+
+          esc(sub)+'</div></div></div>'+
+      '<div style="margin-top:13px;padding-top:12px;border-top:.5px solid var(--sep);'+
+        'display:flex;flex-direction:column;gap:7px;font-size:13px">'+
+        '<div style="display:flex;gap:10px"><span style="color:var(--green)">\u2713</span>'+
+          '<span style="color:var(--label2)">Makes no network requests \u2014 no server, no account, no tracking</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="color:'+
+          (o.storage==='working'?'var(--green)':'var(--red)')+'">'+
+          (o.storage==='working'?'\u2713':'\u2717')+'</span>'+
+          '<span style="color:var(--label2)">Saves to this device'+
+          (o.bytes?' \u00b7 '+Math.max(1,Math.round(o.bytes/1024))+' KB stored':'')+'</span></div>'+
+        '<div style="display:flex;gap:10px"><span style="color:'+
+          (solid?'var(--green)':'var(--orange)')+'">'+(solid?'\u2713':'!')+'</span>'+
+          '<span style="color:var(--label2)">Loaded from '+
+          (o.local  ? 'a file on this device'
+           :o.level==='cached' ? 'a web address \u00b7 stored on this phone'
+           :'a web address \u2014 needs the network the first time')+
+          (o.standalone?' \u00b7 running from your Home Screen':'')+'</span></div>'+
+        (o.online===false
+          ? '<div style="display:flex;gap:10px"><span style="color:var(--green)">\u2713</span>'+
+            '<span style="color:var(--label2)">You are offline right now \u2014 and it works</span></div>'
+          : '')+
+      '</div></div></div>';
+  })();
 
   h+='<div class="gHead">Data</div><div class="pad"><div class="list">'+
     '<button class="row tap" id="expBtn"><div class="rMain"><div class="rT">Export a backup</div>'+
@@ -3220,9 +3493,7 @@ function renderSettings(){
   TRAVEL_BANDS.forEach(b=>numSet('#set_'+b[0],b[0],300));
   const cmSel=$('#setCommute');
   if(cmSel) cmSel.onchange=e=>{ S.commute=COMMUTE[e.target.value]?e.target.value:'self'; save(); renderSettings(); };
-  const rmAt=$('#setRemindAt');
-  if(rmAt) rmAt.onchange=e=>{
-    S.remindAt=/^\d{2}:\d{2}$/.test(e.target.value)?e.target.value:'18:00'; save(); };
+
   $('#setName').onchange  =e=>{ S.name=String(e.target.value||'').trim().slice(0,80); save(); };
   $('#apBtn').onclick=()=>sheetAppealPick();
   $('#setTermEnd').onchange=e=>{
@@ -3411,6 +3682,40 @@ document.addEventListener('visibilitychange',()=>{
   else if(away>60000){ renderAll(); }
   markSeen();
 });
+
+/* ══════════════ OFFLINE WORKER ══════════════
+   Optional, and deliberately so. Opened as a file on your phone the app is
+   already fully offline and this does nothing — a file: page cannot register
+   a worker, and there would be nothing to cache. Hosted at a web address it
+   is what stops the app failing to open with no signal.
+   If sw.js isn't there, registration fails quietly and nothing changes. */
+let swReg=null;
+function swSupported(){
+  try{ return 'serviceWorker' in navigator &&
+              /^https?:$/.test(location.protocol); }
+  catch(e){ return false; }
+}
+function registerSW(){
+  if(!swSupported()) return;
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    swReg=reg;
+    reg.addEventListener('updatefound',()=>{
+      const w=reg.installing; if(!w) return;
+      w.addEventListener('statechange',()=>{
+        if(w.state==='installed' && navigator.serviceWorker.controller)
+          toast('Update ready — reopen the app');
+      });
+    });
+  }).catch(()=>{});     /* no sw.js alongside index.html: that's fine */
+  navigator.serviceWorker.addEventListener('message',e=>{
+    if(e.data && e.data.type==='CLEARED'){
+      toast('Cache cleared — reloading');
+      setTimeout(()=>location.reload(),600);
+    }
+  });
+}
+registerSW();
+
 /* keep the countdown and "in class now" honest without a visible redraw */
 setInterval(()=>{
   if($('#sheet').classList.contains('on')) return;
