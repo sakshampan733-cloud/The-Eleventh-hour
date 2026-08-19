@@ -962,15 +962,22 @@ function dayPlan(iso){
                      none:false,configured:plannerReady(),
                      leaveAt:null,wakeAt:null,travel:0};
   const allOnline=going.every(sl=>sl.online);
+  /* Travel is about the first class you have to physically get to. Basing it
+     on going[0] when that one is online gives "leave at 4pm for your 4pm
+     class" — the leave time collapses onto the class time because there is
+     no journey. Departure hangs off the first ON-CAMPUS class, and a day
+     with none has no departure at all. */
+  const firstOnsite=going.find(sl=>!sl.online)||null;
   const start=t2m(first.start), configured=plannerReady();
-  const travel = (configured && !first.online) ? travelFor(start) : 0;
-  const leaveAt = configured ? start-travel : null;
-  const wakeAt  = configured ? leaveAt-(S.readyMax||0) : null;
+  const travelStart = firstOnsite ? t2m(firstOnsite.start) : null;
+  const travel   = (configured && firstOnsite) ? travelFor(travelStart) : 0;
+  const leaveAt  = (configured && firstOnsite) ? travelStart-travel : null;
+  const wakeAt   = (configured && firstOnsite) ? leaveAt-(S.readyMax||0) : null;
   return {iso, d, list, going, planned, skippingAll:false,
-          first, allOnline, travel, start, configured,
+          first, firstOnsite, allOnline, travel, start, configured,
           leaveAt, wakeAt,
-          wakeRushed: configured ? leaveAt-(S.readyMin||0) : null,
-          dayBefore: configured && wakeAt<0};
+          wakeRushed: (configured&&firstOnsite) ? leaveAt-(S.readyMin||0) : null,
+          dayBefore: configured && wakeAt!=null && wakeAt<0};
 }
 const tomorrowPlan = () => dayPlan(isoOf(addDays(new Date(),1)));
 
@@ -1534,6 +1541,11 @@ function renderHome(){
      pointing at an 8am you've already decided to skip is worse than useless */
   const rpT=resolvePlan(iso);
   const goingToday=rpT.going;
+  /* Worked out up front: several hero branches need to know whether the
+     travel card is already speaking for a class before they speak for it
+     too. Declared here rather than below, where it was in the temporal
+     dead zone of the branches that referenced it. */
+  const ms=morningStatus();
 
   /* ── hero ── */
   /* any mark — present, absent or cancelled — means the class is handled,
@@ -1560,6 +1572,11 @@ function renderHome(){
         pctFmt(imp.after)+'%</div>':'')+
       '</div></div>';
   } else if(next){
+   /* The departure/at-home card above may already name this exact class —
+      then "Next up" is the same widget twice and we draw nothing. Note this
+      is a nested if, not a further `else if`: skipping the duplicate must
+      not fall through to "Done for the day" while the class is still ahead. */
+   if(!(ms && ms.atHome && ms.p.first && ms.p.first.id===next.id)){
     const sub=subById(next.subId), gap=t2m(next.start)-mins, imp=skipImpact(sub.id);
     hero='<div id="hero" class="'+scCls(sub)+'">'+
       '<div class="hTop">'+
@@ -1580,6 +1597,7 @@ function renderHome(){
               'Skip it and '+esc(sub.code)+' drops to '+pctFmt(imp.after)+'%. Then it’s your problem.'))+
         '</div></div>':'')+
       '</div>';
+   }
   } else if(todays.length){
     hero='<div id="hero" class="sc2"><div class="hTop">'+
       '<div class="hK">Done for the day</div>'+
@@ -1601,7 +1619,6 @@ function renderHome(){
      Morning: when to leave. Evening: when to go tomorrow. Nothing
      below the fold for either. ── */
   const cm=commute();
-  const ms=morningStatus();
   /* No configured hour: the timetable already says when today is finished.
      Once nothing is left to attend today, the next class day becomes the
      thing you need — whether that's this evening or Sunday night. */
@@ -1619,13 +1636,23 @@ function renderHome(){
       '<div style="display:flex;gap:9px;margin-top:13px">'+
         '<button class="btn ghost sm" id="heroWorth">Change plan</button></div>'+
       '</div></div>'+hero;
+  } else if(!ms && !aheadToday && tpH && tpH.configured && !tpH.firstOnsite){
+    /* nothing to travel to — don't invent a pickup */
+    hero='<div id="hero" style="border-left-color:var(--indigo)"><div class="hTop">'+
+      '<div class="hK" style="color:var(--indigo)">'+esc(nextDayName)+'</div>'+
+      '<div class="hN">All from home</div>'+
+      '<div class="hM">'+esc(subById(tpH.first.subId).name)+' at '+fmtT(tpH.first.start)+
+        ' \u2014 every class '+esc(nextDayName.toLowerCase())+' is online.</div>'+
+      '<div style="display:flex;gap:9px;margin-top:13px">'+
+        '<button class="btn ghost sm" id="heroWorth">Worth going?</button></div>'+
+      '</div></div>'+hero;
   } else if(!ms && !aheadToday && tpH && tpH.configured){
     const wake=tpH.dayBefore?null:tpH.wakeAt;
     hero='<div id="hero" style="border-left-color:var(--purple)"><div class="hTop">'+
       '<div class="hK" style="color:var(--purple)">'+esc(cm.head)+'</div>'+
       '<div class="hN">'+esc(cm.verb)+' '+m2t(tpH.leaveAt)+'</div>'+
       '<div class="hM">'+esc(nextDayName)+
-        ' · '+(tpH.planned?'your first <b>planned</b> class ':'first class ')+fmtT(tpH.first.start)+
+        ' · '+(tpH.planned?'your first <b>planned</b> class ':'first class ')+fmtT(tpH.firstOnsite.start)+
         (wake!=null?' · wake by <b>'+m2t(wake)+'</b>':'')+
         (tpH.planned&&tpH.going.length<tpH.list.length
           ? '<br><span style="color:var(--accent)">Skipping '+
@@ -1637,7 +1664,10 @@ function renderHome(){
         '<button class="btn ghost sm" id="heroWorth">Worth going?</button>'+
       '</div></div></div>'+hero;
   }
-  const hwd = ms ? null : homewardStatus();
+  /* An at-home card doesn't compete with the journey home — you can be on
+     your way back from campus and have an online class later. Only a real
+     get-to-college card replaces it. */
+  const hwd = (ms && !ms.atHome) ? null : homewardStatus();
   if(hwd){
     const cm2=commute();
     hero='<div id="hero" style="border-left-color:var(--teal)"><div class="hTop">'+
@@ -1679,7 +1709,13 @@ function renderHome(){
       '<div class="hN">'+(ms.untilClass<1?'Starting now'
                          :'Online in '+fmtDur(ms.untilClass))+'</div>'+
       '<div class="hM">'+esc(cls.name)+' at '+fmtT(ms.p.first.start)+
-        ' \u2014 no travel, you\u2019re taking this one from home.</div>'+
+        (kindOf(ms.p.first)!=='th'?' \u00b7 '+KIND_NAME[kindOf(ms.p.first)]:'')+
+        ' \u2014 no travel, you\u2019re taking this one from home.'+
+        (function(){ const im=skipImpact(cls.id); return im.has
+          ? '<br>'+(im.safe
+              ? 'Skipping keeps '+esc(cls.code)+' at '+pctFmt(im.after)+'%.'
+              : 'Skipping drops '+esc(cls.code)+' to '+pctFmt(im.after)+'%, below '+S.thr+'%.')
+          : ''; })()+'</div>'+
       '<div style="margin-top:12px;padding-top:11px;border-top:.5px solid var(--sep)">'+
         mkSegHTML(markKey(todayISO(), ms.p.first))+'</div>'+
       '</div></div>'+hero;
@@ -1849,18 +1885,33 @@ function renderHome(){
   (function(){
     const nd=nextClassDay();
     if(!nd){ $('#homeNext').innerHTML=''; return; }
+    /* For today, the headline here would be computed from the day's FIRST
+       class — which at 11am is a class that finished hours ago, giving
+       "wake by 6:50am" at lunchtime. The hero above is the live answer for
+       today and it tracks the next pending class, so today's card keeps only
+       what the hero doesn't have: the full list and the buttons. Tomorrow
+       and beyond still get the full headline. */
+    const echoes = nd.offset===0;
     const p=nd.plan, isTom=nd.offset===1;
     const dayName = nd.offset===0 ? 'Later today'
                   : isTom ? 'Tomorrow · '+p.d.toLocaleDateString(undefined,{weekday:'long'})
                   : p.d.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'short'});
     const wake = (p.configured && !p.skippingAll && !p.dayBefore) ? p.wakeAt : null;
+    const noTrip = !p.skippingAll && !p.firstOnsite;   /* everything from home */
     const cmx = commute();
     let n='<div class="gHead">'+esc(dayName)+'</div><div class="pad">'+
       '<div class="card" style="padding:16px 17px">';
-    if(p.skippingAll){
+    if(echoes){
+      /* headline omitted on purpose — the hero above just said it */
+    } else if(p.skippingAll){
       n+='<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">Not going in</div>'+
          '<div style="font-size:13.5px;color:var(--label2);margin-top:5px">'+
          'You planned to skip all '+p.list.length+' class'+(p.list.length===1?'':'es')+'.</div>';
+    } else if(noTrip){
+      n+='<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">All from home</div>'+
+         '<div style="font-size:13.5px;color:var(--label2);margin-top:5px">'+
+           'First class '+fmtT(p.first.start)+' \u00b7 '+esc(subById(p.first.subId).name)+
+           ' \u00b7 nothing to travel to.</div>';
     } else if(wake!=null){
       n+='<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'+
            '<span style="font-size:13px;color:var(--label2)">Wake by</span>'+
@@ -1870,8 +1921,8 @@ function renderHome(){
              m2t(p.leaveAt)+'</span>'+
          '</div>'+
          '<div style="font-size:13.5px;color:var(--label2);margin-top:6px">'+
-           'First class '+fmtT(p.first.start)+' · '+esc(subById(p.first.subId).name)+
-           (p.travel?' · '+p.travel+' min travel':' · online')+'</div>';
+           'First class '+fmtT(p.firstOnsite.start)+' · '+esc(subById(p.firstOnsite.subId).name)+
+           ' · '+p.travel+' min travel</div>';
     } else {
       n+='<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">First class '+
            fmtT(p.first.start)+'</div>'+
@@ -1920,6 +1971,7 @@ function renderHome(){
   const hcp=$('#heroCopy');
   if(hcp) hcp.onclick=()=>{
     const nd2=nextClassDay(); const t2=nd2?nd2.plan:null; const c=commute();
+    if(t2 && !t2.firstOnsite) return toast('Every class is online — no pickup needed.');
     if(!t2||t2.none||!c.text) return;
     const msg=c.text(m2t(t2.leaveAt), fmtT(t2.first.start));
     let done=false;
@@ -3187,7 +3239,13 @@ function absenceRange(fromISO,toISO){
   }).sort((a,b)=>RUNWAY_RANK[b.rw.level]-RUNWAY_RANK[a.rw.level] || a.after-b.after);
   const worst=rows.reduce((w,r)=>Math.max(w,RUNWAY_RANK[r.rw.level]),0);
   const days=Math.round((dateOf(toISO)-dateOf(fromISO))/864e5)+1;
+  /* the headline you actually came for: one number, before and after */
+  let GP=0,GT=0;
+  S.subs.forEach(sb=>{ const A=attFor(sb.id); GP+=A.p; GT+=A.t; });
+  const overallNow=pctOf(GP,GT), overallAfter=pctOf(GP,GT+total);
   return {fromISO,toISO,days,total,byDay,rows,worst,
+          overallNow, overallAfter, overallDrop:overallNow-overallAfter,
+          overallHad:GT,
           verdict: worst>=2?'gone':worst===1?'tight':'ok',
           weeksLeft:termWeeksLeft()};
 }
@@ -3218,14 +3276,36 @@ function leaveHTML(){
   if(!r) return h;
   const col = r.verdict==='gone'?'var(--red)':r.verdict==='tight'?'var(--orange)':'var(--green)';
   const word= r.verdict==='gone'?'Can\u2019t recover':r.verdict==='tight'?'Risky':'Safe';
+  const under = r.overallHad && r.overallAfter < S.thr;
   h+='<div style="height:14px"></div><div class="card" style="border-left:4px solid '+col+'">'+
-    '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'+
-      '<span class="tnum" style="font-size:30px;font-weight:800;letter-spacing:-.03em;color:'+col+'">'+
-        r.total+'</span>'+
-      '<span style="font-size:13.5px;color:var(--label2)">class'+(r.total===1?'':'es')+
-        ' missed over '+r.days+' day'+(r.days===1?'':'s')+'</span>'+
-      '<span class="pill '+(r.verdict==='gone'?'no':r.verdict==='tight'?'mid':'ok')+
-        '" style="margin-left:auto">'+word+'</span></div>';
+    /* one figure, big, before → after */
+    (r.overallHad
+      ? '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'+
+          '<div><div style="font-size:11.5px;color:var(--label3);text-transform:uppercase;'+
+            'letter-spacing:.05em;font-weight:700">Overall now</div>'+
+            '<div class="tnum" style="font-size:26px;font-weight:700;color:var(--label2);'+
+            'letter-spacing:-.02em">'+pctFmt(r.overallNow)+'%</div></div>'+
+          '<span style="font-size:22px;color:var(--label3)">\u2192</span>'+
+          '<div><div style="font-size:11.5px;color:var(--label3);text-transform:uppercase;'+
+            'letter-spacing:.05em;font-weight:700">After this leave</div>'+
+            '<div class="tnum" style="font-size:34px;font-weight:800;letter-spacing:-.03em;color:'+
+            (under?'var(--red)':'var(--label)')+'">'+pctFmt(r.overallAfter)+'%</div></div>'+
+          '<span class="pill '+(r.verdict==='gone'?'no':r.verdict==='tight'?'mid':'ok')+
+            '" style="margin-left:auto">'+word+'</span>'+
+        '</div>'+
+        '<div style="font-size:13px;color:var(--label2);margin-top:7px">'+
+          '<b style="color:'+col+'">'+r.total+'</b> class'+(r.total===1?'':'es')+
+          ' missed over '+r.days+' day'+(r.days===1?'':'s')+
+          ' \u00b7 a drop of <b>'+pctFmt(r.overallDrop)+' points</b>'+
+          (under?' \u00b7 <b style="color:var(--red)">under your '+S.thr+'%</b>':'')+
+        '</div>'
+      : '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'+
+          '<span class="tnum" style="font-size:30px;font-weight:800;letter-spacing:-.03em;color:'+col+'">'+
+            r.total+'</span>'+
+          '<span style="font-size:13.5px;color:var(--label2)">class'+(r.total===1?'':'es')+
+            ' missed over '+r.days+' day'+(r.days===1?'':'s')+'</span>'+
+          '<span class="pill '+(r.verdict==='gone'?'no':r.verdict==='tight'?'mid':'ok')+
+            '" style="margin-left:auto">'+word+'</span></div>');
   /* the thing you actually opened this for: what it does to each subject,
      in the same card as the verdict rather than somewhere further down */
   if(r.rows.length)
