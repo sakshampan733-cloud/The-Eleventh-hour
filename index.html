@@ -659,7 +659,8 @@ const KEY='sem5plan';
 function blankState(keep){
   keep=keep||{};
   return {subs:[],slots:[],marks:{},att:{},dls:[],cats:[],tab:'home',
-          thr:67, name:'', termEnd:'',   /* semester end — powers the runway maths */
+          thr:67, name:'', roll:'', course:'', college:'',
+          termEnd:'',   /* semester end — powers the runway maths */
           /* morning planner — off until you switch it on in Settings */
           planner:false, readyMin:15, readyMax:30,
           commute:'self', plans:{}, enroute:null,   /* per-day 'which classes I'll actually attend' */
@@ -686,6 +687,7 @@ function normalise(st){
     if(!s.code) s.code=String(s.name||'?').slice(0,3).toUpperCase();
   });
   st.thr   =clamp(+st.thr   ||67,1,100);
+  ['name','roll','course','college'].forEach(k=>{ st[k]=String(st[k]||'').slice(0,80); });
   delete st.ready; delete st.travel; delete st.driverHr; delete st.remindAt;   /* migrated above */
   st.planner  = !!st.planner;
   st.readyMin =clamp(+st.readyMin ||0,0,240);
@@ -1137,6 +1139,57 @@ function dayBlocks(iso){
   });
   return blocks;
 }
+/* ══════════════ WHAT A CHOICE COSTS ══════════════
+   Given the exact classes you say you're attending — a preset combination,
+   or a set you ticked by hand — work out the shape of the day and what it
+   does to your attendance. Everything that offers you a choice runs through
+   here, so a hand-picked day is judged by exactly the same rules as a
+   suggested one. */
+function planImpact(iso, ids, rem){
+  /* `rem` — remaining classes per subject — is the expensive part, and it is
+     identical for every option on a given day. Callers weighing several
+     options work it out once and pass it in. */
+  const live=liveSlots(iso);
+  const inSet={}; (ids||[]).forEach(i=>{ inSet[i]=1; });
+  const attend=live.filter(sl=>inSet[sl.id]);
+  const onsite=attend.filter(sl=>!sl.online);        /* only these need travel */
+  const settled=sl=>{ const m=S.marks[markKey(iso,sl)]; return m==='p'||m==='a'; };
+  const skipped=live.filter(sl=>!inSet[sl.id] && !settled(sl));
+  if(rem===undefined) rem=remainingBySub(iso);
+
+  const bySub={};
+  skipped.forEach(sl=>{ bySub[sl.subId]=(bySub[sl.subId]||0)+1; });
+  const rows=Object.keys(bySub).map(id=>{
+    const A=attFor(id), n=bySub[id];
+    const now=pctOf(A.p,A.t), after=pctOf(A.p,A.t+n);
+    const rw=runwayVerdict(id, rem?rem[id]||0:null, n);
+    return {sub:subById(id), n, now, after, had:A.t, rw,
+            safe: rw.level==='ok'||rw.level==='none'};
+  }).sort((a,b)=>RUNWAY_RANK[b.rw.level]-RUNWAY_RANK[a.rw.level] || a.after-b.after);
+
+  /* on campus from the first class you turn up for to the last you stay for */
+  const onCampus = onsite.length
+    ? t2m(onsite[onsite.length-1].end)-t2m(onsite[0].start) : 0;
+  const campusContact = onsite.reduce((n,sl)=>n+(t2m(sl.end)-t2m(sl.start)),0);
+  const contact  = attend.reduce((n,sl)=>n+(t2m(sl.end)-t2m(sl.start)),0);
+  const first    = onsite[0]||null;
+  const travel   = (first && plannerReady()) ? travelFor(t2m(first.start)) : 0;
+
+  return {
+    iso, attend, onsite, skipped, rows,
+    onlineCount: attend.filter(sl=>sl.online).length,
+    count:attend.length, onCampus, contact, dead:onCampus-campusContact,
+    allOnline: attend.length ? attend.every(sl=>sl.online) : false,
+    first, travel,
+    leaveHome: first ? t2m(first.start)-travel : null,
+    wakeAt: (first&&plannerReady()) ? t2m(first.start)-travel-(S.readyMax||0) : null,
+    worst: rows.reduce((w,r)=>Math.max(w,RUNWAY_RANK[r.rw.level]),0),
+    gone:   rows.some(r=>r.rw.level==='gone'),
+    unsafe: rows.some(r=>r.rw.level==='gone'||r.rw.level==='risk'),
+    ids: attend.map(sl=>sl.id)
+  };
+}
+
 function dayOptions(iso){
   const live=liveSlots(iso);
   if(!live.length) return null;
@@ -1147,50 +1200,23 @@ function dayOptions(iso){
   const settled=sl=>{ const m=S.marks[markKey(iso,sl)]; return m==='p'||m==='a'; };
 
   /* `run` is a contiguous stretch of campus blocks; online classes ride along
-     free unless you explicitly write the whole day off. */
+     free unless you explicitly write the whole day off. The judging itself
+     lives in planImpact — this only decides which classes are in, and what
+     to call the result. */
   const build=(run, withOnline)=>{
     const onsite=[].concat.apply([],run.map(b=>b.slots));
-    const attend=onsite.concat(withOnline?onlineSlots:[]);
-    const inSet=id=>attend.some(s=>s.id===id);
-    const skipped=all.filter(sl=>!inSet(sl.id)&&!settled(sl));
-
-    const bySub={};
-    skipped.forEach(sl=>{ bySub[sl.subId]=(bySub[sl.subId]||0)+1; });
-    const rows=Object.keys(bySub).map(id=>{
-      const A=attFor(id), n=bySub[id];
-      const now=pctOf(A.p,A.t), after=pctOf(A.p,A.t+n);
-      const rw=runwayVerdict(id, rem?rem[id]||0:null, n);
-      return {sub:subById(id), n, now, after, had:A.t, rw,
-              safe: rw.level==='ok'||rw.level==='none'};
-    }).sort((a,b)=>RUNWAY_RANK[b.rw.level]-RUNWAY_RANK[a.rw.level] || a.after-b.after);
-
-    /* campus time and dead time come from the in-person classes alone */
-    const onCampus = onsite.length ? run[run.length-1].end-run[0].start : 0;
-    const campusContact = onsite.reduce((n,sl)=>n+(t2m(sl.end)-t2m(sl.start)),0);
-    const contact  = attend.reduce((n,sl)=>n+(t2m(sl.end)-t2m(sl.start)),0);
-    const first    = onsite[0]||null;          /* only a campus class needs travel */
-    const travel   = (first && plannerReady()) ? travelFor(t2m(first.start)) : 0;
-    const onlineCount = withOnline?onlineSlots.length:0;
+    const ids=onsite.map(sl=>sl.id)
+      .concat(withOnline?onlineSlots.map(sl=>sl.id):[]);
+    const o=planImpact(iso, ids, rem);
 
     let label;
-    if(!attend.length)                 label='Skip everything';
-    else if(!onsite.length)            label='Stay home — online only';
-    else if(run.length===blocks.length)label = onlineCount ? 'Everything (online from home)' : 'Go for everything';
-    else                               label = fmtT(onsite[0].start)+'–'+
-                                               fmtT(onsite[onsite.length-1].end)+' on campus';
-    return {
-      run, attend, onsite, skipped, rows, onlineCount,
-      count:attend.length, onCampus, contact, dead:onCampus-campusContact,
-      allOnline: attend.length? attend.every(s=>s.online) : false,
-      first, travel,
-      leaveHome: first ? t2m(first.start)-travel : null,
-      wakeAt: (first&&plannerReady()) ? t2m(first.start)-travel-(S.readyMax||0) : null,
-      worst: rows.reduce((w,r)=>Math.max(w,RUNWAY_RANK[r.rw.level]),0),
-      gone:   rows.some(r=>r.rw.level==='gone'),
-      unsafe: rows.some(r=>r.rw.level==='gone'||r.rw.level==='risk'),
-      ids: attend.map(sl=>sl.id),
-      label
-    };
+    if(!o.count)                        label='Skip everything';
+    else if(!o.onsite.length)           label='Stay home — online only';
+    else if(run.length===blocks.length) label = o.onlineCount ? 'Everything (online from home)'
+                                                             : 'Go for everything';
+    else label = fmtT(o.onsite[0].start)+'–'+
+                 fmtT(o.onsite[o.onsite.length-1].end)+' on campus';
+    return Object.assign(o, {run, label});
   };
 
   const opts=[];
@@ -2309,9 +2335,9 @@ function renderAtt(){
           '<div class="rMain"><div class="rT">'+n+' class'+(n===1?'':'es')+' not marked</div>'+
           '<div class="rS">From the last 3 weeks — log them now</div></div>'+
           '<span class="chev">›</span></button>' : ''; })()+
-      '<button class="row tap" id="attTrip"><span class="ico" style="background:var(--teal)">\u2708</span>'+
-        '<div class="rMain"><div class="rT">Planning time off?</div>'+
-        '<div class="rS">See what a trip costs before you book it</div></div>'+
+      '<button class="row tap" id="attLeave"><span class="ico" style="background:var(--teal)">\u270e</span>'+
+        '<div class="rMain"><div class="rT">Taking leave?</div>'+
+        '<div class="rS">What it costs — and an application to send</div></div>'+
         '<span class="chev">\u203a</span></button>'+
       '<label class="row"><div class="rMain"><div class="rT">Minimum required</div>'+
       '<div class="rS">Everything below is measured against this</div></div>'+
@@ -2320,7 +2346,7 @@ function renderAtt(){
       '<span style="color:var(--label2)">%</span></label></div></div>';
   $('#attThr').onchange=e=>{ S.thr=clamp(parseInt(e.target.value)||67,1,100); save(); renderAll(); };
   const ac=$('#attCatch'); if(ac) ac.onclick=sheetCatchUp;
-  const at=$('#attTrip');  if(at) at.onclick=()=>sheetTrip();
+  const at=$('#attLeave');  if(at) at.onclick=()=>sheetLeave();
 
   if(!S.subs.length){
     $('#attList').innerHTML='<div class="empty"><div class="eE">📊</div>'+
@@ -2717,6 +2743,143 @@ function sheetAppealPick(){
 }
 
 /* ══════════════ "WORTH GOING?" ══════════════ */
+/* ══════════════ PICK THE DAY BY HAND ══════════════
+   The suggested options are combinations of whole campus blocks, which is
+   most days but not all of them. When the day you actually want is "this
+   one, that one, not that one", tick them. Same maths, your choice.       */
+let pickSel=null, pickIso=null;
+function pickHTML(iso){
+  const live=liveSlots(iso);
+  const dayName=dateOf(iso).toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'short'});
+  if(!live.length)
+    return '<div class="empty"><div class="eE">🛌</div><div class="eT">Nothing on '+esc(dayName)+'</div>'+
+      '<div class="eS">No classes scheduled, or everything is cancelled.</div></div>';
+
+  const o=planImpact(iso, Object.keys(pickSel).filter(k=>pickSel[k]));
+  const col=o.gone?'var(--red)':o.worst>=1?'var(--orange)':'var(--green)';
+
+  /* the running total, live, above the list you're touching */
+  let h='<div class="card" style="border-left:4px solid '+col+';margin-bottom:14px">'+
+    '<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">'+
+      '<span class="tnum" style="font-size:30px;font-weight:800;letter-spacing:-.03em;color:'+col+'">'+
+        o.count+'</span>'+
+      '<span style="font-size:13.5px;color:var(--label2)">of '+live.length+
+        ' class'+(live.length===1?'':'es')+' selected</span>'+
+      (o.gone?'<span class="pill no" style="margin-left:auto">can’t recover</span>'
+       :o.worst>=1?'<span class="pill mid" style="margin-left:auto">cuts it fine</span>'
+       :'<span class="pill ok" style="margin-left:auto">safe</span>')+
+    '</div>'+
+    '<div style="font-size:13px;color:var(--label2);margin-top:9px;line-height:1.5">'+
+      (!o.count ? 'Staying home entirely.'
+       : o.allOnline ? 'All from home — no travel, no waiting.'
+       : fmtDur(o.onCampus)+' on campus for '+fmtDur(o.contact)+' of class'+
+         (o.dead>0?' · <b style="color:var(--orange)">'+fmtDur(o.dead)+' waiting</b>'
+                  :' · no waiting')+
+         (o.onlineCount?' · '+o.onlineCount+' online from home':'')+
+         (o.leaveHome!=null&&o.travel
+           ? '<br>Leave home '+m2t(o.leaveHome)+
+             (o.wakeAt!=null?' · wake '+m2t(o.wakeAt):'') : ''))+
+    '</div>'+
+    (o.rows.length
+      ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:11px">'+
+        o.rows.map(r=>{
+          const cls=r.rw.level==='gone'?'no':r.rw.level==='tight'?'mid':'ok';
+          return '<span class="pill '+cls+'">'+esc(r.sub.code)+' '+
+            (r.had?pctFmt(r.now)+'%→'+pctFmt(r.after)+'%':'no data')+'</span>';
+        }).join('')+'</div>'
+      : '<div style="font-size:12.5px;color:var(--green);margin-top:10px">Nothing missed</div>')+
+    '</div>';
+
+  h+='<div style="display:flex;gap:8px;margin-bottom:12px">'+
+      '<button class="btn ghost sm" id="pkAll" style="flex:1">Select all</button>'+
+      '<button class="btn ghost sm" id="pkNone" style="flex:1">Clear</button></div>';
+
+  h+='<div class="list">';
+  live.forEach((sl,i)=>{
+    const on=!!pickSel[sl.id];
+    const m=S.marks[markKey(iso,sl)];
+    const done = m==='p'||m==='a';
+    const gap = i && !sl.online && !live[i-1].online
+      ? t2m(sl.start)-t2m(live[i-1].end) : 0;
+    if(gap>GAP_MIN && on && pickSel[live[i-1].id])
+      h+='<div style="font-size:12px;color:var(--orange);padding:4px 16px">'+
+        fmtDur(gap)+' gap</div>';
+    h+='<button class="row tap '+scCls(subById(sl.subId))+'" data-pk="'+sl.id+'">'+
+      '<span class="ico" style="background:'+(on?'var(--sc)':'var(--fill2)')+
+        ';color:'+(on?'#fff':'var(--label3)')+';font-size:14px;font-weight:700">'+
+        (on?'✓':'')+'</span>'+
+      '<div class="rMain"><div class="rT" style="'+(on?'':'color:var(--label2)')+'">'+
+        esc(subById(sl.subId).name)+
+        (sl.online?' <span class="tag online">Online</span>':'')+
+        (done?' <span class="tag">'+(m==='p'?'attended':'missed')+'</span>':'')+
+      '</div>'+
+      '<div class="rS">'+fmtT(sl.start)+'–'+fmtT(sl.end)+
+        (kindOf(sl)!=='th'?' · '+KIND_NAME[kindOf(sl)]:'')+
+        (sl.room?' · '+esc(sl.room):'')+'</div></div>'+
+      '<span style="font-size:12px;color:var(--label3)">'+(on?'going':'skipping')+'</span>'+
+      '</button>';
+  });
+  h+='</div>';
+
+  /* already cancelled, listed apart so the picker only ever shows real choices */
+  const off=slotsOn(dowOf(dateOf(iso)),iso).filter(sl=>
+    subById(sl.subId) && S.marks[markKey(iso,sl)]==='c');
+  if(off.length){
+    h+='<div class="gHead">Cancelled</div><div class="list">';
+    off.forEach(sl=>{
+      h+='<button class="row tap" data-un="'+sl.id+'" style="opacity:.6">'+
+        '<div class="rMain"><div class="rT" style="text-decoration:line-through">'+
+          esc(subById(sl.subId).name)+'</div>'+
+        '<div class="rS">'+fmtT(sl.start)+'–'+fmtT(sl.end)+'</div></div>'+
+        '<span style="font-size:12px;color:var(--accent)">restore</span></button>';
+    });
+    h+='</div>';
+  }
+  h+='<div class="gNote">Classes you’ve already marked stay marked — ticking here '+
+     'only sets what you plan to do, and drives your leave and wake times.</div>';
+  return h;
+}
+function sheetPickDay(iso){
+  iso=iso||todayISO();
+  pickIso=iso;
+  /* start from whatever you'd already planned, or the whole day */
+  const live=liveSlots(iso), cur=planFor(iso);
+  pickSel={};
+  (cur || live.map(sl=>sl.id)).forEach(id=>{ pickSel[id]=true; });
+
+  const bind=()=>{
+    const refresh=()=>{ $('#sheetBody').innerHTML=pickHTML(iso); bind(); };
+    $$('#sheetBody [data-pk]').forEach(b=>b.onclick=()=>{
+      const id=b.dataset.pk;
+      if(pickSel[id]) delete pickSel[id]; else pickSel[id]=true;
+      refresh();
+    });
+    $$('#sheetBody [data-un]').forEach(b=>b.onclick=()=>{
+      const sl=S.slots.find(x=>x.id===b.dataset.un); if(!sl) return;
+      delete S.marks[markKey(iso,sl)];
+      pickSel[sl.id]=true;               /* restored means you're going again */
+      save(); renderAll(); refresh();
+    });
+    const a=$('#pkAll'), n=$('#pkNone');
+    if(a) a.onclick=()=>{ liveSlots(iso).forEach(sl=>{ pickSel[sl.id]=true; }); refresh(); };
+    if(n) n.onclick=()=>{ pickSel={}; refresh(); };
+  };
+
+  openSheet({
+    title:'Pick your classes', body:pickHTML(iso), doneLabel:'Save plan', after:bind,
+    onSave(){
+      const live2=liveSlots(iso);
+      const ids=live2.filter(sl=>pickSel[sl.id]).map(sl=>sl.id);
+      const isAll = ids.length===live2.length;
+      setPlan(iso, isAll?null:ids);
+      renderAll();
+      toast(isAll ? 'Planned: the full day.'
+           : ids.length ? 'Plan saved — '+ids.length+' class'+(ids.length===1?'':'es')+'.'
+           : 'Planned: not going.');
+    }
+  });
+}
+
 function sheetWorthGoing(iso){
   iso=iso||isoOf(addDays(new Date(),1));
   const x=dayOptions(iso);
@@ -2779,6 +2942,13 @@ function sheetWorthGoing(iso){
     'Tap a class to mark it cancelled — the options below update straight away.</div></div>';
 
   body+='<div class="gHead" style="padding-left:4px">Your options</div><div class="pad" style="padding:0">';
+  /* the presets are whole blocks; this is the way out when the day you want
+     isn't one of them */
+  body+='<button class="row tap card" id="wgPick" style="margin-bottom:10px;width:100%">'+
+    '<span class="ico" style="background:var(--accent)">☑</span>'+
+    '<div class="rMain"><div class="rT">Pick classes by hand</div>'+
+    '<div class="rS">Choose exactly which ones you\u2019re doing</div></div>'+
+    '<span class="chev">\u203a</span></button>';
   x.opts.forEach(o=>{
     const isBest=o===x.best;
     const col=o.gone?'var(--red)':o.worst>=1?'var(--orange)':
@@ -2834,6 +3004,8 @@ function sheetWorthGoing(iso){
         S.marks[k]=== 'c' ? delete S.marks[k] : S.marks[k]='c';
         save(); renderAll(); sheetWorthGoing(iso);
       });
+      const wp=$('#wgPick');
+      if(wp) wp.onclick=()=>sheetPickDay(iso);
       $$('#sheetBody [data-pick]').forEach(b=>b.onclick=()=>{
         const raw=b.dataset.pick;
         const ids=raw?raw.split(','):[];
@@ -2895,8 +3067,8 @@ function offlineReport(){
           ready: storage==='working'};
 }
 
-/* ══════════════ TIME OFF ══════════════
-   "I'm away 4th–15th — what does that cost me, and can I still recover?"
+/* ══════════════ LEAVE ══════════════
+   "I'm out 4th–15th — what does that cost me, and can I still recover?"
    Counts every class in the window that isn't already settled, then judges
    it against the runway exactly like a single-day skip.                  */
 function absenceRange(fromISO,toISO){
@@ -2927,8 +3099,8 @@ function absenceRange(fromISO,toISO){
           verdict: worst>=2?'gone':worst===1?'tight':'ok',
           weeksLeft:termWeeksLeft()};
 }
-/* the longest trip you could take starting that day and still recover */
-function longestSafeTrip(fromISO,cap){
+/* the longest leave you could take starting that day and still recover */
+function longestSafeLeave(fromISO,cap){
   cap=cap||45;
   let best=0;
   for(let n=1;n<=cap;n++){
@@ -2938,17 +3110,18 @@ function longestSafeTrip(fromISO,cap){
   }
   return best;
 }
-let tripFrom=null, tripTo=null;
-function tripHTML(){
-  const from=tripFrom||todayISO(), to=tripTo||isoOf(addDays(dateOf(from),6));
+let leaveFrom=null, leaveTo=null;
+function leaveHTML(){
+  const from=leaveFrom||todayISO(), to=leaveTo||isoOf(addDays(dateOf(from),6));
   const r=absenceRange(from,to);
-  let h='<div class="sheetIntro">Pick the days you\u2019ll be away. Every class in that '+
-    'window counts as missed, and it\u2019s judged against how much term is left.</div>'+
+  let h='<div class="sheetIntro">Pick the days you\u2019ll be away \u2014 illness, a wedding, '+
+    'travel, anything. Every class in that window counts as missed, and it\u2019s judged '+
+    'against how much term is left.</div>'+
     '<div class="list">'+
       '<label class="row"><div class="rMain"><div class="rT">Leaving</div></div>'+
-        '<input type="date" id="tripFrom" value="'+esc(from)+'"></label>'+
+        '<input type="date" id="leaveFrom" value="'+esc(from)+'"></label>'+
       '<label class="row"><div class="rMain"><div class="rT">Back on</div></div>'+
-        '<input type="date" id="tripTo" value="'+esc(to)+'"></label>'+
+        '<input type="date" id="leaveTo" value="'+esc(to)+'"></label>'+
     '</div>';
   if(!r) return h;
   const col = r.verdict==='gone'?'var(--red)':r.verdict==='tight'?'var(--orange)':'var(--green)';
@@ -2970,15 +3143,17 @@ function tripHTML(){
   else
     h+='<div class="gNote" style="padding:9px 0 0">Set your term end date in Settings '+
        'for a recoverability verdict.</div>';
-  const safeN=longestSafeTrip(from);
+  const safeN=longestSafeLeave(from);
   if(safeN>0 && r.verdict!=='ok')
     h+='<div style="font-size:13px;color:var(--label2);margin-top:8px">'+
-      'Leaving the same day, <b style="color:var(--label)">'+safeN+' day'+(safeN===1?'':'s')+
-      '</b> is the longest trip that still recovers.</div>';
+      'Starting the same day, <b style="color:var(--label)">'+safeN+' day'+(safeN===1?'':'s')+
+      '</b> is the longest leave that still recovers.</div>';
   h+='</div>';
+  h+='<button class="btn ghost sm" id="lvWrite" style="width:100%;margin-top:12px">'+
+     'Write a leave application</button>';
   if(!r.total) return h+'<div class="empty"><div class="eE">\ud83c\udfd6\ufe0f</div>'+
     '<div class="eT">No classes in that window</div>'+
-    '<div class="eS">Nothing to lose — go.</div></div>';
+    '<div class="eS">Nothing to lose \u2014 go.</div></div>';
   h+='<div class="gHead" style="padding-left:4px">What it costs</div><div class="list">';
   r.rows.forEach(row=>{
     const cls=row.rw.level==='gone'?'no':row.rw.level==='tight'?'mid':'ok';
@@ -3003,14 +3178,189 @@ function tripHTML(){
   });
   return h+'</div>';
 }
-function sheetTrip(){
+function sheetLeave(){
   const bind=()=>{
-    const f=$('#tripFrom'), t=$('#tripTo');
-    const redraw=()=>{ $('#sheetBody').innerHTML=tripHTML(); bind(); };
-    if(f) f.onchange=e=>{ tripFrom=e.target.value||null; redraw(); };
-    if(t) t.onchange=e=>{ tripTo=e.target.value||null; redraw(); };
+    const f=$('#leaveFrom'), t=$('#leaveTo');
+    const redraw=()=>{ $('#sheetBody').innerHTML=leaveHTML(); bind(); };
+    if(f) f.onchange=e=>{ leaveFrom=e.target.value||null; redraw(); };
+    if(t) t.onchange=e=>{ leaveTo=e.target.value||null; redraw(); };
+    const w=$('#lvWrite');
+    if(w) w.onclick=()=>{
+      const a=leaveFrom||todayISO();
+      const b=leaveTo||isoOf(addDays(dateOf(a),6));
+      sheetLeaveApp(a<=b?a:b, a<=b?b:a);
+    };
   };
-  openSheet({title:'Time off', body:tripHTML(), cancelLabel:'Done', after:bind});
+  openSheet({title:'Leave', body:leaveHTML(), cancelLabel:'Done', after:bind});
+}
+
+/* ══════════════ THE APPLICATION ══════════════
+   Any leave, not just medical: illness, a family matter, a wedding, travel,
+   or something you'd rather just describe yourself. You supply the reason in
+   your own words; this puts it in the shape a college office expects, with
+   the dates and the class count already filled in.
+
+   Deliberately formal whatever your tone setting is — the app can be as
+   sarcastic as you like with you, but not in a letter to your HOD.        */
+const LEAVE_KINDS=[
+  {k:'med',  l:'Medical',        ph:'e.g. typhoid, dengue, a fracture',
+   line:d=>'as I am suffering from '+d+' and have been advised rest by my doctor',
+   bare:'owing to illness, for which I have been advised rest by my doctor',
+   note:'I will submit my medical certificate on my return.'},
+  {k:'fam',  l:'Family',         ph:'e.g. my father’s surgery',
+   line:d=>'owing to '+d+', a family matter that requires my presence at home',
+   bare:'owing to an urgent family matter that requires my presence at home', note:''},
+  {k:'func', l:'Wedding/function', ph:'e.g. my sister’s wedding',
+   line:d=>'as I have to attend '+d+', for which I will be out of station',
+   bare:'as I have to attend a family function, for which I will be out of station',
+   note:''},
+  {k:'trav', l:'Travel',         ph:'e.g. a family trip to Kerala',
+   line:d=>'as I will be travelling out of station for '+d,
+   bare:'as I will be travelling out of station', note:''},
+  {k:'oth',  l:'Other',          ph:'describe it in your own words',
+   line:d=>'as '+d, bare:'owing to personal reasons', note:''}
+];
+function fmtLong(iso){
+  return dateOf(iso).toLocaleDateString(undefined,
+    {day:'numeric',month:'long',year:'numeric'});
+}
+function leaveApplication(from,to,kind,detail,addressee){
+  const K=LEAVE_KINDS.find(x=>x.k===kind)||LEAVE_KINDS[0];
+  const r=absenceRange(from,to);
+  const d=(detail||'').trim().replace(/[.\s]+$/,'');
+  const days=r?r.days:1;
+  const who=(addressee||'').trim()||'The Head of Department';
+  const me=(S.name||'').trim();
+  const sameDay=from===to;
+
+  const L=[];
+  L.push('To,');
+  L.push(who+',');
+  if(S.college && S.college.trim()) L.push(S.college.trim()+',');
+  L.push('');
+  L.push('Subject: Application for leave '+(sameDay?'on ':'from ')+
+         fmtLong(from)+(sameDay?'':' to '+fmtLong(to)));
+  L.push('');
+  L.push('Respected Sir/Ma’am,');
+  L.push('');
+
+  let intro='I am writing to request leave ';
+  intro += sameDay ? 'on '+fmtLong(from) : 'from '+fmtLong(from)+' to '+fmtLong(to);
+  intro += ' ('+days+' day'+(days===1?'':'s')+'), ';
+  intro += (d ? K.line(d) : K.bare)+'.';
+  const who_am_i = me
+    ? 'I am '+me+(S.course&&S.course.trim()?', a student of '+S.course.trim():'')+
+      (S.roll&&S.roll.trim()?' (Roll no. '+S.roll.trim()+')':'')+'. '
+    : '';
+  L.push(who_am_i+intro);
+  L.push('');
+
+  if(r && r.total)
+    L.push('I understand this will mean missing '+r.total+' class'+
+      (r.total===1?'':'es')+(r.rows.length>1?' across '+r.rows.length+' subjects':'')+
+      '. I will cover the syllabus taught in my absence and submit any work due on time.');
+  else
+    L.push('I will cover any work taught in my absence and submit it on time.');
+  if(K.note) L.push(K.note);
+  L.push('');
+  L.push('I request you to kindly grant me leave for the above period and to consider '+
+         'the same while computing my attendance.');
+  L.push('');
+  L.push('Thanking you,');
+  L.push('Yours sincerely,');
+  if(me) L.push(me);
+  if(S.course && S.course.trim())
+    L.push(S.course.trim()+(S.roll&&S.roll.trim()?' · Roll no. '+S.roll.trim():''));
+  else if(S.roll && S.roll.trim()) L.push('Roll no. '+S.roll.trim());
+  L.push(fmtLong(todayISO()));
+  return L.join('\n');
+}
+
+let lvKind='med', lvDetail='', lvTo='';
+function leaveAppHTML(from,to){
+  const msg=leaveApplication(from,to,lvKind,lvDetail,lvTo);
+  const K=LEAVE_KINDS.find(x=>x.k===lvKind)||LEAVE_KINDS[0];
+  let h='<div class="sheetIntro">Pick what kind of leave it is and say why in your own '+
+    'words. The dates and the number of classes come from what you selected.</div>';
+  h+='<div class="seg" style="margin-bottom:12px;flex-wrap:wrap">'+
+     LEAVE_KINDS.map(k=>'<button data-lk="'+k.k+'"'+(k.k===lvKind?' class="on"':'')+
+       '>'+esc(k.l)+'</button>').join('')+'</div>';
+  h+='<div class="list">'+
+      '<label class="row"><div class="rMain"><div class="rT">Reason</div></div>'+
+        '<input type="text" id="lvDetail" placeholder="'+esc(K.ph)+'" value="'+
+          esc(lvDetail)+'" style="flex:1;text-align:right"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Addressed to</div></div>'+
+        '<input type="text" id="lvTo" placeholder="The Head of Department" value="'+
+          esc(lvTo)+'" style="flex:1;text-align:right"></label>'+
+    '</div>';
+  const missing=[];
+  if(!(S.name||'').trim())   missing.push('your name');
+  if(!(S.roll||'').trim())   missing.push('roll number');
+  if(!(S.course||'').trim()) missing.push('course');
+  if(missing.length)
+    h+='<button class="row tap card" id="lvWho" style="width:100%;margin-top:12px">'+
+      '<span class="ico" style="background:var(--orange)">!</span>'+
+      '<div class="rMain"><div class="rT">Add '+esc(missing.join(', '))+'</div>'+
+      '<div class="rS">So the letter signs off properly</div></div>'+
+      '<span class="chev">\u203a</span></button>';
+  h+='<div class="gHead">The application</div>'+
+    '<div class="card" style="white-space:pre-wrap;font-size:13.5px;line-height:1.6;'+
+      'color:var(--label)">'+esc(msg)+'</div>'+
+    '<div style="height:12px"></div>'+
+    '<button class="btn sm" id="lvCopy">Copy application</button>';
+  return h;
+}
+function sheetLeaveApp(from,to){
+  const bind=()=>{
+    const redraw=()=>{ $('#sheetBody').innerHTML=leaveAppHTML(from,to); bind(); };
+    $$('#sheetBody [data-lk]').forEach(b=>b.onclick=()=>{ lvKind=b.dataset.lk; redraw(); });
+    const d=$('#lvDetail');
+    if(d) d.oninput=e=>{ lvDetail=e.target.value; };
+    if(d) d.onchange=e=>{ lvDetail=e.target.value; redraw(); };
+    const w=$('#lvTo');
+    if(w) w.oninput=e=>{ lvTo=e.target.value; };
+    if(w) w.onchange=e=>{ lvTo=e.target.value; redraw(); };
+    const who=$('#lvWho');
+    if(who) who.onclick=()=>sheetWhoAmI(()=>sheetLeaveApp(from,to));
+    const c=$('#lvCopy');
+    if(c) c.onclick=()=>{
+      const msg=leaveApplication(from,to,lvKind,lvDetail,lvTo);
+      let done=false;
+      try{
+        if(navigator.clipboard&&navigator.clipboard.writeText){
+          navigator.clipboard.writeText(msg); done=true;
+        }
+      }catch(e){}
+      toast(done?'Copied.':'Select the text above to copy.');
+    };
+  };
+  openSheet({title:'Leave application', body:leaveAppHTML(from,to),
+             cancelLabel:'Done', after:bind});
+}
+/* the handful of details a letter needs, asked for once and remembered */
+function sheetWhoAmI(back){
+  const body='<div class="sheetIntro">Used to sign off letters and applications. '+
+    'Stays on this device like everything else.</div>'+
+    '<div class="list">'+
+      '<label class="row"><div class="rMain"><div class="rT">Your name</div></div>'+
+        '<input type="text" id="whName" value="'+esc(S.name||'')+'" style="flex:1;text-align:right"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Roll number</div></div>'+
+        '<input type="text" id="whRoll" value="'+esc(S.roll||'')+'" style="flex:1;text-align:right"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Course</div></div>'+
+        '<input type="text" id="whCourse" placeholder="B.Com (Hons)" value="'+
+          esc(S.course||'')+'" style="flex:1;text-align:right"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">College</div></div>'+
+        '<input type="text" id="whCollege" value="'+esc(S.college||'')+'" style="flex:1;text-align:right"></label>'+
+    '</div>';
+  openSheet({title:'Your details', body, doneLabel:'Save',
+    onSave(){
+      S.name   =($('#whName')   .value||'').trim();
+      S.roll   =($('#whRoll')   .value||'').trim();
+      S.course =($('#whCourse') .value||'').trim();
+      S.college=($('#whCollege').value||'').trim();
+      save(); renderAll();
+      if(back) setTimeout(back,60);
+    }});
 }
 
 function sheetMonth(mo){
@@ -3392,9 +3742,13 @@ function renderSettings(){
       '<div class="rMain"><div class="rT">Attendance appeal</div>'+
       '<div class="rS">Find every class you were marked absent for and draft the request</div></div>'+
       '<span class="chev">›</span></button>'+
-    '<label class="row"><div class="rMain"><div class="rT">Your name</div>'+
-      '<div class="rS">Signs off the appeal message</div></div>'+
-      '<input type="text" id="setName" placeholder="Optional" value="'+esc(S.name||'')+'"></label>'+
+    '<button class="row tap" id="setWho"><span class="ico" style="background:var(--indigo)">\u270d</span>'+
+      '<div class="rMain"><div class="rT">Your details</div>'+
+      '<div class="rS">'+
+        ((S.name||'').trim()
+          ? esc([S.name,S.roll,S.course].filter(x=>(x||'').trim()).join(' \u00b7 '))
+          : 'Name, roll number, course \u2014 signs off appeals and applications')+
+      '</div></div><span class="chev">\u203a</span></button>'+
     '</div></div>';
 
   h+='<div class="gHead">Subjects</div><div class="pad"><div class="list">'+
@@ -3494,7 +3848,7 @@ function renderSettings(){
   const cmSel=$('#setCommute');
   if(cmSel) cmSel.onchange=e=>{ S.commute=COMMUTE[e.target.value]?e.target.value:'self'; save(); renderSettings(); };
 
-  $('#setName').onchange  =e=>{ S.name=String(e.target.value||'').trim().slice(0,80); save(); };
+  { const w=$('#setWho'); if(w) w.onclick=()=>sheetWhoAmI(); }
   $('#apBtn').onclick=()=>sheetAppealPick();
   $('#setTermEnd').onchange=e=>{
     const v=e.target.value;
