@@ -1057,7 +1057,11 @@ function morningStatus(){
      that already happened and start counting to arrival instead.
      There is nothing to arrive for if the next class is online, so the
      travelling state only applies when you're actually heading somewhere. */
-  const er = (S.enroute && S.enroute.iso===iso && !first.online) ? S.enroute : null;
+  /* It also expires on its own. Left standing, one tap in the morning has
+     you "arriving" all day — including from a seat in the classroom. Once
+     you'd have got there (plus a little slack), you have arrived. */
+  const er = (S.enroute && S.enroute.iso===iso && !first.online &&
+              now < S.enroute.at + travel + 30) ? S.enroute : null;
   const level = er                            ? 'enroute'
               : untilLeave<0                  ? 'late'
               : untilLeave>=(S.readyMax||0)   ? 'relaxed'
@@ -1476,6 +1480,8 @@ function keepScroll(fn){
 }
 function setMark(key,v){
   if(v) S.marks[key]=v; else delete S.marks[key];
+  /* you marked yourself present — you are plainly no longer in transit */
+  if(v==='p' && S.enroute && key.indexOf(S.enroute.iso+'|')===0) S.enroute=null;
   save();
   keepScroll(renderAll);
 }
@@ -1667,7 +1673,7 @@ function renderHome(){
   /* An at-home card doesn't compete with the journey home — you can be on
      your way back from campus and have an online class later. Only a real
      get-to-college card replaces it. */
-  const hwd = (ms && !ms.atHome) ? null : homewardStatus();
+  const hwd = (live || (ms && !ms.atHome)) ? null : homewardStatus();
   if(hwd){
     const cm2=commute();
     hero='<div id="hero" style="border-left-color:var(--teal)"><div class="hTop">'+
@@ -1700,8 +1706,10 @@ function renderHome(){
       '</div></div>'+hero;
   }
 
-  /* your next class is online: there is no journey, so don't invent one */
-  if(ms && ms.atHome){
+  /* A class is running right now, so you are sitting in it — "In class now"
+     is already the hero and travel advice for the same moment contradicts it
+     outright. Being on your way and being in the room cannot both be true. */
+  if(ms && !live && ms.atHome){
     const cls=subById(ms.p.first.subId);
     hero='<div id="hero" style="border-left-color:var(--indigo)"><div class="hTop">'+
       '<div class="hK" style="color:var(--indigo)">'+
@@ -1720,7 +1728,7 @@ function renderHome(){
         mkSegHTML(markKey(todayISO(), ms.p.first))+'</div>'+
       '</div></div>'+hero;
   }
-  else if(ms){
+  else if(ms && !live){
     const col=MORNING_COLOUR[ms.level];
     const big = ms.level==='enroute'
       ? 'Arriving '+m2t(ms.arriveAt)
@@ -1903,6 +1911,14 @@ function renderHome(){
       '<div class="card" style="padding:16px 17px">';
     if(echoes){
       /* headline omitted on purpose — the hero above just said it */
+    } else if(!p.configured){
+      /* before anything else: with the planner off there are no times to
+         show, and saying "all from home" instead of pointing at Settings
+         hides the one thing that would make this card useful */
+      n+='<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">First class '+
+           fmtT(p.first.start)+'</div>'+
+         '<div style="font-size:13.5px;color:var(--label2);margin-top:5px">'+
+           'Turn on the morning planner in Settings for a wake-up time</div>';
     } else if(p.skippingAll){
       n+='<div style="font-size:17px;font-weight:700;letter-spacing:-.02em">Not going in</div>'+
          '<div style="font-size:13.5px;color:var(--label2);margin-top:5px">'+
@@ -1966,8 +1982,6 @@ function renderHome(){
   $$('#homeWeek [data-day]').forEach(b=>b.onclick=()=>{ ttDate=dateOf(b.dataset.day); showTab('timetable'); });
   const ht=$('#homeTmrw');
   if(ht) ht.onclick=()=>{ ttDate=addDays(new Date(),1); showTab('timetable'); };
-  const hw=$('#homeWorth');
-  if(hw) hw.onclick=()=>sheetWorthGoing(isoOf(addDays(new Date(),1)));
   const hcp=$('#heroCopy');
   if(hcp) hcp.onclick=()=>{
     const nd2=nextClassDay(); const t2=nd2?nd2.plan:null; const c=commute();
