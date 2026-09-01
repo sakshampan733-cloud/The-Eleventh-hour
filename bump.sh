@@ -12,8 +12,8 @@ cd "$(dirname "$0")"
 python3 - "$V" <<'PY'
 import re, sys
 v = sys.argv[1]
-for path, pat in [("docs/index.html", r"11:59 · v([0-9][^<]*)<"),
-                  ("docs/sw.js",      r"const VERSION = 'eleventh-hour-v([^']+)'")]:
+for path, pat in [("index.html", r"11:59 · v([0-9][^<]*)<"),
+                  ("sw.js",      r"const VERSION = 'eleventh-hour-v([^']+)'")]:
     s = open(path, encoding='utf-8').read()
     m = re.search(pat, s)
     if not m:

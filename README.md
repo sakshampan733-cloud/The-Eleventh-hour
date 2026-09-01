@@ -26,17 +26,21 @@ local storage on your own device.
 
 | file | what it is |
 |---|---|
-| `docs/index.html` | the entire app |
-| `docs/sw.js` | service worker — only does anything when hosted at a URL |
+| `index.html` | the entire app |
+| `sw.js` | service worker — only does anything when hosted at a URL |
 | `tests/` | headless test suites |
 | `bump.sh` | moves the version and the SW cache name together |
 
 ## Publishing
 
-`docs/` is the published folder, so **Settings → Pages → deploy from `main`,
-folder `/docs`**. After that every push publishes itself — there is no build
-step and no workflow to run. Nothing outside `docs/` is served, which keeps
-the tests off the live site.
+GitHub Pages serves this repo from the **root of `main`**, which is how it
+was already set up, so `index.html` and `sw.js` stay at the top level and a
+push publishes itself — no build step, no workflow. `sw.js` has to sit beside
+`index.html` for the service worker to control the page at all, which the
+root layout gives for free.
+
+`tests/` is served too and is simply never requested; keeping it in the repo
+means a change can be checked before it goes live.
 
 To cut a version:
 
