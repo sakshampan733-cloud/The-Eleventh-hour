@@ -330,7 +330,10 @@ button.row:active,.tap:active{background:var(--card-press)}
   justify-content:center;flex-shrink:0;position:relative}
 .ring .inner{width:88px;height:88px;border-radius:50%;background:var(--card);
   display:flex;flex-direction:column;align-items:center;justify-content:center}
-.ring .rv{font-size:25px;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+/* Sized for the longest reading it has to hold — "100%" is four characters
+   but "76.92%" is six, and at 25px those overflow an 88px circle. */
+.ring .rv{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.045em;
+  line-height:1;font-variant-numeric:tabular-nums}
 .ring .rl{font-size:10.5px;color:var(--label2);margin-top:3px;letter-spacing:.03em}
 
 /* ── bars ────────────────────────────────────────────────── */
@@ -976,7 +979,10 @@ function attFor(subId){
     p:th.p+tu.p+pr.p, a:th.a+tu.a+pr.a, t:th.t+tu.t+pr.t};
 }
 const pctOf=(p,t)=> t? p/t*100 : 0;
-const pctFmt=n=>{ const r=Math.round(n*10)/10; return r%1===0?String(Math.round(r)):r.toFixed(1); };
+/* Two decimals, because that is what the college portal prints and the two
+   numbers have to be reconcilable at a glance — 76.92% here and 76.92%
+   there. A whole number keeps its clean form: 80%, not 80.00%. */
+const pctFmt=n=>{ const r=Math.round(n*100)/100; return r%1===0?String(Math.round(r)):r.toFixed(2); };
 
 /* DU / SBSC attendance-marks slab, out of 5 */
 function attMarks(p,t){
