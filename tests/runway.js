@@ -147,8 +147,11 @@ t('the sheet states how much term is left', function(){
 t('attendance cards show the spare-class count', function(){
   sem(120); renderAtt();
   var h=document.querySelector('#attList').innerHTML;
-  if(!/classes left this term/.test(h)) throw 'no runway on the attendance card';
-  if(!/you can miss/.test(h)) throw 'no spare count on the attendance card';
+  if(!/left this term/.test(h)) throw 'no runway on the attendance card';
+  /* the spare count is now drawn as counted pips, not only stated */
+  if(!/class="margin/.test(h)) throw 'no margin drawn on the attendance card';
+  if(!/to spare/.test(h)) throw 'no spare count on the attendance card';
+  if(!/you still finish at/.test(h)) throw 'does not say what it buys you';
 });
 t('Settings exposes the term end date', function(){
   sem(120); renderSettings();

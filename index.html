@@ -18,18 +18,22 @@
   color-scheme:light;
   --bg:#F2F2F7;
   --card:#FFFFFF;
-  --card-press:#E5E5EA;
-  --sep:rgba(60,60,67,.28);
+  --card-press:#EFEFF2;
+  --line:rgba(60,60,67,.16);      /* surfaces are drawn, not floated */
+  --sep:rgba(60,60,67,.22);
   --sep-soft:rgba(60,60,67,.10);
-  --label:#000000;
+  --label:#0B0B0C;
   --label2:rgba(60,60,67,.62);
-  --label3:rgba(60,60,67,.32);
-  --fill:rgba(118,118,128,.12);
-  --fill2:rgba(118,118,128,.20);
-  --accent:#007AFF;
-  --green:#34C759; --red:#FF3B30; --orange:#FF9500; --yellow:#FFCC00;
-  --purple:#AF52DE; --teal:#30B0C7; --pink:#FF2D55; --indigo:#5856D6; --brown:#A2845E;
-  --nav:rgba(242,242,247,.80);
+  --label3:rgba(60,60,67,.34);
+  --fill:rgba(118,118,128,.10);
+  --fill2:rgba(118,118,128,.18);
+  /* The action colour, and only that: buttons, the live tab, links, focus.
+     Deliberately not green, orange or red — those three mean something
+     about your attendance and must never also mean "you can press this". */
+  --accent:#4F46E5;
+  --green:#1D9E4B; --red:#DC2626; --orange:#C2740A; --yellow:#B58900;
+  --purple:#7C3AED; --teal:#0E8C9E; --pink:#DB2777; --indigo:#4F46E5; --brown:#8A6A48;
+  --nav:rgba(250,250,252,.82);
   /* liquid-glass pill (carried over from the wallet app) */
   --glass:rgba(255,255,255,.62); --glass-solid:rgba(252,251,249,.95);
   --glass-line:rgba(22,20,20,.11); --glass-hi:rgba(255,255,255,.80);
@@ -37,25 +41,34 @@
   --sheet:#FFFFFF;
   --scrim:rgba(0,0,0,.32);
   --ta:.13;                       /* subject tint alpha */
+  /* ── the one rule ────────────────────────────────────────────────
+     Anything measured is set in mono; anything said is set in sans. A
+     percentage, a count, a time and a date are readings — they line up in
+     columns and you can tell them from prose without reading either.
+     No webfont is loaded: SF Mono and the system sans are already on the
+     device, and this file must never fetch anything. */
   --font:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,system-ui,sans-serif;
-  --round:12px;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,'Roboto Mono',monospace;
+  --r-sm:6px; --r:10px; --r-lg:14px;
+  --round:10px;
 }
 [data-theme="dark"]{
   color-scheme:dark;
   --bg:#000000;
-  --card:#1C1C1E;
-  --card-press:#2C2C2E;
-  --sep:rgba(84,84,88,.60);
-  --sep-soft:rgba(84,84,88,.30);
+  --card:#151517;
+  --card-press:#232326;
+  --line:#2A2A2E;
+  --sep:rgba(120,120,128,.34);
+  --sep-soft:rgba(120,120,128,.18);
   --label:#FFFFFF;
-  --label2:rgba(235,235,245,.62);
-  --label3:rgba(235,235,245,.32);
-  --fill:rgba(118,118,128,.24);
-  --fill2:rgba(118,118,128,.36);
-  --accent:#0A84FF;
+  --label2:#AEAEB2;
+  --label3:#6E6E73;
+  --fill:rgba(118,118,128,.20);
+  --fill2:rgba(118,118,128,.32);
+  --accent:#7A6CFF;
   --green:#30D158; --red:#FF453A; --orange:#FF9F0A; --yellow:#FFD60A;
-  --purple:#BF5AF2; --teal:#40C8E0; --pink:#FF375F; --indigo:#5E5CE6; --brown:#AC8E68;
-  --nav:rgba(20,20,22,.80);
+  --purple:#BF5AF2; --teal:#40C8E0; --pink:#FF375F; --indigo:#7A6CFF; --brown:#AC8E68;
+  --nav:rgba(14,14,16,.82);
   --glass:rgba(28,28,31,.58); --glass-solid:rgba(18,18,20,.95);
   --glass-line:rgba(241,239,237,.13); --glass-hi:rgba(255,255,255,.09);
   --glass-active:rgba(241,239,237,.13);
@@ -86,7 +99,12 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
 input,select,textarea{font-family:inherit;font-size:17px;color:var(--label);background:none;border:none;outline:none;border-radius:8px}
 input::placeholder,textarea::placeholder{color:var(--label3)}
 a{color:var(--accent);text-decoration:none}
-.tnum{font-variant-numeric:tabular-nums}
+/* every reading: mono, tabular, so columns of them line up */
+.tnum,.num{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-feature-settings:'tnum' 1;letter-spacing:-.02em}
+/* the small tracked-out label that titles a section or a stat */
+.micro{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--label3)}
 
 /* ── nav bar ─────────────────────────────────────────────── */
 #nav{
@@ -123,17 +141,24 @@ main{padding-top:calc(48px + env(safe-area-inset-top,0px))}
 section{display:none}
 section.on{display:block;animation:fade .26s ease}
 @keyframes fade{from{opacity:0}to{opacity:1}}
-.lg{padding:4px 20px 2px}
-.lg h1{font-size:34px;font-weight:800;letter-spacing:-.032em;line-height:1.15}
-.lg .sub{font-size:15px;color:var(--label2);margin-top:2px;font-weight:400}
+.lg{padding:2px 20px 2px}
+.lg .brand{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--label3);margin-bottom:5px;display:block}
+.lg .brand b{color:var(--accent);font-weight:600}
+.lg h1{font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1.14}
+.lg .sub{font-family:var(--mono);font-size:12px;color:var(--label2);margin-top:4px;
+  font-weight:500;letter-spacing:-.01em}
 .pad{padding:0 16px}
 
 /* ── grouped list ────────────────────────────────────────── */
-.gHead{font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--label2);
-  text-transform:uppercase;padding:22px 16px 7px;margin:0}
-.gHead.tight{padding-top:14px}
+.gHead{display:flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.14em;
+  color:var(--label3);text-transform:uppercase;padding:24px 16px 9px;margin:0}
+.gHead::after{content:'';flex:1;height:1px;background:var(--line)}
+.gHead.tight{padding-top:15px}
 .gNote{font-size:13px;color:var(--label2);padding:7px 16px 0;line-height:1.35}
-.list{background:var(--card);border-radius:var(--round);margin:0 0 2px;overflow:hidden}
+.list{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  margin:0 0 2px;overflow:hidden}
 .row{
   position:relative;display:flex;align-items:center;gap:12px;
   min-height:48px;padding:11px 16px;width:100%;text-align:left;font-size:17px;
@@ -141,12 +166,13 @@ section.on{display:block;animation:fade .26s ease}
 .row+.row::before{content:'';position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
 button.row:active,.tap:active{background:var(--card-press)}
 .row .rMain{flex:1;min-width:0}
-.row .rT{font-size:17px;letter-spacing:-.01em}
-.row .rS{font-size:13px;color:var(--label2);margin-top:2px;line-height:1.3}
-.row .rV{color:var(--label2);font-size:17px;text-align:right;flex-shrink:0}
+.row .rT{font-size:16px;letter-spacing:-.01em}
+.row .rS{font-size:12.5px;color:var(--label2);margin-top:3px;line-height:1.35}
+.row .rV{color:var(--label2);font-family:var(--mono);font-size:15px;
+  font-variant-numeric:tabular-nums;text-align:right;flex-shrink:0}
 .row .chev{color:var(--label3);flex-shrink:0;font-size:15px;margin-left:-4px}
 .row.danger .rT{color:var(--red)}
-.row .ico{width:29px;height:29px;border-radius:7px;display:flex;align-items:center;
+.row .ico{width:28px;height:28px;border-radius:var(--r-sm);display:flex;align-items:center;
   justify-content:center;flex-shrink:0;color:#fff;font-size:15px}
 .chk{color:var(--accent);font-size:17px;font-weight:700;flex-shrink:0}
 
@@ -162,9 +188,9 @@ button.row:active,.tap:active{background:var(--card-press)}
   background-size:5px 5px,5px 5px;background-repeat:no-repeat}
 
 /* ── segmented control ───────────────────────────────────── */
-.seg{display:flex;background:var(--fill);border-radius:9px;padding:2px;gap:2px}
+.seg{display:flex;background:var(--fill);border-radius:var(--r-sm);padding:2px;gap:2px}
 .seg button{
-  flex:1;height:32px;border-radius:7px;font-size:13px;font-weight:600;
+  flex:1;height:32px;border-radius:4px;font-size:13px;font-weight:600;
   color:var(--label);white-space:nowrap;padding:0 6px;transition:background .18s
 }
 .seg button.on{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.12)}
@@ -173,33 +199,55 @@ button.row:active,.tap:active{background:var(--card-press)}
 /* ── buttons ─────────────────────────────────────────────── */
 .btn{
   display:flex;align-items:center;justify-content:center;gap:7px;
-  width:100%;height:50px;border-radius:13px;background:var(--accent);color:#fff;
-  font-size:17px;font-weight:600;
+  width:100%;height:48px;border-radius:var(--r);background:var(--accent);color:#fff;
+  font-size:16px;font-weight:600;letter-spacing:-.01em;
 }
 .btn:active{opacity:.75}
 .btn.ghost{background:var(--fill);color:var(--accent)}
 .btn.dangerBtn{background:var(--red)}
-.btn.sm{height:42px;font-size:16px;border-radius:11px}
+.btn.sm{height:40px;font-size:15px;border-radius:var(--r-sm)}
 
 /* ── cards ───────────────────────────────────────────────── */
-.card{background:var(--card);border-radius:16px;padding:18px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px;margin:0 0 12px}
 .card.tinted{background:color-mix(in srgb,var(--sc) calc(var(--ta)*100%),var(--card))}
 @supports not (background:color-mix(in srgb,red 10%,blue)){
   .card.tinted{background:var(--card)}
 }
-.kicker{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--label2)}
+.kicker{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--label3)}
+
+
+/* ═══ THE MARGIN ═══════════════════════════════════════════════════════
+   The signature. Everything in this app comes down to one question — how
+   many classes can I still miss — and that answer is a whole number, not a
+   proportion. So it is drawn as counted things: one pip per class you have
+   left to spend, filled while they are yours, hollow once they are gone.
+   A bar would imply you can miss two and a half classes. You cannot.     */
+.margin{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:10px}
+.margin i{width:9px;height:9px;border-radius:2px;background:var(--mg,var(--green));
+  display:block;flex-shrink:0}
+.margin i.spent{background:none;box-shadow:inset 0 0 0 1px var(--line)}
+.margin .mgN{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--label2);
+  margin-left:5px;letter-spacing:-.01em}
+.margin.none i{background:var(--red)}
 
 /* ── hero (today) ────────────────────────────────────────── */
-#hero{margin:10px 16px 14px;border-radius:18px;overflow:hidden;background:var(--card);
-  border-left:5px solid var(--sc,var(--accent))}
+#hero{margin:10px 16px 14px;border-radius:var(--r);overflow:hidden;background:var(--card);
+  border:1px solid var(--line);border-left:3px solid var(--sc,var(--accent))}
 #hero .hTop{padding:16px 18px 14px}
-#hero .hK{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+#hero .hK{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;
   color:var(--sc,var(--accent));display:flex;align-items:center;gap:7px}
 #hero .hK .dot{width:7px;height:7px;border-radius:50%;background:var(--sc,var(--accent));
   animation:pulse 2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
-#hero .hN{font-size:26px;font-weight:800;letter-spacing:-.03em;margin-top:7px;line-height:1.18}
-#hero .hM{font-size:15px;color:var(--label2);margin-top:4px}
+/* The headline is a reading — a time, a countdown, a verdict — so it takes
+   the mono treatment when it starts with a figure. Prose headlines keep the
+   sans, set tight and heavy. */
+#hero .hN{font-size:25px;font-weight:700;letter-spacing:-.03em;margin-top:8px;line-height:1.18}
+#hero .hN.num{font-family:var(--mono);font-weight:600;letter-spacing:-.045em}
+#hero .hM{font-size:14px;color:var(--label2);margin-top:5px;line-height:1.45}
 #hero .hM b{color:var(--label);font-weight:600}
 #hero .hAct{padding:0 18px 16px}
 
@@ -230,7 +278,8 @@ button.row:active,.tap:active{background:var(--card-press)}
 .tag.tu{background:color-mix(in srgb,var(--sc) 18%,transparent);color:var(--sc)}
 .tag.pr{background:color-mix(in srgb,var(--purple) 20%,transparent);color:var(--purple)}
 .tag.online{background:color-mix(in srgb,var(--teal) 20%,transparent);color:var(--teal)}
-.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+.pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);
+  font-size:11px;font-weight:600;letter-spacing:-.01em;
   padding:3px 9px;border-radius:99px}
 .pill.ok{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
 .pill.no{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red)}
@@ -244,9 +293,10 @@ button.row:active,.tap:active{background:var(--card-press)}
 
 /* ── stat tiles ──────────────────────────────────────────── */
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px 12px}
-.tile{background:var(--card);border-radius:14px;padding:14px 15px}
-.tile .tV{font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1.1;font-variant-numeric:tabular-nums}
-.tile .tL{font-size:12.5px;color:var(--label2);margin-top:3px;line-height:1.3}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px}
+.tile .tV{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.04em;
+  line-height:1.1;font-variant-numeric:tabular-nums}
+.tile .tL{font-size:12px;color:var(--label2);margin-top:4px;line-height:1.3}
 
 /* ── ring ────────────────────────────────────────────────── */
 .ring{width:112px;height:112px;border-radius:50%;display:flex;align-items:center;
@@ -437,7 +487,8 @@ button.row:active,.tap:active{background:var(--card-press)}
 #tabbar button{
   flex:1;height:100%;border-radius:999px;min-width:0;position:relative;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  color:var(--label2);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;
+  color:var(--label2);font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;
+  text-transform:uppercase;font-weight:600;
   transition:color .25s, background .3s cubic-bezier(.22,1,.36,1);
 }
 @media(max-width:359px){ #tabbar button{font-size:7.5px;letter-spacing:.02em} }
@@ -495,7 +546,7 @@ button.row:active,.tap:active{background:var(--card-press)}
 
 <!-- ══════════════ TODAY ══════════════ -->
 <section id="home" class="on">
-  <div class="lg"><h1>Today</h1><div class="sub" id="todayDate"></div></div>
+  <div class="lg"><span class="brand">Eleventh <b>Hour</b></span><h1>Today</h1><div class="sub" id="todayDate"></div></div>
   <div id="heroWrap"></div>
   <div id="homeTiles"></div>
   <div id="homeClasses"></div>
@@ -659,7 +710,8 @@ const KEY='sem5plan';
 function blankState(keep){
   keep=keep||{};
   return {subs:[],slots:[],marks:{},att:{},dls:[],cats:[],tab:'home',
-          thr:67, name:'', roll:'', course:'', college:'',
+          thr:67, goal:0,   /* 0 = no goal set */
+          name:'', roll:'', course:'', college:'',
           termEnd:'',   /* semester end — powers the runway maths */
           /* morning planner — off until you switch it on in Settings */
           planner:false, readyMin:15, readyMax:30,
@@ -687,6 +739,7 @@ function normalise(st){
     if(!s.code) s.code=String(s.name||'?').slice(0,3).toUpperCase();
   });
   st.thr   =clamp(+st.thr   ||67,1,100);
+  st.goal  =clamp(+st.goal  ||0,  0,100);   /* 0 means none set */
   ['name','roll','course','college'].forEach(k=>{ st[k]=String(st[k]||'').slice(0,80); });
   delete st.ready; delete st.travel; delete st.driverHr; delete st.remindAt;   /* migrated above */
   st.planner  = !!st.planner;
@@ -1154,6 +1207,86 @@ const termWeeksLeft=()=>{
   return Math.max(0,Math.ceil(daysTo(S.termEnd)/7));
 };
 /* verdict for missing `n` classes of one subject, given the runway */
+/* ══════════════ THE GOAL ══════════════
+   Two things people actually want, which turn out to be one thing.
+
+   Climbing: "I want to be at 75%." From p attended of t held, with k classes
+   still to come, you must attend x of them where (p+x)/(t+k) >= G. So
+   x = ceil(G(t+k) - p), and anything left over — k - x — is slack you may
+   spend. Below the goal the slack is what you must NOT spend; at or above it,
+   the same number is what you're free to spend.
+
+   Holding: "I'm at 75%, keep me there." Attending lifts the ratio, missing
+   drops it, so holding steady means attending a fixed FRACTION of what's
+   held: after n more classes, attending a of them leaves (p+a)/(t+n), and
+   setting that equal to p/t gives a = n·(p/t). At 75% that is three of every
+   four — no budget, just a rhythm.
+
+   So one number, two phases, and the app works out which you're in.        */
+function bestFraction(x, maxDen){
+  /* the simplest "a of every b" that lands closest to x — 0.75 → 3 of 4 */
+  maxDen=maxDen||8;
+  let best=null;
+  for(let d=1; d<=maxDen; d++){
+    const n=Math.round(x*d);
+    if(n<=0 || n>=d) continue;               /* 0-of and all-of say nothing */
+    const err=Math.abs(n/d - x);
+    if(!best || err < best.err - 1e-12) best={n, d, err};
+  }
+  return best;
+}
+/* how a single subject stands against the goal */
+function goalFor(subId, remaining){
+  const G=(+S.goal||0)/100;
+  if(!G) return null;
+  const A=attFor(subId);
+  const k=(remaining===null||remaining===undefined) ? null : (remaining||0);
+  const cur=pctOf(A.p,A.t);
+  const out={goal:+S.goal, cur, had:A.t, p:A.p,
+             phase: (A.t && cur>=+S.goal) ? 'hold' : 'climb'};
+  if(k===null){ out.unknown=true; return out; }
+  out.remaining=k;
+  /* classes of the k you must attend to finish at or above the goal */
+  const need=Math.ceil(G*(A.t+k) - A.p - 1e-9);
+  out.need  = clamp(need,0,k);
+  out.slack = k - out.need;                 /* how many you may miss */
+  out.reachable = need<=k;
+  if(!out.reachable){
+    /* the best you can do is attend every one that's left */
+    out.best = pctOf(A.p+k, A.t+k);
+  }
+  return out;
+}
+/* and the same question asked of everything at once */
+function goalOverall(){
+  const G=+S.goal||0;
+  if(!G) return null;
+  const rem=remainingBySub(todayISO());
+  let P=0,T=0,K=0, anyUnknown=(rem===null);
+  S.subs.forEach(sb=>{ const A=attFor(sb.id); P+=A.p; T+=A.t;
+                       if(rem) K+=rem[sb.id]||0; });
+  const cur=pctOf(P,T);
+  const out={goal:G, cur, p:P, had:T,
+             phase:(T && cur>=G) ? 'hold' : 'climb'};
+  /* holding steady means attending this fraction of whatever comes */
+  if(T){
+    const f=bestFraction(P/T, 8);
+    if(f) out.rhythm=f;
+  }
+  if(anyUnknown){ out.unknown=true; return out; }
+  out.remaining=K;
+  const need=Math.ceil((G/100)*(T+K) - P - 1e-9);
+  out.need =clamp(need,0,K);
+  out.slack=K-out.need;
+  out.reachable = need<=K;
+  if(!out.reachable) out.best=pctOf(P+K,T+K);
+  /* the subjects standing between you and the goal, worst first */
+  out.blocking=S.subs.map(sb=>({sub:sb, g:goalFor(sb.id, rem?rem[sb.id]||0:null)}))
+    .filter(x=>x.g && (!x.g.reachable || x.g.phase==='climb'))
+    .sort((a,b)=>(a.g.reachable?1:0)-(b.g.reachable?1:0) || a.g.cur-b.g.cur);
+  return out;
+}
+
 function runwayVerdict(subId,remaining,n){
   const A=attFor(subId);
   if(!A.t && !remaining) return {level:'none'};
@@ -1821,7 +1954,16 @@ function renderHome(){
         '<div class="rMain"><div class="rT">Skip '+esc(sk.when)+'?</div>'+
         '<div class="rS">'+(sk.hasHistory
             ? pctFmt(sk.now)+'% → '+pctFmt(sk.after)+'% across '+sk.count+' class'+(sk.count===1?'':'es')
-            : sk.count+' class'+(sk.count===1?'':'es'))+'</div></div>'+
+            : sk.count+' class'+(sk.count===1?'':'es'))+
+          /* against the goal as well as the minimum — the goal is the line
+             you actually care about once you're holding one */
+          (S.goal && sk.hasHistory
+            ? (sk.after>=S.goal
+                ? ' · <span style="color:var(--green)">stays above '+S.goal+'%</span>'
+                : sk.now>=S.goal
+                  ? ' · <span style="color:var(--orange)">drops you under '+S.goal+'%</span>'
+                  : ' · <span style="color:var(--label3)">still under '+S.goal+'%</span>')
+            : '')+'</div></div>'+
         '<span class="pill '+(sk.verdict==='ok'?'ok':sk.verdict==='tight'?'mid':'no')+'">'+
           SKIP_WORD[sk.verdict]+'</span><span class="chev">›</span></button>';
       if(n) r+='<button class="row tap" id="homeCatch"><span class="ico" style="background:var(--orange)">!</span>'+
@@ -2473,6 +2615,138 @@ function ringHTML(pct,color,label){
     '<div class="inner"><div class="rv" style="color:'+color+'">'+(label==null?pctFmt(pct)+'%':label)+'</div>'+
     '<div class="rl">of '+S.thr+'% min</div></div></div>';
 }
+/* The card reads differently in each phase, because the question is
+   different: climbing you want to know what it takes, holding you want to
+   know what you can get away with. */
+/* The margin, drawn. `spare` is how many classes you can still miss and
+   `total` how many are left in all — filled pips are yours to spend, hollow
+   ones are already committed. Capped, because forty pips is a wall, not a
+   reading. */
+function marginHTML(spare, total, colour){
+  if(spare===null||spare===undefined) return '';
+  const CAP=14;
+  const s=Math.max(0,spare), t=Math.max(s,total||s);
+  const shown=Math.min(t,CAP);
+  const filled=Math.round(shown*(t?s/t:0));
+  let h='<div class="margin'+(s?'':' none')+'" style="--mg:'+(colour||'var(--green)')+'">';
+  for(let i=0;i<shown;i++) h+='<i'+(i<filled?'':' class="spent"')+'></i>';
+  h+='<span class="mgN">'+(s? s+' to spare' : 'none to spare')+
+     (t>CAP?' of '+t:'')+'</span></div>';
+  return h;
+}
+
+function goalCardHTML(){
+  const g=goalOverall();
+  if(!g) return '';
+  const hold = g.phase==='hold';
+  const col = !g.reachable && !g.unknown ? 'var(--red)'
+            : hold                       ? 'var(--green)' : 'var(--accent)';
+  let h='<div class="gHead">Your goal</div><div class="pad">'+
+    '<div class="card" style="border-left:4px solid '+col+'">'+
+    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'+
+      '<div><div style="font-size:11.5px;color:var(--label3);text-transform:uppercase;'+
+        'letter-spacing:.05em;font-weight:700">Now</div>'+
+        '<div class="tnum" style="font-size:30px;font-weight:800;letter-spacing:-.03em;color:'+
+        col+'">'+(g.had?pctFmt(g.cur)+'%':'—')+'</div></div>'+
+      '<span style="font-size:20px;color:var(--label3)">'+(hold?'\u2261':'\u2192')+'</span>'+
+      '<div><div style="font-size:11.5px;color:var(--label3);text-transform:uppercase;'+
+        'letter-spacing:.05em;font-weight:700">Goal</div>'+
+        '<div class="tnum" style="font-size:24px;font-weight:700;letter-spacing:-.02em;'+
+        'color:var(--label2)">'+g.goal+'%</div></div>'+
+      '<span class="pill '+(!g.reachable&&!g.unknown?'no':hold?'ok':'mid')+
+        '" style="margin-left:auto">'+
+        (!g.reachable&&!g.unknown ? 'out of reach' : hold ? 'holding' : 'climbing')+
+      '</span>'+
+    '</div>';
+
+  if(g.unknown){
+    h+='<div class="gNote" style="padding:10px 0 0">Set your term end date in Settings '+
+       'and this can tell you exactly how many classes it takes.</div>';
+  } else if(!g.reachable){
+    h+='<div style="font-size:13.5px;color:var(--label2);margin-top:10px;line-height:1.5">'+
+      'Even attending every one of the '+g.remaining+' classes left, you finish at <b>'+
+      pctFmt(g.best)+'%</b>. '+(g.best>=S.thr
+        ? 'Still above the '+S.thr+'% you need, so the goal is the only thing out of reach.'
+        : 'That is below the '+S.thr+'% you need \u2014 the goal is not the problem here.')+
+      '</div>';
+  } else if(hold){
+    h+='<div style="font-size:13.5px;color:var(--label2);margin-top:10px;line-height:1.5">'+
+      (g.rhythm
+        ? 'To sit still at this level, attend <b style="color:var(--label)">'+g.rhythm.n+
+          ' of every '+g.rhythm.d+'</b> classes \u2014 that is the rate that neither '+
+          'lifts nor drops you.'
+        : 'Attend at your current rate and the number stays where it is.')+
+      '</div>'+
+      marginHTML(g.slack, g.remaining,
+                 g.slack>2?'var(--green)':g.slack?'var(--orange)':'var(--red)');
+  } else {
+    const gap=g.need-0;
+    h+='<div style="font-size:13.5px;color:var(--label2);margin-top:10px;line-height:1.5">'+
+      'Attend <b style="color:var(--label)">'+gap+'</b> of the '+g.remaining+
+      ' classes left to get there'+
+      (g.slack>0 ? '.' : ' \u2014 every single one. No room to miss any.')+
+      '</div>'+
+      marginHTML(g.slack, g.remaining,
+                 g.slack>2?'var(--accent)':g.slack?'var(--orange)':'var(--red)');
+  }
+
+  if(g.blocking && g.blocking.length){
+    h+='<div style="margin-top:12px;padding-top:11px;border-top:.5px solid var(--sep);'+
+      'display:flex;gap:6px;flex-wrap:wrap">'+
+      g.blocking.slice(0,6).map(b=>'<span class="pill '+
+        (b.g.reachable?'mid':'no')+'">'+esc(b.sub.code)+' '+pctFmt(b.g.cur)+'%'+
+        (b.g.reachable&&b.g.remaining!=null?' \u00b7 '+b.g.need+' to go':'')+'</span>').join('')+
+      '</div>'+
+      '<div class="gNote" style="padding:8px 0 0">Behind on these. The overall number '+
+      'hides them, but attendance is checked per subject.</div>';
+  }
+
+  h+='<div style="display:flex;gap:9px;margin-top:13px">'+
+      '<button class="btn ghost sm" id="goalEdit">Change goal</button>'+
+      (hold?'':'<button class="btn ghost sm" id="goalHere">Hold me here instead</button>')+
+    '</div>';
+  return h+'</div></div>';
+}
+/* Setting it, and the shortcut that is the whole point of "maintain": take
+   where I am now and make that the line. */
+function sheetGoal(){
+  const g=goalOverall();
+  let GP=0,GT=0; S.subs.forEach(sb=>{const A=attFor(sb.id); GP+=A.p; GT+=A.t;});
+  const cur=pctOf(GP,GT);
+  const body='<div class="sheetIntro">A goal is what you\u2019re aiming for. It sits above '+
+    'the '+S.thr+'% you actually have to hold \u2014 that minimum never moves.</div>'+
+    '<div class="list">'+
+      '<label class="row"><div class="rMain"><div class="rT">Goal</div>'+
+      '<div class="rS">Leave at 0 to turn this off</div></div>'+
+      '<input type="number" id="glVal" min="0" max="100" value="'+(+S.goal||0)+'" '+
+      'style="width:76px;text-align:center;background:var(--fill);border-radius:8px;'+
+      'padding:7px 0;flex:none"></label>'+
+    '</div>'+
+    (GT? '<div class="gHead tight">Quick</div><div class="list">'+
+      '<button class="row tap" id="glNow"><span class="ico" style="background:var(--green)">\u2261</span>'+
+        '<div class="rMain"><div class="rT">Hold me at '+pctFmt(cur)+'%</div>'+
+        '<div class="rS">Where you are right now \u2014 don\u2019t climb, don\u2019t slip</div></div>'+
+        '</button>'+
+      [75,80,85].filter(v=>v>cur).slice(0,2).map(v=>
+        '<button class="row tap" data-gq="'+v+'"><span class="ico" style="background:var(--accent)">'+
+        '\u2191</span><div class="rMain"><div class="rT">Climb to '+v+'%</div></div></button>').join('')+
+      '</div>' : '')+
+    '<div class="gNote">Once you reach it the card switches from what it takes to get '+
+    'there, to how much you can afford to miss while staying there.</div>';
+  openSheet({title:'Attendance goal', body, doneLabel:'Save',
+    after(){
+      const nw=$('#glNow');
+      if(nw) nw.onclick=()=>{ $('#glVal').value=Math.floor(cur); };
+      $$('#sheetBody [data-gq]').forEach(b=>b.onclick=()=>{ $('#glVal').value=b.dataset.gq; });
+    },
+    onSave(){
+      S.goal=clamp(parseInt($('#glVal').value)||0,0,100);
+      save(); renderAll();
+      toast(S.goal? (S.goal<=cur?'Holding at '+S.goal+'%.':'Goal set: '+S.goal+'%.')
+                  : 'Goal cleared.');
+    }});
+}
+
 function renderAtt(){
   let GP=0,GT=0;
   S.subs.forEach(s=>{ const a=attFor(s.id); GP+=a.p; GT+=a.t; });
@@ -2497,14 +2771,31 @@ function renderAtt(){
         '<div class="rMain"><div class="rT">Taking leave?</div>'+
         '<div class="rS">What it costs — and an application to send</div></div>'+
         '<span class="chev">\u203a</span></button>'+
+      '<button class="row tap" id="attGoal"><span class="ico" style="background:var(--indigo)">'+
+        (S.goal?'\u2261':'\u2191')+'</span>'+
+        '<div class="rMain"><div class="rT">'+(S.goal?'Goal · '+S.goal+'%':'Set an attendance goal')+'</div>'+
+        '<div class="rS">'+(S.goal
+          ? 'Aiming above the minimum, and holding there'
+          : 'Reach a number, then keep it there')+'</div></div>'+
+        '<span class="chev">\u203a</span></button>'+
       '<label class="row"><div class="rMain"><div class="rT">Minimum required</div>'+
       '<div class="rS">Everything below is measured against this</div></div>'+
       '<input type="number" id="attThr" min="1" max="100" value="'+S.thr+'" '+
       'style="width:66px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
-      '<span style="color:var(--label2)">%</span></label></div></div>';
+      '<span style="color:var(--label2)">%</span></label></div></div>'+
+    goalCardHTML();
   $('#attThr').onchange=e=>{ S.thr=clamp(parseInt(e.target.value)||67,1,100); save(); renderAll(); };
   const ac=$('#attCatch'); if(ac) ac.onclick=sheetCatchUp;
   const at=$('#attLeave');  if(at) at.onclick=()=>sheetLeave();
+  const ag=$('#attGoal');   if(ag) ag.onclick=sheetGoal;
+  const ge=$('#goalEdit');  if(ge) ge.onclick=sheetGoal;
+  const gh=$('#goalHere');
+  if(gh) gh.onclick=()=>{
+    let P=0,T=0; S.subs.forEach(sb=>{const A=attFor(sb.id); P+=A.p; T+=A.t;});
+    if(!T) return toast('Nothing recorded yet.');
+    S.goal=clamp(Math.floor(pctOf(P,T)),0,100); save(); renderAll();
+    toast('Holding at '+S.goal+'%.');
+  };
 
   if(!S.subs.length){
     $('#attList').innerHTML='<div class="empty"><div class="eE">📊</div>'+
@@ -2528,7 +2819,7 @@ function renderAtt(){
           '<div style="font-size:13px;color:var(--label2);margin-top:2px">'+
             '<span class="subChip">'+esc(sub.code)+'</span> '+A.p+'/'+A.t+' · '+A.a+' missed</div>'+
         '</div>'+
-        '<div style="font-size:26px;font-weight:800;letter-spacing:-.03em;color:'+c+'" class="tnum">'+
+        '<div style="font-size:25px;font-weight:600;letter-spacing:-.045em;color:'+c+'" class="tnum">'+
           (A.t?pctFmt(p)+'%':'—')+'</div>'+
       '</div>'+
       '<div class="bar"><div class="fl" style="width:'+clamp(p,0,100)+'%;background:'+c+'"></div>'+
@@ -2538,11 +2829,13 @@ function renderAtt(){
         if(!rem) return '';
         const k=rem[sub.id]||0, sl=slackFor(sub.id,k);
         if(!k) return '';
-        return '<div style="font-size:13px;margin-top:6px;line-height:1.4;color:'+
+        return '<div style="font-size:12.5px;margin-top:6px;line-height:1.4;color:'+
           (sl<0?'var(--red)':sl<=2?'var(--orange)':'var(--label2)')+'">'+
-          k+' classes left this term · '+
+          k+' left this term · '+
           (sl<0 ? '<b>'+S.thr+'% is out of reach now</b>'
-                : 'you can miss <b>'+sl+'</b> more and still finish at '+S.thr+'%')+'</div>';
+                : 'miss '+sl+' more and you still finish at '+S.thr+'%')+'</div>'+
+          (sl>=0 ? marginHTML(sl, k,
+             sl>2?'var(--green)':sl?'var(--orange)':'var(--red)') : '');
       })()+
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;font-size:12.5px;color:var(--label2)">'+
         (A.th.t||A.tu.t||A.pr.t
