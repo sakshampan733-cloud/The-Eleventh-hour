@@ -25,7 +25,7 @@
    The app makes no other requests of any kind: no CDN, no fonts, no
    API, no analytics. Nothing here talks to anyone.                    */
 
-const VERSION = 'eleventh-hour-v1';
+const VERSION = 'eleventh-hour-v2.2';
 const CORE    = ['./', './index.html'];
 
 self.addEventListener('install', e=>{

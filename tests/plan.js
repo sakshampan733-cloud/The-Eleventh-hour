@@ -20,6 +20,10 @@ var ok=0,fail=0;
 function t(n,f){ try{ f(); print('  PASS  '+n); ok++; }catch(e){ print('  FAIL  '+n+' :: '+e); fail++; } }
 (0,eval)(app);
 
+/* Settings is collapsed by default now — open every group so these
+   checks can still see the controls inside. */
+function openAllGroups(){ __.S.openGroups=['look','term','att','plan','term2','subs','off','data']; }
+
 /* build a state whose FIRST class today starts at `start`, with a fixed clock */
 function scene(start,opts){
   opts=opts||{};
@@ -149,10 +153,10 @@ t('Today shows the planner card when it is on', function(){
 });
 t('Settings hides the detail fields until enabled', function(){
   scene('08:00',{state:{planner:false}});
-  renderSettings();
+  (openAllGroups(),renderSettings());
   var off=document.querySelector('#setBody').innerHTML;
   if(/Leaving before 9am/.test(off)) throw 'travel bands visible while off';
-  __.S.planner=true; renderSettings();
+  __.S.planner=true; (openAllGroups(),renderSettings());
   var on=document.querySelector('#setBody').innerHTML;
   if(!/Leaving before 9am/.test(on)) throw 'travel bands missing while on';
   if(!/Leaving 9am – 3pm/.test(on)) throw 'midday band missing';

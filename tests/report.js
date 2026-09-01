@@ -53,7 +53,7 @@ t('it also appears on the next-day card under today’s classes', function(){
     throw 'missing from the next-day card';
 });
 t('the next-day card sits under the classes, not at the bottom', function(){
-  var src=readFile('index.html');
+  var src=readFile('docs/index.html');
   var iC=src.indexOf('id="homeClasses"'), iN=src.indexOf('id="homeNext"'),
       iD=src.indexOf('id="homeDue"'), iW=src.indexOf('id="homeWeek"');
   if(!(iC<iN && iN<iD && iD<iW)) throw 'wrong order on the page';

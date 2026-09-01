@@ -20,6 +20,7 @@
   --card:#FFFFFF;
   --card-press:#EFEFF2;
   --line:rgba(60,60,67,.16);      /* surfaces are drawn, not floated */
+  --line-2:rgba(60,60,67,.30);
   --sep:rgba(60,60,67,.22);
   --sep-soft:rgba(60,60,67,.10);
   --label:#0B0B0C;
@@ -57,7 +58,7 @@
   --bg:#000000;
   --card:#151517;
   --card-press:#232326;
-  --line:#2A2A2E;
+  --line:#2A2A2E; --line-2:#3E3E44;
   --sep:rgba(120,120,128,.34);
   --sep-soft:rgba(120,120,128,.18);
   --label:#FFFFFF;
@@ -165,6 +166,7 @@ section.on{display:block;animation:fade .26s ease}
 }
 .row+.row::before{content:'';position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
 button.row:active,.tap:active{background:var(--card-press)}
+@media (prefers-reduced-motion: reduce){button:active,.row:active{transform:none}}
 .row .rMain{flex:1;min-width:0}
 .row .rT{font-size:16px;letter-spacing:-.01em}
 .row .rS{font-size:12.5px;color:var(--label2);margin-top:3px;line-height:1.35}
@@ -186,6 +188,31 @@ button.row:active,.tap:active{background:var(--card-press)}
   background-image:linear-gradient(45deg,transparent 50%,var(--label2) 50%),linear-gradient(135deg,var(--label2) 50%,transparent 50%);
   background-position:calc(100% - 14px) 55%,calc(100% - 9px) 55%;
   background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+
+
+/* ── settings groups ─────────────────────────────────────
+   Glass, because a group is a surface you open rather than a slab of
+   page. Nested lists inside must not frost again — blur over blur goes
+   milky and you lose the thing you were seeing through. */
+.setG{border-radius:var(--r-lg);margin-bottom:9px;overflow:hidden;
+  border:1px solid var(--line);background:var(--card);
+  transition:border-color .25s ease}
+.setG.on{border-color:var(--line-2,var(--sep))}
+.setH{display:flex;align-items:center;gap:12px;width:100%;padding:15px 16px;text-align:left}
+.setT{font-size:15.5px;font-weight:600;letter-spacing:-.01em}
+.setS{font-family:var(--mono);font-size:11.5px;color:var(--label2);margin-top:4px;
+  line-height:1.45;letter-spacing:-.01em}
+.setC{flex:none;color:var(--label3);font-size:20px;line-height:1;
+  transition:transform .28s cubic-bezier(.22,1,.36,1),color .2s}
+.setG.on .setC{transform:rotate(90deg);color:var(--accent)}
+.setB{padding:2px 13px 14px;border-top:1px solid var(--line);
+  animation:setOpen .3s cubic-bezier(.22,1,.36,1)}
+.setB .list{border:0;background:var(--fill);margin-bottom:0}
+.setB .list+.gHead{padding-left:3px}
+.setB .gHead{padding-left:3px;padding-right:3px}
+.setB .gNote{padding-left:3px;padding-right:3px}
+.setB .card{background:var(--fill);border-color:transparent}
+@keyframes setOpen{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 
 /* ── segmented control ───────────────────────────────────── */
 .seg{display:flex;background:var(--fill);border-radius:var(--r-sm);padding:2px;gap:2px}
@@ -404,28 +431,58 @@ button.row:active,.tap:active{background:var(--card-press)}
 .cD.sel .dots i{background:rgba(255,255,255,.9)}
 
 /* ── sheet ───────────────────────────────────────────────── */
+/* Depth comes from blur and a lit edge, not from blacking the room out.
+   A heavy scrim removes everything behind the panel, so there is nothing
+   left for the glass to be glass over. */
 #scrim{position:fixed;inset:0;z-index:90;background:var(--scrim);opacity:0;
   transition:opacity .28s ease;pointer-events:none;
-  -webkit-backdrop-filter:blur(1px);backdrop-filter:blur(1px)}
+  -webkit-backdrop-filter:saturate(120%) blur(3px);backdrop-filter:saturate(120%) blur(3px)}
 #scrim.on{opacity:1;pointer-events:auto}
+/* ── the panel ───────────────────────────────────────────
+   A drawer welded to the bottom edge reads as part of the chrome, and it
+   is the wrong shape for reading: tall, narrow, and every detail view
+   becomes a long scroll up a thin column. Floated clear of the edges and
+   closer to square, it reads as an object in front of the app, with the
+   whole thing in view and the close where your eye already is. */
 #sheet{
-  position:fixed;left:0;right:0;bottom:0;z-index:100;
-  background:var(--sheet);border-radius:16px 16px 0 0;
-  transform:translateY(102%);transition:transform .34s cubic-bezier(.32,.72,0,1);
-  max-height:92vh;display:flex;flex-direction:column;
-  box-shadow:0 -1px 0 var(--sep-soft);
+  position:fixed;z-index:100;
+  left:max(10px,env(safe-area-inset-left,0px));
+  right:max(10px,env(safe-area-inset-right,0px));
+  top:50%;bottom:auto;transform:translateY(-50%) scale(.94);
+  max-width:540px;margin:0 auto;
+  max-height:min(78dvh,680px);
+  display:flex;flex-direction:column;overflow:hidden;
+  border-radius:24px;
+  border:1px solid var(--glass-line);
+  background:
+    linear-gradient(160deg,var(--glass-hi),rgba(255,255,255,0) 44%),
+    var(--glass-solid);
+  -webkit-backdrop-filter:saturate(200%) blur(40px);
+  backdrop-filter:saturate(200%) blur(40px);
+  box-shadow:
+    inset 0 1px 0 var(--glass-hi),
+    0 2px 8px rgba(0,0,0,.22),
+    0 32px 80px -28px rgba(0,0,0,.55);
+  opacity:0;pointer-events:none;
+  transition:opacity .26s ease, transform .42s cubic-bezier(.22,1,.36,1);
 }
-#sheet.on{transform:none}
-#sheet .grab{width:36px;height:5px;border-radius:99px;background:var(--label3);
-  margin:8px auto 0;flex-shrink:0}
-#sheetBar{display:flex;align-items:center;padding:10px 14px 8px;flex-shrink:0}
-#sheetBar .sTitle{flex:1;text-align:center;font-size:17px;font-weight:600}
+#sheet.on{opacity:1;transform:translateY(-50%) scale(1);pointer-events:auto}
+/* Nested surfaces inside the glass must not frost again — blur on blur
+   goes milky and you lose what you were seeing through. */
+#sheet .card,#sheet .list,#sheet .setG{
+  -webkit-backdrop-filter:none;backdrop-filter:none;
+  background:var(--fill);border-color:transparent}
+#sheet .grab{width:36px;height:4px;border-radius:99px;background:var(--label3);
+  opacity:.45;margin:9px auto 0;flex-shrink:0}
+#sheetBar{display:flex;align-items:center;padding:12px 14px 10px;flex-shrink:0;
+  border-bottom:1px solid var(--glass-line);margin-bottom:14px}
+#sheetBar .sTitle{flex:1;text-align:center;font-size:16px;font-weight:600;letter-spacing:-.01em}
 #sheetBar button{font-size:17px;color:var(--accent);min-width:64px;padding:4px 0}
 #sheetBar button.done{font-weight:600;text-align:right}
 #sheetBar button.cancel{text-align:left}
 #sheetBar button:disabled{color:var(--label3)}
 #sheetBody{overflow-y:auto;-webkit-overflow-scrolling:touch;
-  padding:0 16px calc(24px + env(safe-area-inset-bottom,0px));flex:1}
+  padding:0 18px 20px;flex:1}
 #sheetBody .list{margin-bottom:0}
 .sheetErr{font-size:13.5px;color:var(--red);padding:10px 4px 0;line-height:1.35}
 .sheetIntro{font-size:14px;color:var(--label2);padding:4px 4px 12px;line-height:1.45}
@@ -501,6 +558,62 @@ button.row:active,.tap:active{background:var(--card-press)}
   background:var(--red);color:#fff;font-size:10.5px;font-weight:700;display:flex;
   align-items:center;justify-content:center;padding:0 4px;
   box-shadow:0 0 0 2px var(--glass-solid);pointer-events:none}
+
+
+/* ═══ MOTION ═══════════════════════════════════════════════════════════
+   None of this is decoration. A control that compresses under the finger
+   tells you the tap landed — without it a hit and a miss look identical
+   until the next screen arrives. A card that rises as it arrives tells you
+   the screen has finished drawing. All of it collapses to nothing under
+   prefers-reduced-motion.                                               */
+@media (prefers-reduced-motion: no-preference){
+  button,.row,.tile,.card,.pill,.chip,.dChip,.seg button,.setH,.cls{
+    transition:transform .34s cubic-bezier(.34,1.56,.64,1),
+               background-color .2s ease, border-color .2s ease, opacity .2s ease;
+  }
+  /* down fast, back slow — that is the spring */
+  button:active,.row:active,.tile:active,.setH:active,.seg button:active,.cls:active{
+    transform:scale(var(--press,.965));transition-duration:.09s;
+  }
+  .tile:active,.card:active{--press:.985}
+  .dChip:active,.pill:active{--press:.92}
+  .btn:active{--press:.975}
+
+  /* cards arrive rather than appear, and in the order you read them */
+  #heroWrap>*,#homeTiles>*,#homeClasses>*,#homeNext>*,#homeDue>*,#homeWeek>*,
+  #attTop>*,#attList>*,.setG{
+    animation:riseIn .42s cubic-bezier(.22,1,.36,1) backwards;
+  }
+  #homeTiles>*{animation-delay:.03s}
+  #homeClasses>*{animation-delay:.06s}
+  #homeNext>*{animation-delay:.09s}
+  #homeDue>*{animation-delay:.12s}
+  #homeWeek>*{animation-delay:.15s}
+  .setG:nth-child(2){animation-delay:.03s}
+  .setG:nth-child(3){animation-delay:.06s}
+  .setG:nth-child(4){animation-delay:.09s}
+  .setG:nth-child(5){animation-delay:.12s}
+  .setG:nth-child(n+6){animation-delay:.15s}
+  @keyframes riseIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* the margin pips count themselves in, left to right */
+  .margin i{animation:pipIn .3s cubic-bezier(.22,1,.36,1) backwards}
+  .margin i:nth-child(2){animation-delay:.02s}
+  .margin i:nth-child(3){animation-delay:.04s}
+  .margin i:nth-child(4){animation-delay:.06s}
+  .margin i:nth-child(5){animation-delay:.08s}
+  .margin i:nth-child(n+6){animation-delay:.1s}
+  @keyframes pipIn{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+
+  #scrim.on{animation:scrimIn .24s ease-out}
+  @keyframes scrimIn{from{opacity:0}}
+}
+@media (prefers-reduced-motion: reduce){
+  #heroWrap>*,#homeTiles>*,#homeClasses>*,#homeNext>*,#homeDue>*,#homeWeek>*,
+  #attTop>*,#attList>*,.setG,.margin i{animation:none}
+  #sheet{transition:opacity .01s}
+  .setB{animation:none}
+}
 
 /* ── toast ───────────────────────────────────────────────── */
 #toast{
@@ -715,7 +828,7 @@ function blankState(keep){
           termEnd:'',   /* semester end — powers the runway maths */
           /* morning planner — off until you switch it on in Settings */
           planner:false, readyMin:15, readyMax:30,
-          commute:'self', plans:{}, enroute:null,   /* per-day 'which classes I'll actually attend' */
+          commute:'self', plans:{}, enroute:null, openGroups:[],   /* per-day 'which classes I'll actually attend' */
           travelAM:40, travelMid:60, travelPM:50,
           theme:keep.theme||'auto', tone:keep.tone||'friendly'};
 }
@@ -732,7 +845,7 @@ function normalise(st){
   st=Object.assign(blankState(st),st);
   if(!['light','dark','auto'].includes(st.theme)) st.theme='auto';
   if(!['pro','plain','friendly','snark'].includes(st.tone)) st.tone='friendly';
-  ['subs','slots','dls','cats'].forEach(k=>{ if(!Array.isArray(st[k])) st[k]=[]; });
+  ['subs','slots','dls','cats','openGroups'].forEach(k=>{ if(!Array.isArray(st[k])) st[k]=[]; });
   ['marks','att'].forEach(k=>{ if(!st[k]||typeof st[k]!=='object') st[k]={}; });
   st.subs.forEach((s,i)=>{
     if(typeof s.ci!=='number') s.ci=i%8;
@@ -1557,18 +1670,24 @@ $('#sheetCancel').onclick=closeSheet;
     if(e.touches.length!==1||!fromTop(e)){ y0=null; return; }
     y0=e.touches[0].clientY; dy=0; dragging=false;
   },{passive:true});
+  /* The panel is centred, so its resting transform is translateY(-50%) —
+     a drag has to compose with that, not replace it, or the sheet jumps to
+     the top of the screen the moment you touch it. It also fades as it
+     goes, which is what tells you it's leaving rather than moving. */
   sheet.addEventListener('touchmove',e=>{
     if(y0===null) return;
     dy=e.touches[0].clientY-y0;
-    if(dy<=0){ if(dragging){ sheet.style.transform=''; dragging=false; } return; }
+    if(dy<=0){ if(dragging){ sheet.style.transform=''; sheet.style.opacity='';
+                             dragging=false; } return; }
     dragging=true;
     sheet.style.transition='none';
-    sheet.style.transform='translateY('+dy.toFixed(1)+'px)';
+    sheet.style.transform='translateY(calc(-50% + '+dy.toFixed(1)+'px))';
+    sheet.style.opacity=String(Math.max(.35,1-dy/420));
   },{passive:true});
   const release=()=>{
     if(y0===null) return;
     const d=dy; y0=null; dy=0;
-    sheet.style.transition=''; sheet.style.transform='';
+    sheet.style.transition=''; sheet.style.transform=''; sheet.style.opacity='';
     if(dragging && d>90) closeSheet();
     dragging=false;
   };
@@ -4165,38 +4284,85 @@ const TONE_OPTS=[
   ['friendly','Friendly','Encouraging nudges. The default.'],
   ['snark','Sarcastic','Dry, judgemental, occasionally rude.']
 ];
+/* ══════════════ SETTINGS GROUPS ══════════════
+   Settings had grown to nine labelled sections all open at once, which is
+   the same as none of them being findable — you scroll past eight things
+   to reach the ninth. Collapsed, it is a short list you can read in one
+   screen, and the summary line carries the actual current values so most
+   of the time you never have to open anything at all.
+
+   Which groups are open is saved, because every control in here re-renders
+   the screen; held in a local it would slam shut the moment you touched
+   a toggle.                                                              */
+function setGroup(key,title,summary,inner){
+  const open=(S.openGroups||[]).indexOf(key)>=0;
+  return '<div class="setG'+(open?' on':'')+'">'+
+    '<button class="setH" data-sg="'+key+'" aria-expanded="'+open+'">'+
+      '<div class="rMain"><div class="setT">'+title+'</div>'+
+      '<div class="setS">'+summary+'</div></div>'+
+      '<span class="setC">\u203a</span></button>'+
+    (open? '<div class="setB">'+inner+'</div>' : '')+
+  '</div>';
+}
+/* the summaries — current values, not a description of the controls */
+function planSummary(){
+  if(!S.planner) return 'Off';
+  const c=COMMUTE[S.commute]||COMMUTE.self;
+  return esc(c.label)+' \u00b7 '+S.travelAM+'/'+S.travelMid+'/'+S.travelPM+' min '+
+         '\u00b7 ready in '+S.readyMin+'\u2013'+S.readyMax;
+}
+function termSummary(){
+  if(!S.termEnd) return 'Not set \u2014 no runway maths without it';
+  const w=termWeeksLeft();
+  return dateOf(S.termEnd).toLocaleDateString(undefined,{day:'numeric',month:'short'})+
+    (w!=null? ' \u00b7 '+w+' week'+(w===1?'':'s')+' left' : '');
+}
+function attSummary(){
+  return 'Minimum '+S.thr+'%'+(S.goal? ' \u00b7 goal '+S.goal+'%':' \u00b7 no goal set');
+}
+
 function renderSettings(){
   const themeOpts=[['auto','Auto'],['light','Light'],['dark','Dark']];
   let h='';
-  h+='<div class="gHead tight">Appearance</div><div class="pad"><div class="list">'+
+  h+='<div class="pad" style="padding-top:6px">';
+  h+=setGroup('look','Appearance',
+    esc(themeOpts.filter(t=>t[0]===S.theme)[0][1])+' \u00b7 '+
+      esc((TONE_OPTS.filter(t=>t[0]===S.tone)[0]||[])[1]||'')+' tone',
+    '<div class="list">'+
     '<div class="row"><div class="rMain"><div class="rT">Theme</div>'+
       '<div class="rS">Auto follows your phone</div></div>'+
       '<div class="seg" id="thSeg" style="width:180px">'+themeOpts.map(t=>
         '<button data-th="'+t[0]+'"'+(S.theme===t[0]?' class="on"':'')+'>'+t[1]+'</button>').join('')+
-      '</div></div></div></div>';
-
-  h+='<div class="gHead">How it talks to you</div><div class="pad"><div class="list">'+
+      '</div></div></div>'+
+    '<div class="gHead tight">How it talks to you</div><div class="list">'+
     TONE_OPTS.map(t=>'<button class="row tap" data-tone="'+t[0]+'">'+
       '<div class="rMain"><div class="rT">'+t[1]+'</div><div class="rS">'+t[2]+'</div></div>'+
       (S.tone===t[0]?'<span class="chk">✓</span>':'')+'</button>').join('')+
-    '</div><div class="gNote">Right now: “'+esc(greetLine())+'”</div></div>';
+    '</div><div class="gNote">Right now: \u201c'+esc(greetLine())+'\u201d</div>');
 
-  h+='<div class="gHead">Semester</div><div class="pad"><div class="list">'+
+  h+=setGroup('term','Semester', termSummary(),
+    '<div class="list">'+
     '<label class="row"><div class="rMain"><div class="rT">Term ends</div>'+
       '<div class="rS">'+(S.termEnd
         ? (termWeeksLeft()+' week'+(termWeeksLeft()===1?'':'s')+' left — advice gets stricter as this approaches')
         : 'Without this the app can’t tell you whether there’s time to make a class up')+'</div></div>'+
       '<input type="date" id="setTermEnd" value="'+esc(S.termEnd||'')+'"></label>'+
-    '</div></div>';
+    '</div>');
 
-  h+='<div class="gHead">Attendance</div><div class="pad"><div class="list">'+
+  h+=setGroup('att','Attendance', attSummary(),
+    '<div class="list">'+
     '<label class="row"><div class="rMain"><div class="rT">Minimum required</div>'+
       '<div class="rS">Used for every safe-to-skip calculation</div></div>'+
       '<input type="number" id="setThr" min="1" max="100" value="'+S.thr+'" '+
       'style="width:66px;text-align:center;background:var(--fill);border-radius:8px;padding:7px 0;flex:none">'+
-      '<span style="color:var(--label2)">%</span></label></div></div>';
+      '<span style="color:var(--label2)">%</span></label>'+
+    '<button class="row tap" id="setGoal"><div class="rMain"><div class="rT">'+
+      (S.goal?'Goal \u00b7 '+S.goal+'%':'Set a goal')+'</div>'+
+      '<div class="rS">Reach a number, then hold it there</div></div>'+
+      '<span class="chev">\u203a</span></button></div>');
 
-  h+='<div class="gHead">Morning planner</div><div class="pad"><div class="list">'+
+  h+=setGroup('plan','Getting there', planSummary(),
+    '<div class="list">'+
     '<div class="row"><div class="rMain"><div class="rT">Morning planner</div>'+
       '<div class="rS">Works out when to leave, when to wake, and what to tell your driver</div></div>'+
       '<div class="seg" id="plSeg" style="width:120px">'+
@@ -4232,10 +4398,10 @@ function renderSettings(){
               esc(COMMUTE[k].label)+'</option>'; }).join('')+'</select></label>'+
       '</div><div class="gNote">Once today’s classes are done, Today automatically '+
         'switches to the next day you have class — no timer to set.</div>'
-    : '<div class="gNote">Off — nothing extra shows on Today.</div>')+
-    '</div>';
+    : '<div class="gNote">Off \u2014 nothing extra shows on Today.</div>'));
 
-  h+='<div class="gHead">End of semester</div><div class="pad"><div class="list">'+
+  h+=setGroup('term2','End of semester','Appeals, and the details that sign them',
+    '<div class="list">'+
     '<button class="row tap" id="apBtn"><span class="ico" style="background:var(--purple)">✉</span>'+
       '<div class="rMain"><div class="rT">Attendance appeal</div>'+
       '<div class="rS">Find every class you were marked absent for and draft the request</div></div>'+
@@ -4247,9 +4413,13 @@ function renderSettings(){
           ? esc([S.name,S.roll,S.course].filter(x=>(x||'').trim()).join(' \u00b7 '))
           : 'Name, roll number, course \u2014 signs off appeals and applications')+
       '</div></div><span class="chev">\u203a</span></button>'+
-    '</div></div>';
+    '</div>');
 
-  h+='<div class="gHead">Subjects</div><div class="pad"><div class="list">'+
+  h+=setGroup('subs','Subjects',
+    S.subs.length? S.subs.length+' subject'+(S.subs.length===1?'':'s')+' \u00b7 '+
+      S.slots.length+' class'+(S.slots.length===1?'':'es')+' a week'
+    : 'None yet',
+    '<div class="list">'+
     (S.subs.length? S.subs.map(s=>'<button class="row tap '+scCls(s)+'" data-sub="'+s.id+'">'+
       '<span class="ico" style="background:var(--sc);font-size:11px;font-weight:700">'+esc(s.code.slice(0,3))+'</span>'+
       '<div class="rMain"><div class="rT">'+esc(s.name)+'</div>'+
@@ -4258,7 +4428,7 @@ function renderSettings(){
       : '<div class="row"><div class="rMain"><div class="rT" style="color:var(--label2);font-size:15px">No subjects yet</div></div></div>')+
     '<button class="row tap" id="addSub"><span class="ico" style="background:var(--accent)">+</span>'+
       '<div class="rMain"><div class="rT" style="color:var(--accent)">Add a subject</div></div></button>'+
-    '</div></div>';
+    '</div>');
 
   h+=(function(){
     const o=offlineReport();
@@ -4284,8 +4454,8 @@ function renderSettings(){
         'Your work is saved on the device either way, but to be certain the app '+
         'always opens, put sw.js next to index.html — or just save the file to '+
         'your phone and open it from there.';
-    return '<div class="gHead">Offline</div><div class="pad"><div class="card" '+
-      'style="border-left:4px solid '+col+'">'+
+    return setGroup('off','Offline', head, '<div class="card" '+
+      'style="border-left:3px solid '+col+'">'+
       '<div style="display:flex;align-items:center;gap:9px">'+
         '<span class="ico" style="background:'+col+';font-size:14px">'+(solid?'\u2713':o.level==='blocked'?'\u2717':'!')+'</span>'+
         '<div><div style="font-size:16px;font-weight:700;letter-spacing:-.01em">'+head+'</div>'+
@@ -4311,10 +4481,13 @@ function renderSettings(){
           ? '<div style="display:flex;gap:10px"><span style="color:var(--green)">\u2713</span>'+
             '<span style="color:var(--label2)">You are offline right now \u2014 and it works</span></div>'
           : '')+
-      '</div></div></div>';
+      '</div></div>');
   })();
 
-  h+='<div class="gHead">Data</div><div class="pad"><div class="list">'+
+  h+=setGroup('data','Data',
+    (function(){ const kb=Math.max(1,Math.round((offlineReport().bytes||0)/1024));
+      return 'Backup, restore, erase \u00b7 '+kb+' KB on this device'; })(),
+    '<div class="list">'+
     '<button class="row tap" id="expBtn"><div class="rMain"><div class="rT">Export a backup</div>'+
       '<div class="rS">Everything, as one file</div></div><span class="chev">›</span></button>'+
     '<button class="row tap" id="impBtn"><div class="rMain"><div class="rT">Restore a backup</div>'+
@@ -4325,12 +4498,20 @@ function renderSettings(){
       '<span class="chev">›</span></button>'+
     '<button class="row tap danger" id="wipeBtn"><div class="rMain"><div class="rT">Erase everything</div>'+
       '<div class="rS">Clears this device. Export first.</div></div></button>'+
-    '</div></div>';
+    '</div>');
+  h+='</div>';   /* close the .pad the groups sit in */
 
-  h+='<div class="gNote" style="text-align:center;padding-top:26px;color:var(--label3)">11:59 · v2.0<br>'+
+  h+='<div class="gNote" style="text-align:center;padding-top:26px;color:var(--label3)">11:59 · v2.2<br>'+
      'Everything stays on this device. No account, no cloud.</div>';
   $('#setBody').innerHTML=h;
 
+  $$('#setBody [data-sg]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.sg, list=(S.openGroups||[]).slice();
+    const i=list.indexOf(k);
+    if(i>=0) list.splice(i,1); else list.push(k);
+    S.openGroups=list; save(); renderSettings();
+  });
+  { const g=$('#setGoal'); if(g) g.onclick=sheetGoal; }
   $$('#thSeg button').forEach(b=>b.onclick=()=>{ S.theme=b.dataset.th; save(); applyTheme(); renderSettings(); });
   $$('[data-tone]').forEach(b=>b.onclick=()=>{ S.tone=b.dataset.tone; save(); renderSettings(); toast('Tone: '+TONE_OPTS.find(t=>t[0]===S.tone)[1]); });
   $('#setThr').onchange=e=>{ S.thr=clamp(parseInt(e.target.value)||67,1,100); e.target.value=S.thr; save(); renderAll(); };

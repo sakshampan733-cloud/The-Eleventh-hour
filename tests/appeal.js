@@ -9,6 +9,10 @@ var ok=0,fail=0;
 function t(n,f){ try{ f(); print('  PASS  '+n); ok++; }catch(e){ print('  FAIL  '+n+' :: '+e); fail++; } }
 (0,eval)(app); var S=__.S; loadDemo(); S=__.S;
 
+/* Settings is collapsed by default now — open every group so these
+   checks can still see the controls inside. */
+function openAllGroups(){ __.S.openGroups=['look','term','att','plan','term2','subs','off','data']; }
+
 print('— the arrow that went nowhere —');
 t('the skip row handler survives being handed a click Event', function(){
   renderHome();
@@ -176,7 +180,7 @@ t('importing a save with none of the new fields is repaired', function(){
   if(fixed.thr!==75||fixed.theme!=='dark'||fixed.tone!=='snark') throw 'existing settings lost';
   if(typeof fixed.subs[0].ci!=='number') throw 'subject colour not backfilled';
   if(!Array.isArray(fixed.cats)) throw 'cats not repaired';
-  var keep=__.S; __.S=fixed; renderSettings();
+  var keep=__.S; __.S=fixed; (openAllGroups(),renderSettings());
   if(/undefined/.test(document.querySelector('#setBody').innerHTML)) throw 'Settings shows undefined';
   __.S=keep;
 });

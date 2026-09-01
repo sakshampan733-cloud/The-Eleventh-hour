@@ -10,6 +10,10 @@ var found=0, checked=0;
 function bug(area,msg){ found++; print('  ⚠ BUG  ['+area+'] '+msg); }
 function chk(area,f){ checked++; try{ f(); }catch(e){ bug(area,'threw: '+e); } }
 (0,eval)(app);
+
+/* Settings is collapsed by default now — open every group so these
+   checks can still see the controls inside. */
+function openAllGroups(){ __.S.openGroups=['look','term','att','plan','term2','subs','off','data']; }
 var TMR=addDays(new Date(),1), TISO=isoOf(TMR), DOW=dowOf(TMR);
 
 function base(extra){
@@ -88,7 +92,7 @@ chk('data/backwards-slot',function(){
 });
 chk('data/no-code',function(){
   base({subs:[{id:'a',name:'No Code Subject',ci:0}]});
-  renderAtt(); renderSettings();
+  renderAtt(); (openAllGroups(),renderSettings());
   if(/undefined/.test(document.querySelector('#attList').innerHTML))
     bug('data/no-code','subject without a code leaked undefined');
 });

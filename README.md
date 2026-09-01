@@ -26,9 +26,24 @@ local storage on your own device.
 
 | file | what it is |
 |---|---|
-| `index.html` | the entire app |
-| `sw.js` | optional service worker — only does anything when hosted at a URL |
+| `docs/index.html` | the entire app |
+| `docs/sw.js` | service worker — only does anything when hosted at a URL |
 | `tests/` | headless test suites |
+| `bump.sh` | moves the version and the SW cache name together |
+
+## Publishing
+
+`docs/` is the published folder, so **Settings → Pages → deploy from `main`,
+folder `/docs`**. After that every push publishes itself — there is no build
+step and no workflow to run. Nothing outside `docs/` is served, which keeps
+the tests off the live site.
+
+To cut a version:
+
+    sh bump.sh 2.3
+
+That writes the number Settings shows and the service-worker cache name in
+one go, so an installed copy on your phone knows it is out of date.
 
 ## Offline
 

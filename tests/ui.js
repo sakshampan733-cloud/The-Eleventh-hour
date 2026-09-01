@@ -18,6 +18,10 @@ function t(n,f){ var snap=__.S;
   finally{ S=__.S; realClock(); } }
 (0,eval)(app); S=__.S;
 
+/* Settings is collapsed by default now — open every group so these
+   checks can still see the controls inside. */
+function openAllGroups(){ __.S.openGroups=['look','term','att','plan','term2','subs','off','data']; }
+
 var TMR=addDays(new Date(),1), TISO=isoOf(TMR), DOW=dowOf(TMR);
 function setup(extra){
   __.S=normalise(Object.assign({
@@ -102,7 +106,7 @@ t('a save carrying the retired reminder hour still loads', function(){
   if(!COMMUTE[f.commute]) throw 'invalid commute mode after migration';
 });
 t('Settings asks for nothing it can work out itself', function(){
-  setup(); renderSettings();
+  setup(); (openAllGroups(),renderSettings());
   var h=document.querySelector('#setBody').innerHTML;
   if(!/setCommute/.test(h)) throw 'no commute picker';
   if(/setRemindAt|Show from|Plan the evening before/.test(h))
@@ -111,7 +115,7 @@ t('Settings asks for nothing it can work out itself', function(){
   if(/undefined/.test(h)) throw 'leaked undefined';
 });
 t('Settings shows offline readiness', function(){
-  setup(); renderSettings();
+  setup(); (openAllGroups(),renderSettings());
   var h=document.querySelector('#setBody').innerHTML;
   if(!/Ready to use offline/.test(h)) throw 'no offline status';
   if(!/no server, no account/.test(h)) throw 'does not state what it does not do';

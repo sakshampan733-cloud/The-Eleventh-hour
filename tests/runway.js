@@ -14,6 +14,10 @@ function t(n,f){ var snap=__.S;
 }
 (0,eval)(app);
 
+/* Settings is collapsed by default now — open every group so these
+   checks can still see the controls inside. */
+function openAllGroups(){ __.S.openGroups=['look','term','att','plan','term2','subs','off','data']; }
+
 var TMR=addDays(new Date(),1), TISO=isoOf(TMR), DOW=dowOf(TMR);
 /* YOUR situation: everyone under 67%, 8-9 and 12-1 live, 9-11 cancelled */
 function sem(endInDays){
@@ -154,7 +158,7 @@ t('attendance cards show the spare-class count', function(){
   if(!/you still finish at/.test(h)) throw 'does not say what it buys you';
 });
 t('Settings exposes the term end date', function(){
-  sem(120); renderSettings();
+  sem(120); (openAllGroups(),renderSettings());
   var h=document.querySelector('#setBody').innerHTML;
   if(!/setTermEnd/.test(h)) throw 'no term end field';
   if(!/weeks left/.test(h)) throw 'does not show weeks remaining';

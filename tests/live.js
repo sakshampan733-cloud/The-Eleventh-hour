@@ -18,6 +18,10 @@ function t(n,f){ try{ f(); print('  PASS  '+n); ok++; }
   catch(e){ print('  FAIL  '+n+' :: '+e); fail++; } finally{ realClock(); } }
 (0,eval)(app);
 
+/* Settings is collapsed by default now — open every group so these
+   checks can still see the controls inside. */
+function openAllGroups(){ __.S.openGroups=['look','term','att','plan','term2','subs','off','data']; }
+
 var TMR=addDays(new Date(),1), TISO=isoOf(TMR), DOW=dowOf(TMR);
 var TODAY=todayISO(), TDOW=dowOf(new Date());
 
@@ -244,7 +248,7 @@ t('a hosted page with the worker in charge is a green light', function(){
   var _loc=globalThis.location,_nav=globalThis.navigator;
   globalThis.location={protocol:'https:'};
   globalThis.navigator={serviceWorker:{controller:{}}, onLine:true};
-  var r=offlineReport(); renderSettings();
+  var r=offlineReport(); (openAllGroups(),renderSettings());
   var h=document.querySelector('#setBody').innerHTML;
   globalThis.location=_loc; globalThis.navigator=_nav;
   if(r.level!=='cached') throw 'level '+r.level+' with the worker controlling';
@@ -255,7 +259,7 @@ t('a hosted page whose worker has not taken over yet says "reopen once"', functi
   var _loc=globalThis.location,_nav=globalThis.navigator;
   globalThis.location={protocol:'https:'};
   globalThis.navigator={serviceWorker:{controller:null}, onLine:true};
-  var r=offlineReport(); renderSettings();
+  var r=offlineReport(); (openAllGroups(),renderSettings());
   var h=document.querySelector('#setBody').innerHTML;
   globalThis.location=_loc; globalThis.navigator=_nav;
   if(r.level!=='pending') throw 'level '+r.level+' before the worker takes over';
@@ -284,7 +288,7 @@ t('the hosted wording does not overpromise', function(){
   var _loc=globalThis.location,_nav=globalThis.navigator;
   globalThis.location={protocol:'https:'};
   globalThis.navigator={onLine:true};
-  renderSettings();
+  (openAllGroups(),renderSettings());
   var h=document.querySelector('#setBody').innerHTML;
   globalThis.location=_loc; globalThis.navigator=_nav;
   if(/Ready to use offline/.test(h)) throw 'promised offline from a web address';

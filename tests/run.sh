@@ -9,7 +9,7 @@ T=tests
 # the app's script block, pulled out so it can run headless
 python3 - <<'PY'
 import re
-src=open('index.html',encoding='utf-8').read()
+src=open('docs/index.html',encoding='utf-8').read()
 blocks=re.findall(r'<script>(.*?)</script>', src, re.S)
 open('tests/app.js','w',encoding='utf-8').write(blocks[-1])
 PY
