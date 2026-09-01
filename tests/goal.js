@@ -2,7 +2,7 @@ var app=readFile('tests/app.js').replace("'use strict';",'');
 app+=';globalThis.__=({get S(){return S},set S(v){S=v}});globalThis.addDays=addDays;globalThis.isoOf=isoOf;'+
  'globalThis.dowOf=dowOf;globalThis.todayISO=todayISO;globalThis.normalise=normalise;globalThis.markKey=markKey;'+
  'globalThis.goalFor=goalFor;globalThis.goalOverall=goalOverall;globalThis.bestFraction=bestFraction;'+
- 'globalThis.goalCardHTML=goalCardHTML;globalThis.marginHTML=marginHTML;globalThis.sheetGoal=sheetGoal;globalThis.pctOf=pctOf;'+
+ 'globalThis.goalCardHTML=goalCardHTML;globalThis.marginHTML=marginHTML;globalThis.weekPlan=weekPlan;globalThis.weekPlanHTML=weekPlanHTML;globalThis.sheetWeekPlan=sheetWeekPlan;globalThis.sheetGoal=sheetGoal;globalThis.pctOf=pctOf;'+
  'globalThis.attFor=attFor;globalThis.remainingBySub=remainingBySub;globalThis.doSave=function(){return sheetSave&&sheetSave();};';
 var ok=0,fail=0;
 function t(n,f){ try{ f(); print('  PASS  '+n); ok++; }catch(e){ print('  FAIL  '+n+' :: '+e); fail++; } }
@@ -223,5 +223,111 @@ t('subjects behind the goal are named', function(){
   if(!/BB/.test(h)) throw 'not shown on the card';
   if(!/per subject/.test(h)) throw 'does not explain why it matters';
 });
+print('\n— what a week has to look like —');
+t('the weekly numbers add back up to the total', function(){
+  setup({thp:30,tha:20}, 75, 10);
+  var w=weekPlan();
+  var cls=0, att=0, mis=0;
+  w.weeks.forEach(function(x){ cls+=x.classes; att+=x.attend||0; mis+=x.miss||0; });
+  if(cls!==w.total) throw 'weeks hold '+cls+' classes, total says '+w.total;
+  if(mis!==w.misses) throw 'weeks give away '+mis+' misses, total says '+w.misses;
+  if(att+mis!==w.total) throw 'attend + miss ('+(att+mis)+') is not the total';
+});
+t('no week is asked for more classes than it has', function(){
+  setup({thp:30,tha:20}, 75, 10);
+  weekPlan().weeks.forEach(function(x){
+    if(x.attend>x.classes) throw 'a week wants '+x.attend+' of '+x.classes;
+    if(x.miss<0||x.attend<0) throw 'negative count in a week';
+  });
+});
+t('following the plan actually lands on the goal', function(){
+  setup({thp:30,tha:20}, 75, 10);
+  var w=weekPlan();
+  if(w.endsAt < w.target-0.01) throw 'ends at '+w.endsAt+'%, short of '+w.target;
+});
+t('a busy week gets more of the spare classes than a light one', function(){
+  setup({thp:40,tha:10}, 70, 8);
+  var w=weekPlan().weeks.filter(function(x){return x.classes;});
+  if(w.length<2) return;
+  var big=w.slice().sort(function(a,b){return b.classes-a.classes;})[0];
+  var small=w.slice().sort(function(a,b){return a.classes-b.classes;})[0];
+  if(big.classes>small.classes && big.miss<small.miss)
+    throw 'the lighter week got more spare than the heavy one';
+});
+t('an unreachable goal is not dressed up as a plan', function(){
+  setup({thp:5,tha:95}, 90, 3);
+  var w=weekPlan();
+  if(w.reachable) throw 'claimed reachable';
+  if(w.misses!==0) throw 'offered '+w.misses+' spare classes on an impossible goal';
+  var h=weekPlanHTML();
+  if(!/cannot be reached/.test(h)) throw 'the sheet does not say so';
+});
+t('with no goal it plans against the minimum instead', function(){
+  setup({thp:30,tha:20}, 0, 10);
+  var w=weekPlan();
+  if(w.usingGoal) throw 'claimed to be using a goal';
+  if(w.target!==__.S.thr) throw 'planned against '+w.target+', not the '+__.S.thr+'% minimum';
+});
+t('no term date means no invented weeks', function(){
+  setup({thp:30,tha:20}, 75, 10);
+  __.S.termEnd='';
+  if(weekPlan()!==null) throw 'planned weeks with no end date';
+  if(!/No term end date/.test(weekPlanHTML())) throw 'the sheet does not say what is missing';
+});
+t('classes already marked are not planned for again', function(){
+  setup({thp:30,tha:20}, 75, 10);
+  var before=weekPlan().total;
+  var iso=todayISO();
+  var sl=__.S.slots.filter(function(x){return x.day===dowOf(new Date());})[0];
+  __.S.marks[markKey(iso,sl)]='p';
+  var after=weekPlan().total;
+  if(after!==before-1) throw 'total went '+before+' -> '+after;
+});
+t('the sheet shows a typical week and every week', function(){
+  setup({thp:30,tha:20}, 75, 10);
+  var h=weekPlanHTML();
+  if(!/A typical week/.test(h)) throw 'no headline week';
+  if(!/Week by week/.test(h)) throw 'no week list';
+  if(!/class="margin/.test(h)) throw 'no margin drawn';
+  if(/undefined|NaN/.test(h)) throw 'leaked';
+  var rows=(h.match(/on the timetable/g)||[]).length;
+  if(rows<4) throw 'only '+rows+' weeks listed';
+});
+t('this week is named, not dated', function(){
+  setup({thp:30,tha:20}, 75, 10);
+  if(!/This week/.test(weekPlanHTML())) throw 'the current week is not labelled';
+});
+t('the goal card offers the way in', function(){
+  setup({thp:30,tha:20}, 75, 10);
+  var h=goalCardHTML();
+  if(!/goalWeeks/.test(h)) throw 'no button';
+  if(!/How my weeks look/.test(h)) throw 'not labelled';
+});
+t('holding shows both readings, and neither claims something false', function(){
+  setup({thp:45,tha:5}, 80, 8);          /* 90%, goal 80 — above it */
+  var w=weekPlan();
+  if(!w.holding) throw 'not flagged as holding';
+  if(w.steady.attend<w.typical.attend) throw 'staying level asks for fewer classes than drifting';
+  var h=weekPlanHTML();
+  if(!/Or stay exactly where you are/.test(h)) throw 'the second reading is missing';
+  /* it must not promise the number stays put and then print a different one */
+  if(/stays put/.test(h)) throw 'claims the number stays put';
+  if(!/nearest you can stand to still/.test(h)) throw 'does not admit the rounding';
+});
+t('the steady rate really is the current rate, within one class', function(){
+  setup({thp:45,tha:5}, 80, 8);
+  var w=weekPlan();
+  var wk=w.weeks.filter(function(x){return x.classes;})[0];
+  var exact=wk.classes*(w.p/w.had);
+  if(Math.abs(wk.steady-exact)>0.5+1e-9)
+    throw 'week wants '+wk.steady+', exact rate is '+exact.toFixed(2);
+});
+t('below the goal there is no second reading to offer', function(){
+  setup({thp:30,tha:20}, 75, 10);
+  var h=weekPlanHTML();
+  if(/Or stay exactly where you are/.test(h))
+    throw 'offered to hold a level you have not reached';
+});
+
 print('\n═══ '+ok+' passed, '+fail+' failed ═══');
 if(fail) throw new Error(fail+' failures');

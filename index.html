@@ -2773,6 +2773,191 @@ function marginHTML(spare, total, colour){
   return h;
 }
 
+/* ══════════════ WHAT A WEEK HAS TO LOOK LIKE ══════════════
+   The goal card gives you a total — "attend 34 of the 51 left" — which is
+   true and useless on a Tuesday. What you actually plan in is weeks: this
+   many classes on the timetable, this many you have to be at, this many
+   you can let go. So the total is spread back over the real weeks left,
+   using each week's own class count rather than an average, because a week
+   with two classes and a week with twelve are not the same week.
+
+   The misses are handed out proportionally with a running accumulator, so
+   they add up to exactly the number you have — no week silently gains or
+   loses one to rounding.                                                */
+function weekPlan(){
+  if(!S.termEnd) return null;
+  const end=dateOf(S.termEnd);
+  let P=0,T=0;
+  S.subs.forEach(sb=>{ const A=attFor(sb.id); P+=A.p; T+=A.t; });
+
+  /* every remaining class, grouped into the week it falls in */
+  const weeks=[];
+  let d=dateOf(todayISO()), guard=0;
+  const startOfWeek=x=>{ const c=new Date(x); const w=(c.getDay()+6)%7; return addDays(c,-w); };
+  let cur=null;
+  while(d<=end && guard++<400){
+    const iso=isoOf(d);
+    const n=liveSlots(iso).filter(sl=>!S.marks[markKey(iso,sl)]).length;
+    const ws=isoOf(startOfWeek(d));
+    if(!cur || cur.ws!==ws){ cur={ws, from:iso, to:iso, classes:0, days:[]}; weeks.push(cur); }
+    cur.to=iso;
+    if(n){ cur.classes+=n; cur.days.push({iso, n}); }
+    d=addDays(d,1);
+  }
+  const K=weeks.reduce((a,w)=>a+w.classes,0);
+  if(!K) return {weeks:[], total:0, need:0, misses:0, had:T, p:P};
+
+  const target=(+S.goal||S.thr)/100;
+  const rawNeed=Math.ceil(target*(T+K)-P-1e-9);
+  const need=clamp(rawNeed,0,K);
+  const reachable=rawNeed<=K;
+  let misses=K-need;
+
+  /* hand the misses out in proportion to each week's own size */
+  let acc=0, given=0;
+  weeks.forEach((w,i)=>{
+    acc += misses*(w.classes/K);
+    let take = (i===weeks.length-1) ? misses-given : Math.floor(acc+1e-9)-given;
+    take=clamp(take,0,w.classes);
+    w.miss=take; w.attend=w.classes-take; given+=take;
+  });
+
+  /* and walk it forward so you can see where the number gets to */
+  let p=P,t=T;
+  weeks.forEach(w=>{ p+=w.attend; t+=w.classes; w.pct=pctOf(p,t); });
+
+  /* Two different things get called "holding". Spending the surplus drifts
+     you down to the goal and buys the most free classes — that is the plan
+     above. Staying exactly where you are is a rate, not a budget: attend
+     the same fraction you already have and the number does not move. When
+     you are above the goal both are true, and only you know which you
+     meant, so the sheet shows both. */
+  const rate = T? P/T : 0;
+  let sp=P, st=T;
+  weeks.forEach(w=>{
+    w.steady = w.classes ? Math.round(w.classes*rate) : 0;
+    sp+=w.steady; st+=w.classes;
+    w.steadyPct = pctOf(sp,st);
+  });
+
+  const withClasses=weeks.filter(w=>w.classes);
+  const avgOf = withClasses.length
+    ? Math.round(withClasses.reduce((a,w)=>a+w.classes,0)/withClasses.length) : 0;
+  const avgAtt = withClasses.length
+    ? Math.round(withClasses.reduce((a,w)=>a+w.attend,0)/withClasses.length) : 0;
+  const avgSteady = withClasses.length
+    ? Math.round(withClasses.reduce((a,w)=>a+w.steady,0)/withClasses.length) : 0;
+  const curPct=pctOf(P,T);   /* `cur` is the week accumulator above */
+  return {weeks, total:K, need, misses, reachable, had:T, p:P, cur:curPct,
+          target:+S.goal||S.thr, usingGoal:!!S.goal,
+          endsAt: t? pctOf(p,t) : 0,
+          holding: T>0 && curPct>=(+S.goal||S.thr),
+          steady:{classes:avgOf, attend:avgSteady, miss:avgOf-avgSteady,
+                  endsAt: st? pctOf(sp,st) : 0},
+          typical:{classes:avgOf, attend:avgAtt, miss:avgOf-avgAtt}};
+}
+
+/* The sheet the goal card opens: the same arithmetic, but shaped like a
+   week, because that is the unit you actually live in. */
+function weekPlanHTML(){
+  const w=weekPlan();
+  if(!w) return '<div class="empty"><div class="eE">\ud83d\udcc5</div>'+
+    '<div class="eT">No term end date</div>'+
+    '<div class="eS">Set when the semester ends in Settings and this can lay '+
+    'out every week between now and then.</div></div>';
+  if(!w.total) return '<div class="empty"><div class="eE">\ud83c\udf1e</div>'+
+    '<div class="eT">Nothing left on the timetable</div>'+
+    '<div class="eS">No unmarked classes between now and the end of term.</div></div>';
+
+  const col=!w.reachable?'var(--red)':w.misses>2?'var(--green)':'var(--orange)';
+  let h='<div class="sheetIntro">Your '+(w.usingGoal?'goal':'minimum')+' of '+
+    w.target+'%, spread over the weeks you actually have left.</div>';
+
+  /* the headline: what a normal week has to contain */
+  h+='<div class="card" style="border-left:3px solid '+col+'">'+
+    '<div class="micro">A typical week</div>'+
+    '<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px">'+
+      '<span class="tnum" style="font-size:34px;font-weight:600;letter-spacing:-.04em;color:'+
+        col+'">'+w.typical.attend+'</span>'+
+      '<span style="font-size:15px;color:var(--label2)">of '+w.typical.classes+
+        ' classes</span>'+
+      (w.typical.miss>0
+        ? '<span class="pill ok" style="margin-left:auto">'+w.typical.miss+' spare</span>'
+        : '<span class="pill no" style="margin-left:auto">no room</span>')+
+    '</div>'+
+    '<div style="font-size:13px;color:var(--label2);margin-top:9px;line-height:1.5">'+
+      (!w.reachable
+        ? 'Attending every one of the '+w.total+' left still finishes at <b>'+
+          pctFmt(w.endsAt)+'%</b> \u2014 the '+w.target+'% cannot be reached from here.'
+        : 'Keep that up across '+w.weeks.filter(function(x){return x.classes;}).length+
+          ' weeks and you finish at <b>'+pctFmt(w.endsAt)+'%</b>. '+
+          (w.misses? 'You have <b>'+w.misses+'</b> classes to spend in total.'
+                   : 'There is nothing spare \u2014 every class counts.'))+
+    '</div>'+
+    marginHTML(w.misses, w.total, col)+
+  '</div>';
+
+  /* above the goal: the other reading of "hold" */
+  if(w.holding && w.reachable && w.steady.attend>w.typical.attend){
+    h+='<div class="card">'+
+      '<div class="micro">Or stay exactly where you are</div>'+
+      '<div style="display:flex;align-items:baseline;gap:8px;margin-top:6px">'+
+        '<span class="tnum" style="font-size:26px;font-weight:600;letter-spacing:-.04em">'+
+          w.steady.attend+'</span>'+
+        '<span style="font-size:14px;color:var(--label2)">of '+w.steady.classes+
+          ' classes a week</span>'+
+        '<span class="pill ok" style="margin-left:auto">'+pctFmt(w.cur)+'%</span>'+
+      '</div>'+
+      '<div style="font-size:13px;color:var(--label2);margin-top:8px;line-height:1.5">'+
+        /* Honest about the rounding: you cannot attend nine and a half
+           classes, so the closest you can stand to still is a whole number
+           either side of the rate. */
+        'Your current rate, rounded to whole classes \u2014 the nearest you can '+
+        'stand to still. You finish at <b>'+pctFmt(w.steady.endsAt)+'%</b> '+
+        (w.steady.endsAt>w.cur+0.005 ? 'a shade above where you are now'
+         : w.steady.endsAt<w.cur-0.005 ? 'a shade below where you are now'
+         : 'exactly where you are now')+
+        ', against '+pctFmt(w.endsAt)+'% if you spend the surplus instead. '+
+        'It costs '+(w.steady.attend-w.typical.attend)+
+        ' more class'+((w.steady.attend-w.typical.attend)===1?'':'es')+' a week.'+
+      '</div></div>';
+  }
+
+  h+='<div class="gHead">Week by week</div><div class="list">';
+  w.weeks.forEach(function(x){
+    if(!x.classes){
+      h+='<div class="row" style="opacity:.5"><div class="rMain">'+
+        '<div class="rT" style="font-size:15px">'+esc(weekLabel(x))+'</div>'+
+        '<div class="rS">No classes</div></div></div>';
+      return;
+    }
+    const tight=x.miss===0;
+    h+='<div class="row"><div class="rMain">'+
+      '<div class="rT" style="font-size:15px">'+esc(weekLabel(x))+'</div>'+
+      '<div class="rS">'+x.classes+' on the timetable \u00b7 '+
+        (tight? 'attend every one' : x.miss+' you can miss')+'</div></div>'+
+      '<div style="text-align:right;flex-shrink:0">'+
+        '<div class="tnum" style="font-size:16px;font-weight:600">'+x.attend+'/'+x.classes+'</div>'+
+        '<div class="tnum" style="font-size:11px;color:var(--label2);margin-top:2px">'+
+          pctFmt(x.pct)+'%</div>'+
+      '</div></div>';
+  });
+  h+='</div><div class="gNote">The spare classes are shared out in proportion to '+
+     'how busy each week is, so a heavy week gets more of them than a light one.</div>';
+  return h;
+}
+function weekLabel(x){
+  const a=dateOf(x.from), b=dateOf(x.to);
+  const today=todayISO();
+  if(x.from<=today && today<=x.to) return 'This week';
+  const sameMonth=a.getMonth()===b.getMonth();
+  return a.toLocaleDateString(undefined,{day:'numeric',month:sameMonth?undefined:'short'})+
+    '\u2013'+b.toLocaleDateString(undefined,{day:'numeric',month:'short'});
+}
+function sheetWeekPlan(){
+  openSheet({title:'Your weeks', body:weekPlanHTML(), cancelLabel:'Done'});
+}
+
 function goalCardHTML(){
   const g=goalOverall();
   if(!g) return '';
@@ -2840,9 +3025,11 @@ function goalCardHTML(){
   }
 
   h+='<div style="display:flex;gap:9px;margin-top:13px">'+
+      '<button class="btn ghost sm" id="goalWeeks">How my weeks look</button>'+
       '<button class="btn ghost sm" id="goalEdit">Change goal</button>'+
-      (hold?'':'<button class="btn ghost sm" id="goalHere">Hold me here instead</button>')+
-    '</div>';
+    '</div>'+
+    (hold?'':'<button class="btn ghost sm" id="goalHere" style="margin-top:9px">'+
+      'Hold me where I am instead</button>');
   return h+'</div></div>';
 }
 /* Setting it, and the shortcut that is the whole point of "maintain": take
@@ -2927,6 +3114,7 @@ function renderAtt(){
   const at=$('#attLeave');  if(at) at.onclick=()=>sheetLeave();
   const ag=$('#attGoal');   if(ag) ag.onclick=sheetGoal;
   const ge=$('#goalEdit');  if(ge) ge.onclick=sheetGoal;
+  const gw=$('#goalWeeks'); if(gw) gw.onclick=sheetWeekPlan;
   const gh=$('#goalHere');
   if(gh) gh.onclick=()=>{
     let P=0,T=0; S.subs.forEach(sb=>{const A=attFor(sb.id); P+=A.p; T+=A.t;});
@@ -4520,7 +4708,7 @@ function renderSettings(){
     '</div>');
   h+='</div>';   /* close the .pad the groups sit in */
 
-  h+='<div class="gNote" style="text-align:center;padding-top:26px;color:var(--label3)">11:59 · v2.3<br>'+
+  h+='<div class="gNote" style="text-align:center;padding-top:26px;color:var(--label3)">11:59 · v2.4<br>'+
      'Everything stays on this device. No account, no cloud.</div>';
   $('#setBody').innerHTML=h;
 
