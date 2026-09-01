@@ -1,7 +1,7 @@
 var app=readFile('tests/app.js').replace("'use strict';",'');
 app+=';globalThis.__=({get S(){return S},set S(v){S=v}});'+
  'globalThis.addDays=addDays;globalThis.isoOf=isoOf;globalThis.dowOf=dowOf;globalThis.todayISO=todayISO;'+
- 'globalThis.markKey=markKey;globalThis.normalise=normalise;globalThis.morningStatus=morningStatus;'+
+ 'globalThis.markKey=markKey;globalThis.normalise=normalise;globalThis.morningStatus=morningStatus;globalThis.onCampusNow=onCampusNow;'+
  'globalThis.m2t=m2t;globalThis.t2m=t2m;globalThis.subById=subById;';
 var REAL_DATE=Date;
 function setClock(mins){ function D(a,b,c,d,e,f){
@@ -57,19 +57,34 @@ t('cancelled behaves the same as present/absent', function(){
 });
 
 print('— but it must move on to the NEXT unmarked class —');
-t('after marking the 8am it targets the 12pm', function(){
+t('marking the 8am present ends the commute — you are already there', function(){
   scene(); setClock(8*60+30); mark('t1','p');
-  var m=morningStatus();
-  if(!m) throw 'gave up entirely — the 12pm still needs travelling to';
-  if(m.p.first.id!=='t2') throw 'targeting '+m.p.first.id+', expected the 12pm';
-  if(m.p.travel!==60) throw 'should use the midday band, got '+m.p.travel;
-  if(m2t(m.p.leaveAt)!=='11am') throw 'leave time '+m2t(m.p.leaveAt);
-  if(m.level==='late') throw 'called you late for a class 3.5 hours away';
+  /* You were in that room. There is no second journey to a 12pm on the
+     same campus, and asking "are you on your way?" from a seat in college
+     is the app arguing with something you just told it. */
+  if(!onCampusNow()) throw 'marking present did not put you on campus';
+  if(morningStatus()) throw 'still giving travel advice from campus';
 });
-t('the countdown is to the right class', function(){
-  scene(); setClock(8*60+30); mark('t1','p');
-  var m=morningStatus();
-  if(m.untilClass!==t2m('12:00')-(8*60+30)) throw 'countdown '+m.untilClass;
+t('what is next takes over from the countdown', function(){
+  scene(); setClock(8*60+30); mark('t1','p'); renderHome();
+  var h=document.querySelector('#heroWrap').innerHTML;
+  if(/Getting to college|on my way/i.test(h)) throw 'still asking about the commute';
+  if(!/Next up/.test(h)) throw 'lost track of the 12pm entirely';
+  if(!/Stats/.test(h)) throw 'the next class is not named';
+});
+t('an absent mark does not put you on campus', function(){
+  scene(); setClock(8*60+30); mark('t1','a');
+  if(onCampusNow()) throw 'a class you missed put you in the building';
+  if(!morningStatus()) throw 'lost the commute advice for the 12pm';
+});
+t('a cancelled class does not put you on campus', function(){
+  scene(); setClock(8*60+30); mark('t1','c');
+  if(onCampusNow()) throw 'a cancelled class put you in the building';
+});
+t('a class marked present before it starts does not count yet', function(){
+  scene(); setClock(6*60); mark('t1','p');       /* marked ahead, from bed */
+  if(onCampusNow()) throw 'marked at 6am for an 8am and called you on campus';
+  if(!morningStatus()) throw 'should still be telling you when to leave';
 });
 
 print('— once everything is marked, it stops completely —');

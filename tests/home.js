@@ -116,8 +116,11 @@ t('the home card comes before tomorrow, and a pending class comes before both', 
   __.S.marks[markKey(TI,__.S.slots[0])]='p';
   setClock(13*60); renderHome();
   var h=txt();
-  if(h.indexOf('Getting to college')<0) throw 'the 3pm class was not promoted';
+  /* the 9am was marked present, so you are on campus: no commute card, and
+     certainly not sent home with a 3pm still to come */
+  if(h.indexOf('Getting to college')>=0) throw 'asked about the commute from campus';
   if(h.indexOf('Heading home')>=0) throw 'sent home with a class still to come';
+  if(h.indexOf('Next up')<0) throw 'lost the 3pm entirely';
   setClock(16*60+10); renderHome();
   var h2=txt();
   if(h2.indexOf('Heading home')<0) throw 'no home card once done';

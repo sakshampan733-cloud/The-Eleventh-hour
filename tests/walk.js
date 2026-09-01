@@ -215,6 +215,25 @@ t('the 9:18am case, exactly as reported', function(){
   if(/On your way|Arriving \d/.test(h)) throw 'still on your way: '+h.slice(0,130);
 });
 
+t('once you have marked a class present, the commute is never mentioned again', function(){
+  realDay();
+  var sl=__.S.slots.filter(function(x){return x.id==='a1';})[0];   /* the 8am */
+  __.S.marks[markKey(TI,sl)]='p';
+  for(var m=9*60;m<=23*60;m+=5){
+    setClock(m); renderAll();
+    var h=plain(screen());
+    if(/Getting to college|On your way|I\u2019m on my way|Leave in|leave by/.test(h))
+      throw 'at '+m2t(m)+': '+h.match(/Getting to college|On your way|I\u2019m on my way|Leave in|leave by/)[0]+
+            ' \u2014 from campus';
+  }
+});
+t('but a day you have not attended still gets its commute', function(){
+  realDay();
+  setClock(7*60); renderAll();
+  if(!/Getting to college/.test(plain(screen())))
+    throw 'lost the commute card on a normal morning';
+});
+
 print('\n— every tab, every hour —');
 t('all five tabs render all day without leaking', function(){
   realDay();

@@ -143,11 +143,15 @@ t('en route is not offered when the next class is online', function(){
   enrouteDay(); setClock(8*60+10);
   __.S.enroute={iso:TODAY, at:8*60};
   __.S.marks[markKey(TODAY,__.S.slots[0])]='p';   /* 8am done; 9am is online */
+  /* You marked the 8am present, so you are on campus and the commute is
+     settled either way — what must never happen is an arrival time for a
+     class you take from home. */
   var ms=morningStatus();
-  if(!ms) throw 'no status at all with an online class pending';
-  if(ms.p.first.id!=='s2') throw 'pending class is '+ms.p.first.id;
-  if(ms.level==='enroute') throw 'told you are arriving somewhere for an online class';
-  if(ms.p.travel!==0) throw 'asked you to travel to an online class';
+  if(ms && ms.level==='enroute') throw 'told you are arriving somewhere for an online class';
+  if(ms && ms.p.travel!==0) throw 'asked you to travel to an online class';
+  renderHome();
+  var h=document.querySelector('#heroWrap').innerHTML;
+  if(/Arriving|on my way/i.test(h)) throw 'still routing you somewhere';
 });
 t('marking every class off ends the day entirely', function(){
   enrouteDay(); setClock(8*60+10);

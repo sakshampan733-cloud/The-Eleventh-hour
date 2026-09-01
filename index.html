@@ -1171,6 +1171,16 @@ function nextClassDay(){
   return null;
 }
 
+/* You marked a class present, in a room, on campus. Everything after that
+   about "when to leave" and "are you on your way" is answering a question
+   you settled by being there — the journey happened. A later class today
+   needs no second commute, so the countdown gives way to what's next.   */
+function onCampusNow(){
+  const iso=todayISO(), now=nowMin();
+  return liveSlots(iso).some(sl=>
+    !sl.online && S.marks[markKey(iso,sl)]==='p' && t2m(sl.start)<=now);
+}
+
 /* ══════════════ THE WAY BACK ══════════════
    Every journey has a return leg, and the app only ever knew about the way
    in. Once the classes you were there for are done, what you want is when
@@ -1220,6 +1230,9 @@ function morningStatus(){
      already recorded present is worse than saying nothing. */
   const pending=p.going.filter(sl=>!S.marks[markKey(iso,sl)] && t2m(sl.end)>now);
   if(!pending.length) return null;
+  /* already there — see onCampusNow. "Next up" takes over from here, which
+     is the useful thing to show someone sitting in college with a gap. */
+  if(onCampusNow()) return null;
   const first=pending[0];
   const start=t2m(first.start);
   const travel=first.online?0:travelFor(start);
@@ -4507,7 +4520,7 @@ function renderSettings(){
     '</div>');
   h+='</div>';   /* close the .pad the groups sit in */
 
-  h+='<div class="gNote" style="text-align:center;padding-top:26px;color:var(--label3)">11:59 · v2.2<br>'+
+  h+='<div class="gNote" style="text-align:center;padding-top:26px;color:var(--label3)">11:59 · v2.3<br>'+
      'Everything stays on this device. No account, no cloud.</div>';
   $('#setBody').innerHTML=h;
 
