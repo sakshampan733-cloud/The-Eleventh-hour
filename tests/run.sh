@@ -17,7 +17,7 @@ PY
 "$JSC" -e "try{new Function(readFile('tests/app.js'));print('syntax OK')}catch(e){print('SYNTAX ERROR: '+e.message);}"
 
 TOTAL=0; BAD=0
-for f in catch feat smooth appeal plan worth runway ui plans feel report marked live pick leave home goal shortcut walk year; do
+for f in catch feat smooth appeal plan worth runway ui plans feel report marked live pick leave home goal shortcut walk year use; do
   [ -f "$T/$f.js" ] || continue
   cat "$T/shim.js" "$T/$f.js" > "$T/.tmp.js"
   LINE=$("$JSC" "$T/.tmp.js" 2>&1 | grep "═══" || echo "CRASHED")

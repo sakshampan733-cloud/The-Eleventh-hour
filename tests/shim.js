@@ -21,10 +21,19 @@ El.prototype.removeAttribute=function(k){delete this[k];};
 El.prototype.addEventListener=function(t,fn){ (this._ev=this._ev||{}); (this._ev[t]=this._ev[t]||[]).push(fn); };
 El.prototype.dispatch=function(t,evt){ ((this._ev||{})[t]||[]).forEach(function(fn){ fn(evt); }); };
 El.prototype.querySelectorAll=function(sel){
-  /* supports compound class selectors like ".dChip.on" */
+  /* ".dChip.on", "#id", "[data-pk]", and combinations of them */
   var last=String(sel||'').split(/\s+/).pop();
-  var need=last.split('.').filter(function(c){return c;});
+  var attr=(last.match(/\[data-([a-z0-9-]+)\]/)||[])[1];
+  if(attr) attr=attr.replace(/-([a-z])/g,function(_,c){return c.toUpperCase();});
+  var idm=(last.match(/#([\w-]+)/)||[])[1];
+  var rest=last.replace(/\[[^\]]*\]/g,'').replace(/#[\w-]+/,'');
+  /* a bare tag name, e.g. the app's own seg.querySelectorAll('button') */
+  var tagName=(rest.match(/^([a-zA-Z]+)/)||[])[1];
+  var need=rest.replace(/^[a-zA-Z]+/,'').split('.').filter(function(c){return c;});
   return (this._kids||[]).filter(function(k){
+    if(idm && k.id!==idm) return false;
+    if(attr && k.dataset[attr]===undefined) return false;
+    if(tagName && k.tagName!==tagName.toUpperCase()) return false;
     return need.every(function(c){ return k.classList.contains(c); });
   });
 };
@@ -33,17 +42,49 @@ El.prototype.scrollIntoView=function(){};
 El.prototype.focus=function(){};
 El.prototype.getContext=function(){return null;};
 El.prototype.toDataURL=function(){return '';};
+/* Parse every control the app might bind a handler to, not just the date
+   chips — any <button> or <label> carrying an id or a data-* attribute.
+   Without this, `$$('#sheetBody [data-pk]')` finds nothing and a test that
+   claims to "use" the app is really just calling functions behind it. */
+/* the inner HTML of the element whose open tag ends at `from`, counting
+   nesting of the same tag so a button inside a div closes the right one */
+function innerOf(html, tag, from){
+  var re=new RegExp('<'+tag+'\\b|</'+tag+'>','g');
+  re.lastIndex=from;
+  var depth=1, m;
+  while((m=re.exec(html))){
+    if(m[0].charAt(1)==='/'){ if(!--depth) return html.slice(from, m.index); }
+    else depth++;
+  }
+  return '';
+}
 El.prototype._parseKids=function(html){
-  var kids=[], btn=/<button\b([^>]*)>/g, m, i=0;
-  while((m=btn.exec(html))){
-    var attrs=m[1];
-    var dd=(attrs.match(/data-d="([^"]*)"/)||[])[1];
-    if(dd===undefined) continue;
+  var kids=[], tag=/<(button|label|input|select|div)\b([^>]*)>/g, m, i=0;
+  while((m=tag.exec(html))){
+    var attrs=m[2];
+    var id=(attrs.match(/\bid="([^"]*)"/)||[])[1];
+    var data={}, da=/data-([a-z0-9-]+)="([^"]*)"/g, d;
+    while((d=da.exec(attrs))) data[d[1].replace(/-([a-z])/g,function(_,c){return c.toUpperCase();})]=d[2];
+    var keys=Object.keys(data);
+    if(!id && !keys.length) continue;
     var cls=(attrs.match(/class="([^"]*)"/)||[])[1]||'';
-    var el=new El('button');
+    var el=new El(m[1]);
     cls.split(/\s+/).forEach(function(c){ if(c) el.classList.add(c); });
-    el.dataset.d=dd;
-    el._left=i*57+20; el._w=50; i++;      // synthetic layout: 50px chip + 7px gap
+    keys.forEach(function(k){ el.dataset[k]=data[k]; });
+    if(id) el.id=id;
+    var val=(attrs.match(/\bvalue="([^"]*)"/)||[])[1];
+    if(val!==undefined) el.value=val;
+    if(data.d!==undefined){ el._left=i*57+20; el._w=50; i++; }
+    /* Give it its own subtree. The app binds marks with
+       seg.querySelectorAll('button') — a flat parse finds the .mkSeg but
+       none of its buttons, so those handlers were never really bound in
+       tests and every marking test was quietly bypassing the control it
+       claimed to press. */
+    if(m[1]!=='input' && m[1]!=='select' && (El._depth||0)<6){
+      El._depth=(El._depth||0)+1;
+      try{ el.innerHTML=innerOf(html, m[1], tag.lastIndex); }catch(e){}
+      El._depth--;
+    }
     kids.push(el);
   }
   return kids;
