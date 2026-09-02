@@ -157,6 +157,24 @@ t('the scrim reveals rather than blacks out', function(){
   if(!/#scrim\{[^}]*backdrop-filter:saturate\(120%\)blur\(3px\)/.test(css))
     throw 'scrim does not blur what is behind';
 });
+t('the panel lands before its contents do', function(){
+  var css=readFile('index.html').replace(/\s+/g,'');
+  if(!/#sheet\.on#sheetBody>\*\{animation:riseIn/.test(css))
+    throw 'sheet contents do not arrive separately';
+  if(!/#sheet\.on#sheetBody>\*:nth-child\(1\)\{animation-delay:\.06s/.test(css))
+    throw 'no beat between the panel and what is in it';
+});
+t('surfaces catch the light without every one of them blurring', function(){
+  var css=readFile('index.html').replace(/\s+/g,'');
+  if(!/--edge:inset0 1px0/.test(css.replace(/\s+/g,' ').replace(/\s/g,''))
+     && !/--edge:inset01px0/.test(css)) throw 'no lit-edge token';
+  if(!/\.card\{[^}]*box-shadow:var\(--edge\)/.test(css)) throw 'cards are flat';
+  /* blur is expensive: it belongs on chrome that floats, not on every card */
+  if(/\.card\{[^}]*backdrop-filter/.test(css)) throw 'every card is blurring';
+  if(!/\.setG\{[^}]*backdrop-filter:saturate\(185%\)blur\(30px\)/.test(css))
+    throw 'settings groups are not glass';
+  if(!/\.actGrp\{[^}]*backdrop-filter/.test(css)) throw 'the action sheet is not glass';
+});
 
 print('\n═══ '+ok+' passed, '+fail+' failed ═══');
 if(fail) throw new Error(fail+' failures');

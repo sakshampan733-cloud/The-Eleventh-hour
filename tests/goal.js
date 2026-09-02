@@ -2,7 +2,7 @@ var app=readFile('tests/app.js').replace("'use strict';",'');
 app+=';globalThis.__=({get S(){return S},set S(v){S=v}});globalThis.addDays=addDays;globalThis.isoOf=isoOf;'+
  'globalThis.dowOf=dowOf;globalThis.todayISO=todayISO;globalThis.normalise=normalise;globalThis.markKey=markKey;'+
  'globalThis.goalFor=goalFor;globalThis.goalOverall=goalOverall;globalThis.bestFraction=bestFraction;'+
- 'globalThis.goalCardHTML=goalCardHTML;globalThis.marginHTML=marginHTML;globalThis.weekPlan=weekPlan;globalThis.weekPlanHTML=weekPlanHTML;globalThis.sheetWeekPlan=sheetWeekPlan;globalThis.sheetGoal=sheetGoal;globalThis.pctOf=pctOf;'+
+ 'globalThis.goalCardHTML=goalCardHTML;globalThis.marginHTML=marginHTML;globalThis.weekPlan=weekPlan;globalThis.earliestGoalDate=earliestGoalDate;globalThis.classesBetween=classesBetween;globalThis.dateOf=dateOf;globalThis.weekPlanHTML=weekPlanHTML;globalThis.sheetWeekPlan=sheetWeekPlan;globalThis.sheetGoal=sheetGoal;globalThis.pctOf=pctOf;'+
  'globalThis.attFor=attFor;globalThis.remainingBySub=remainingBySub;globalThis.doSave=function(){return sheetSave&&sheetSave();};';
 var ok=0,fail=0;
 function t(n,f){ try{ f(); print('  PASS  '+n); ok++; }catch(e){ print('  FAIL  '+n+' :: '+e); fail++; } }
@@ -327,6 +327,91 @@ t('below the goal there is no second reading to offer', function(){
   var h=weekPlanHTML();
   if(/Or stay exactly where you are/.test(h))
     throw 'offered to hold a level you have not reached';
+});
+
+print('\n— a goal needs a deadline it can actually meet —');
+t('you cannot reach 85% in two days', function(){
+  setup({thp:30,tha:20}, 85, 20);            /* 60%, one class a day */
+  var e=earliestGoalDate(85);
+  if(!e.iso) throw 'no date at all';
+  var days=Math.round((dateOf(e.iso)-dateOf(todayISO()))/864e5);
+  if(days<2) throw 'claimed 85% was reachable in '+days+' days from 60%';
+  /* (30+k)/(50+k) >= .85  =>  .15k >= 12.5  =>  k >= 83.34, so 84 */
+  if(e.need!==84) throw 'needs '+e.need+' classes, expected 84';
+});
+t('the earliest date is exactly when the last needed class falls', function(){
+  setup({thp:30,tha:20}, 75, 30);
+  var e=earliestGoalDate(75);
+  var upto=classesBetween(todayISO(), e.iso);
+  if(upto<e.need) throw 'only '+upto+' classes by then, needs '+e.need;
+  var dayBefore=isoOf(addDays(dateOf(e.iso),-1));
+  if(classesBetween(todayISO(), dayBefore)>=e.need)
+    throw 'a day earlier would also have done — the date is not the earliest';
+});
+t('attending every class up to that date really does reach the goal', function(){
+  setup({thp:30,tha:20}, 75, 30);
+  var e=earliestGoalDate(75);
+  var k=classesBetween(todayISO(), e.iso);
+  if(pctOf(30+k, 50+k) < 75) throw 'lands at '+pctOf(30+k,50+k)+'%';
+});
+t('a goal you already meet needs no time at all', function(){
+  setup({thp:45,tha:5}, 75, 10);
+  var e=earliestGoalDate(75);
+  if(!e.already) throw 'not recognised as already met';
+  if(e.iso!==todayISO()) throw 'gave a future date for a goal already met';
+});
+t('100% is never reachable once you have missed one', function(){
+  setup({thp:45,tha:5}, 100, 30);
+  var e=earliestGoalDate(100);
+  if(!e.never) throw 'claimed 100% was reachable with 5 absences on record';
+  if(e.iso) throw 'gave a date anyway';
+});
+t('100% with a clean record is reachable now', function(){
+  setup({thp:20,tha:0}, 100, 10);
+  var e=earliestGoalDate(100);
+  if(e.never) throw 'called a spotless record impossible';
+  if(!e.already) throw 'not recognised as already there';
+});
+t('the goal measures against its own deadline, not the term', function(){
+  setup({thp:30,tha:20}, 75, 30);
+  var far=goalOverall().remaining;
+  __.S.goalBy=isoOf(addDays(new Date(),13));    /* two weeks */
+  var near=goalOverall().remaining;
+  if(!(near<far)) throw 'deadline made no difference: '+near+' vs '+far;
+  if(near!==classesBetween(todayISO(), __.S.goalBy))
+    throw 'remaining does not match the classes inside the deadline';
+});
+t('the week plan stops at the deadline too', function(){
+  setup({thp:30,tha:20}, 75, 30);
+  __.S.goalBy=isoOf(addDays(new Date(),13));
+  var w=weekPlan();
+  var last=w.weeks[w.weeks.length-1];
+  if(dateOf(last.to)>dateOf(__.S.goalBy))
+    throw 'planned past the deadline: '+last.to;
+});
+t('an impossible deadline is called out on the card', function(){
+  setup({thp:30,tha:20}, 85, 30);
+  __.S.goalBy=isoOf(addDays(new Date(),2));
+  var h=goalCardHTML();
+  if(!/Not by/.test(h)) throw 'no warning about the date';
+  if(!/with nothing missed in between/.test(h)) throw 'does not state the condition';
+});
+t('a blank deadline still means the end of term', function(){
+  setup({thp:30,tha:20}, 75, 30);
+  __.S.goalBy='';
+  var g=goalOverall();
+  if(!g.remaining) throw 'no classes counted with a blank deadline';
+  if(g.by) throw 'invented a deadline';
+});
+t('the deadline survives a save', function(){
+  setup({thp:30,tha:20}, 75, 30);
+  __.S.goalBy=isoOf(addDays(new Date(),20));
+  var f=normalise(JSON.parse(JSON.stringify(__.S)));
+  if(f.goalBy!==__.S.goalBy) throw 'came back as '+f.goalBy;
+});
+t('a malformed deadline is discarded, not trusted', function(){
+  var f=normalise({subs:[],slots:[],marks:{},att:{},dls:[],thr:67,goal:75,goalBy:'not-a-date'});
+  if(f.goalBy!=='') throw 'kept '+f.goalBy;
 });
 
 print('\n═══ '+ok+' passed, '+fail+' failed ═══');

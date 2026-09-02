@@ -21,6 +21,11 @@
   --card-press:#EFEFF2;
   --line:rgba(60,60,67,.16);      /* surfaces are drawn, not floated */
   --line-2:rgba(60,60,67,.30);
+  /* A surface reads as lifted when light catches its top edge. Cheap —
+     it is a shadow, not a filter, so it can go on every card. Blur is
+     reserved for chrome that actually floats over content. */
+  --edge:inset 0 1px 0 rgba(255,255,255,.85), 0 1px 2px rgba(0,0,0,.04);
+  --edge-lift:inset 0 1px 0 rgba(255,255,255,.9), 0 6px 18px -8px rgba(0,0,0,.16);
   --sep:rgba(60,60,67,.22);
   --sep-soft:rgba(60,60,67,.10);
   --label:#0B0B0C;
@@ -59,6 +64,8 @@
   --card:#151517;
   --card-press:#232326;
   --line:#2A2A2E; --line-2:#3E3E44;
+  --edge:inset 0 1px 0 rgba(255,255,255,.06);
+  --edge-lift:inset 0 1px 0 rgba(255,255,255,.09), 0 8px 24px -10px rgba(0,0,0,.7);
   --sep:rgba(120,120,128,.34);
   --sep-soft:rgba(120,120,128,.18);
   --label:#FFFFFF;
@@ -159,7 +166,7 @@ section.on{display:block;animation:fade .26s ease}
 .gHead.tight{padding-top:15px}
 .gNote{font-size:13px;color:var(--label2);padding:7px 16px 0;line-height:1.35}
 .list{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-  margin:0 0 2px;overflow:hidden}
+  margin:0 0 2px;overflow:hidden;box-shadow:var(--edge)}
 .row{
   position:relative;display:flex;align-items:center;gap:12px;
   min-height:48px;padding:11px 16px;width:100%;text-align:left;font-size:17px;
@@ -195,8 +202,12 @@ button.row:active,.tap:active{background:var(--card-press)}
    page. Nested lists inside must not frost again — blur over blur goes
    milky and you lose the thing you were seeing through. */
 .setG{border-radius:var(--r-lg);margin-bottom:9px;overflow:hidden;
-  border:1px solid var(--line);background:var(--card);
-  transition:border-color .25s ease}
+  border:1px solid var(--glass-line);background:var(--glass);
+  -webkit-backdrop-filter:saturate(185%) blur(30px);
+  backdrop-filter:saturate(185%) blur(30px);
+  box-shadow:var(--edge);
+  transition:border-color .25s ease, box-shadow .25s ease}
+.setG.on{box-shadow:var(--edge-lift)}
 .setG.on{border-color:var(--line-2,var(--sep))}
 .setH{display:flex;align-items:center;gap:12px;width:100%;padding:15px 16px;text-align:left}
 .setT{font-size:15.5px;font-weight:600;letter-spacing:-.01em}
@@ -236,7 +247,7 @@ button.row:active,.tap:active{background:var(--card-press)}
 
 /* ── cards ───────────────────────────────────────────────── */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-  padding:16px;margin:0 0 12px}
+  padding:16px;margin:0 0 12px;box-shadow:var(--edge)}
 .card.tinted{background:color-mix(in srgb,var(--sc) calc(var(--ta)*100%),var(--card))}
 @supports not (background:color-mix(in srgb,red 10%,blue)){
   .card.tinted{background:var(--card)}
@@ -261,7 +272,8 @@ button.row:active,.tap:active{background:var(--card-press)}
 
 /* ── hero (today) ────────────────────────────────────────── */
 #hero{margin:10px 16px 14px;border-radius:var(--r);overflow:hidden;background:var(--card);
-  border:1px solid var(--line);border-left:3px solid var(--sc,var(--accent))}
+  border:1px solid var(--line);border-left:3px solid var(--sc,var(--accent));
+  box-shadow:var(--edge-lift)}
 #hero .hTop{padding:16px 18px 14px}
 #hero .hK{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.14em;
   text-transform:uppercase;
@@ -320,7 +332,8 @@ button.row:active,.tap:active{background:var(--card-press)}
 
 /* ── stat tiles ──────────────────────────────────────────── */
 .tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 16px 12px}
-.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:14px 15px;box-shadow:var(--edge)}
 .tile .tV{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.04em;
   line-height:1.1;font-variant-numeric:tabular-nums}
 .tile .tL{font-size:12px;color:var(--label2);margin-top:4px;line-height:1.3}
@@ -495,8 +508,13 @@ button.row:active,.tap:active{background:var(--card-press)}
   padding-bottom:env(safe-area-inset-bottom,0px);
   transform:translateY(130%);transition:transform .32s cubic-bezier(.32,.72,0,1)}
 #act.on{transform:none}
-.actGrp{background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:8px}
-[data-theme="dark"] .actGrp{background:#2C2C2E}
+.actGrp{border-radius:var(--r-lg);overflow:hidden;margin-bottom:8px;
+  border:1px solid var(--glass-line);
+  background:linear-gradient(160deg,var(--glass-hi),rgba(255,255,255,0) 44%),var(--glass-solid);
+  -webkit-backdrop-filter:saturate(200%) blur(30px);
+  backdrop-filter:saturate(200%) blur(30px);
+  box-shadow:var(--edge-lift)}
+
 .actGrp button{width:100%;height:56px;font-size:19px;color:var(--accent);position:relative;display:block}
 .actGrp button+button::before{content:'';position:absolute;top:0;left:0;right:0;height:.5px;background:var(--sep)}
 .actGrp button:active{background:var(--fill)}
@@ -599,6 +617,20 @@ button.row:active,.tap:active{background:var(--card-press)}
   .setG:nth-child(n+6){animation-delay:.15s}
   @keyframes riseIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
+  /* The panel lands first, then what's inside it arrives — that beat is
+     what makes a sheet feel like it opened rather than blinked. */
+  #sheet.on #sheetBody>*{
+    animation:riseIn .38s cubic-bezier(.22,1,.36,1) backwards;
+  }
+  #sheet.on #sheetBody>*:nth-child(1){animation-delay:.06s}
+  #sheet.on #sheetBody>*:nth-child(2){animation-delay:.10s}
+  #sheet.on #sheetBody>*:nth-child(3){animation-delay:.14s}
+  #sheet.on #sheetBody>*:nth-child(4){animation-delay:.18s}
+  #sheet.on #sheetBody>*:nth-child(5){animation-delay:.22s}
+  #sheet.on #sheetBody>*:nth-child(n+6){animation-delay:.25s}
+  #act.on .actGrp{animation:riseIn .34s cubic-bezier(.22,1,.36,1) backwards}
+  #act.on .actGrp:nth-child(2){animation-delay:.05s}
+
   /* the margin pips count themselves in, left to right */
   .margin i{animation:pipIn .3s cubic-bezier(.22,1,.36,1) backwards}
   .margin i:nth-child(2){animation-delay:.02s}
@@ -613,19 +645,21 @@ button.row:active,.tap:active{background:var(--card-press)}
 }
 @media (prefers-reduced-motion: reduce){
   #heroWrap>*,#homeTiles>*,#homeClasses>*,#homeNext>*,#homeDue>*,#homeWeek>*,
-  #attTop>*,#attList>*,.setG,.margin i{animation:none}
+  #attTop>*,#attList>*,.setG,.margin i,#sheet.on #sheetBody>*,#act.on .actGrp{animation:none}
   #sheet{transition:opacity .01s}
   .setB{animation:none}
 }
 
 /* ── toast ───────────────────────────────────────────────── */
+#toast.bad{background:var(--red);color:#fff}
 #toast{
   position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));
   transform:translate(-50%,14px);z-index:110;
-  background:rgba(30,30,32,.94);color:#fff;font-size:14.5px;font-weight:500;
+  background:rgba(30,30,32,.86);color:#fff;font-size:14.5px;font-weight:500;
+  border:1px solid rgba(255,255,255,.10);box-shadow:0 8px 28px -10px rgba(0,0,0,.6);
   padding:11px 18px;border-radius:99px;opacity:0;pointer-events:none;
   transition:opacity .24s,transform .24s;max-width:86vw;text-align:center;
-  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);
 }
 [data-theme="dark"] #toast{background:rgba(70,70,74,.95)}
 #toast.on{opacity:1;transform:translate(-50%,0)}
@@ -826,7 +860,7 @@ const KEY='sem5plan';
 function blankState(keep){
   keep=keep||{};
   return {subs:[],slots:[],marks:{},att:{},dls:[],cats:[],tab:'home',
-          thr:67, goal:0,   /* 0 = no goal set */
+          thr:67, goal:0, goalBy:'',   /* 0 = no goal; goalBy defaults to term end */
           name:'', roll:'', course:'', college:'',
           termEnd:'',   /* semester end — powers the runway maths */
           /* morning planner — off until you switch it on in Settings */
@@ -856,6 +890,7 @@ function normalise(st){
   });
   st.thr   =clamp(+st.thr   ||67,1,100);
   st.goal  =clamp(+st.goal  ||0,  0,100);   /* 0 means none set */
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(st.goalBy||'')) st.goalBy='';
   ['name','roll','course','college'].forEach(k=>{ st[k]=String(st[k]||'').slice(0,80); });
   delete st.ready; delete st.travel; delete st.driverHr; delete st.remindAt;   /* migrated above */
   st.planner  = !!st.planner;
@@ -1311,9 +1346,12 @@ function nextSkipDay(){
    the term end date we can count what's actually left and answer the
    real question — is the threshold still REACHABLE — instead of the
    useless one, are you above it today.                              */
-function remainingBySub(fromISO){
-  if(!S.termEnd) return null;
-  const end=dateOf(S.termEnd), out={};
+/* `toISO` lets a caller ask about a window shorter than the term — the goal
+   has its own deadline, while eligibility is still judged at term end. */
+function remainingBySub(fromISO,toISO){
+  const horizon=toISO||S.termEnd;
+  if(!horizon) return null;
+  const end=dateOf(horizon), out={};
   let d=dateOf(fromISO);
   for(let i=0;i<400;i++){
     const iso=isoOf(d);
@@ -1339,6 +1377,47 @@ const termWeeksLeft=()=>{
   return Math.max(0,Math.ceil(daysTo(S.termEnd)/7));
 };
 /* verdict for missing `n` classes of one subject, given the runway */
+/* ══════════════ WHEN A GOAL CAN LAND ══════════════
+   "85% by Friday" is not a goal, it is arithmetic that has already failed.
+   From p of t, attending every one of the next k classes gives (p+k)/(t+k),
+   and that only reaches g when k >= (g·t − p)/(1 − g). So the soonest the
+   goal can possibly land is the day the k-th class falls on — attend all
+   of them, miss nothing. Any date before that is not a stretch, it is
+   impossible, and the app should say which.
+
+   At g = 100% the divisor is zero and the answer is never: a single absence
+   already on the record can't be undone by attending anything.            */
+function goalHorizon(){ return S.goalBy || S.termEnd || ''; }
+function classesBetween(fromISO,toISO){
+  if(!toISO) return null;
+  const end=dateOf(toISO); let n=0, d=dateOf(fromISO);
+  for(let i=0;i<400 && d<=end;i++){
+    const iso=isoOf(d);
+    n+=liveSlots(iso).filter(sl=>!S.marks[markKey(iso,sl)]).length;
+    d=addDays(d,1);
+  }
+  return n;
+}
+function earliestGoalDate(goalPct){
+  let P=0,T=0;
+  S.subs.forEach(sb=>{ const A=attFor(sb.id); P+=A.p; T+=A.t; });
+  const g=(+goalPct||0)/100;
+  if(!T) return {iso:null, unknown:true};
+  if(pctOf(P,T)>=goalPct) return {iso:todayISO(), already:true, need:0};
+  if(g>=1) return {iso:null, never:true, need:null};
+  const need=Math.ceil((g*T-P)/(1-g)-1e-9);
+  if(need<=0) return {iso:todayISO(), already:true, need:0};
+  /* walk forward until that many classes have gone by */
+  let n=0, d=dateOf(todayISO());
+  for(let i=0;i<400;i++){
+    const iso=isoOf(d);
+    n+=liveSlots(iso).filter(sl=>!S.marks[markKey(iso,sl)]).length;
+    if(n>=need) return {iso, need, byThen:n};
+    d=addDays(d,1);
+  }
+  return {iso:null, need, tooFar:true};
+}
+
 /* ══════════════ THE GOAL ══════════════
    Two things people actually want, which turn out to be one thing.
 
@@ -1393,7 +1472,7 @@ function goalFor(subId, remaining){
 function goalOverall(){
   const G=+S.goal||0;
   if(!G) return null;
-  const rem=remainingBySub(todayISO());
+  const rem=remainingBySub(todayISO(), goalHorizon());
   let P=0,T=0,K=0, anyUnknown=(rem===null);
   S.subs.forEach(sb=>{ const A=attFor(sb.id); P+=A.p; T+=A.t;
                        if(rem) K+=rem[sb.id]||0; });
@@ -1413,6 +1492,8 @@ function goalOverall(){
   out.reachable = need<=K;
   if(!out.reachable) out.best=pctOf(P+K,T+K);
   /* the subjects standing between you and the goal, worst first */
+  out.by=S.goalBy||'';
+  out.earliest=earliestGoalDate(G);
   out.blocking=S.subs.map(sb=>({sub:sb, g:goalFor(sb.id, rem?rem[sb.id]||0:null)}))
     .filter(x=>x.g && (!x.g.reachable || x.g.phase==='climb'))
     .sort((a,b)=>(a.g.reachable?1:0)-(b.g.reachable?1:0) || a.g.cur-b.g.cur);
@@ -1647,9 +1728,12 @@ window.addEventListener('scroll',onScroll,{passive:true});
 
 /* ══════════════ TOAST ══════════════ */
 let toastT;
-function toast(msg){
-  const el=$('#toast'); el.textContent=msg; el.classList.add('on');
-  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('on'),1900);
+function toast(msg,kind){
+  const el=$('#toast'); el.textContent=msg;
+  el.classList.toggle('bad', kind==='bad');
+  el.classList.add('on');
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>el.classList.remove('on'), kind==='bad'?2600:1900);
 }
 
 /* ══════════════ SHEET ══════════════ */
@@ -2785,8 +2869,9 @@ function marginHTML(spare, total, colour){
    they add up to exactly the number you have — no week silently gains or
    loses one to rounding.                                                */
 function weekPlan(){
-  if(!S.termEnd) return null;
-  const end=dateOf(S.termEnd);
+  const horizon=goalHorizon();
+  if(!horizon) return null;
+  const end=dateOf(horizon);
   let P=0,T=0;
   S.subs.forEach(sb=>{ const A=attFor(sb.id); P+=A.p; T+=A.t; });
 
@@ -2975,7 +3060,10 @@ function goalCardHTML(){
       '<div><div style="font-size:11.5px;color:var(--label3);text-transform:uppercase;'+
         'letter-spacing:.05em;font-weight:700">Goal</div>'+
         '<div class="tnum" style="font-size:24px;font-weight:700;letter-spacing:-.02em;'+
-        'color:var(--label2)">'+g.goal+'%</div></div>'+
+        'color:var(--label2)">'+g.goal+'%</div>'+
+        (g.by? '<div class="tnum" style="font-size:10.5px;color:var(--label3);margin-top:2px">by '+
+          dateOf(g.by).toLocaleDateString(undefined,{day:'numeric',month:'short'})+'</div>' : '')+
+        '</div>'+
       '<span class="pill '+(!g.reachable&&!g.unknown?'no':hold?'ok':'mid')+
         '" style="margin-left:auto">'+
         (!g.reachable&&!g.unknown ? 'out of reach' : hold ? 'holding' : 'climbing')+
@@ -2985,6 +3073,14 @@ function goalCardHTML(){
   if(g.unknown){
     h+='<div class="gNote" style="padding:10px 0 0">Set your term end date in Settings '+
        'and this can tell you exactly how many classes it takes.</div>';
+  } else if(g.by && g.earliest && g.earliest.iso &&
+            dateOf(g.by)<dateOf(g.earliest.iso) && !g.earliest.already){
+    h+='<div style="font-size:13.5px;color:var(--label2);margin-top:10px;line-height:1.5">'+
+      'Not by <b>'+dateOf(g.by).toLocaleDateString(undefined,{day:'numeric',month:'short'})+
+      '</b>. '+g.goal+'% needs '+g.earliest.need+' more class'+
+      (g.earliest.need===1?'':'es')+' attended, and the last of them is not until <b>'+
+      dateOf(g.earliest.iso).toLocaleDateString(undefined,{day:'numeric',month:'short'})+
+      '</b> \u2014 with nothing missed in between.</div>';
   } else if(!g.reachable){
     h+='<div style="font-size:13.5px;color:var(--label2);margin-top:10px;line-height:1.5">'+
       'Even attending every one of the '+g.remaining+' classes left, you finish at <b>'+
@@ -3038,6 +3134,7 @@ function sheetGoal(){
   const g=goalOverall();
   let GP=0,GT=0; S.subs.forEach(sb=>{const A=attFor(sb.id); GP+=A.p; GT+=A.t;});
   const cur=pctOf(GP,GT);
+  const ed=earliestGoalDate(+S.goal||75);
   const body='<div class="sheetIntro">A goal is what you\u2019re aiming for. It sits above '+
     'the '+S.thr+'% you actually have to hold \u2014 that minimum never moves.</div>'+
     '<div class="list">'+
@@ -3046,7 +3143,11 @@ function sheetGoal(){
       '<input type="number" id="glVal" min="0" max="100" value="'+(+S.goal||0)+'" '+
       'style="width:76px;text-align:center;background:var(--fill);border-radius:8px;'+
       'padding:7px 0;flex:none"></label>'+
+      '<label class="row"><div class="rMain"><div class="rT">Reach it by</div>'+
+      '<div class="rS">Blank means the end of term</div></div>'+
+      '<input type="date" id="glBy" value="'+esc(S.goalBy||'')+'"></label>'+
     '</div>'+
+    '<div id="glWhen"></div>'+
     (GT? '<div class="gHead tight">Quick</div><div class="list">'+
       '<button class="row tap" id="glNow"><span class="ico" style="background:var(--green)">\u2261</span>'+
         '<div class="rMain"><div class="rT">Hold me at '+pctFmt(cur)+'%</div>'+
@@ -3061,11 +3162,58 @@ function sheetGoal(){
   openSheet({title:'Attendance goal', body, doneLabel:'Save',
     after(){
       const nw=$('#glNow');
-      if(nw) nw.onclick=()=>{ $('#glVal').value=Math.floor(cur); };
-      $$('#sheetBody [data-gq]').forEach(b=>b.onclick=()=>{ $('#glVal').value=b.dataset.gq; });
+      const val=()=>clamp(parseInt($('#glVal').value)||0,0,100);
+      /* Recomputed as you type, because "85% by Friday" needs answering
+         while you can still change Friday. */
+      const verdict=()=>{
+        const box=$('#glWhen'); if(!box) return;
+        const g=val();
+        if(!g){ box.innerHTML=''; return; }
+        const e=earliestGoalDate(g);
+        const by=($('#glBy')&&$('#glBy').value)||'';
+        let msg,col;
+        if(e.never){ col='var(--red)';
+          msg='<b>Not reachable at all.</b> '+g+'% allows no absences, and there '+
+              'are already some on the record \u2014 attending everything from here '+
+              'cannot undo them.'; }
+        else if(e.already){ col='var(--green)';
+          msg='You are already at or above '+g+'%. Setting it here holds the line.'; }
+        else if(!e.iso){ col='var(--red)';
+          msg='<b>Not reachable this term.</b> Even attending every remaining class '+
+              'falls short of '+g+'%.'; }
+        else {
+          const soonest=dateOf(e.iso).toLocaleDateString(undefined,
+            {day:'numeric',month:'short'});
+          if(by && dateOf(by)<dateOf(e.iso)){ col='var(--orange)';
+            msg='<b>Not by then.</b> '+g+'% needs '+e.need+' more class'+
+                (e.need===1?'':'es')+' attended, and the '+e.need+
+                (e.need===1?'st':'th')+' one is not until <b>'+soonest+'</b> \u2014 '+
+                'and only if you miss none between now and then.'+
+                '<div style="margin-top:9px"><button class="btn ghost sm" id="glFix">'+
+                'Move it to '+soonest+'</button></div>'; }
+          else { col='var(--green)';
+            msg='Possible from <b>'+soonest+'</b> at the earliest \u2014 that is '+
+                e.need+' class'+(e.need===1?'':'es')+' attended with nothing missed. '+
+                (by? 'Your date leaves room on top of that.'
+                   : 'Pick a date after that, or leave it blank for the end of term.'); }
+        }
+        box.innerHTML='<div class="card" style="border-left:3px solid '+col+';margin-top:12px">'+
+          '<div style="font-size:13px;color:var(--label2);line-height:1.5">'+msg+'</div></div>';
+        const fx=$('#glFix');
+        if(fx) fx.onclick=()=>{ const e2=earliestGoalDate(val());
+          if(e2.iso){ $('#glBy').value=e2.iso; verdict(); } };
+      };
+      verdict();
+      const gv=$('#glVal'); if(gv){ gv.oninput=verdict; gv.onchange=verdict; }
+      const gb=$('#glBy');  if(gb){ gb.onchange=verdict; }
+      if(nw) nw.onclick=()=>{ $('#glVal').value=Math.floor(cur); verdict(); };
+      $$('#sheetBody [data-gq]').forEach(b=>b.onclick=()=>{
+        $('#glVal').value=b.dataset.gq; verdict(); });
     },
     onSave(){
       S.goal=clamp(parseInt($('#glVal').value)||0,0,100);
+      const by=($('#glBy')&&$('#glBy').value)||'';
+      S.goalBy=/^\d{4}-\d{2}-\d{2}$/.test(by)?by:'';
       save(); renderAll();
       toast(S.goal? (S.goal<=cur?'Holding at '+S.goal+'%.':'Goal set: '+S.goal+'%.')
                   : 'Goal cleared.');
@@ -4691,6 +4839,37 @@ function renderSettings(){
       '</div></div>');
   })();
 
+  h+=setGroup('shortcuts','Shortcuts & automations',
+    (function(){ let base=''; try{ base=location.origin+location.pathname; }catch(e){}
+      return base ? 'Open a URL from Shortcuts to drive the app'
+                  : 'Works once the app is opened from a web address'; })(),
+    (function(){
+      let base='';
+      try{ base=(location.origin||'')+(location.pathname||''); }catch(e){}
+      const local=!base||base.indexOf('http')!==0;
+      let x='<div class="gNote" style="padding-top:6px">'+
+        'Apple Shortcuts can\u2019t reach inside an app, but it can open a URL \u2014 '+
+        'so the URL is the interface. Use <b>Open URL</b> in a shortcut, or an '+
+        'automation like \u201cwhen I leave home\u201d, and the app acts the moment '+
+        'it opens.</div>';
+      if(local)
+        x+='<div class="gNote" style="color:var(--orange)">Open this from your '+
+           'Pages address rather than a file for these to have a URL to use.</div>';
+      x+='<div class="list" style="margin-top:10px">'+
+        SHORTCUT_HELP.map(function(r,i){
+          return '<button class="row tap" data-sc="'+i+'">'+
+            '<div class="rMain"><div class="rT">'+esc(r[1])+'</div>'+
+            '<div class="rS" style="font-family:var(--mono);font-size:11px;'+
+              'word-break:break-all">'+esc(r[0])+'</div>'+
+            (r[2]?'<div class="rS">'+esc(r[2])+'</div>':'')+
+            '</div><span class="chev">\u29c9</span></button>'; }).join('')+
+        '</div>'+
+        '<div class="gNote">Tap one to copy the whole address. Nothing is sent '+
+        'anywhere \u2014 the app reads the command, does it, and clears it from the '+
+        'address bar so a refresh can\u2019t repeat it.</div>';
+      return x;
+    })());
+
   h+=setGroup('data','Data',
     (function(){ const kb=Math.max(1,Math.round((offlineReport().bytes||0)/1024));
       return 'Backup, restore, erase \u00b7 '+kb+' KB on this device'; })(),
@@ -4708,7 +4887,7 @@ function renderSettings(){
     '</div>');
   h+='</div>';   /* close the .pad the groups sit in */
 
-  h+='<div class="gNote" style="text-align:center;padding-top:26px;color:var(--label3)">11:59 · v2.4<br>'+
+  h+='<div class="gNote" style="text-align:center;padding-top:26px;color:var(--label3)">11:59 · v2.5<br>'+
      'Everything stays on this device. No account, no cloud.</div>';
   $('#setBody').innerHTML=h;
 
@@ -4719,6 +4898,15 @@ function renderSettings(){
     S.openGroups=list; save(); renderSettings();
   });
   { const g=$('#setGoal'); if(g) g.onclick=sheetGoal; }
+  $$('#setBody [data-sc]').forEach(b=>b.onclick=()=>{
+    const r=SHORTCUT_HELP[+b.dataset.sc]; if(!r) return;
+    let base=''; try{ base=(location.origin||'')+(location.pathname||''); }catch(e){}
+    const url=base+r[0];
+    let done=false;
+    try{ if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url); done=true; } }catch(e){}
+    toast(done?'Copied \u2014 paste into Open URL.':url);
+  });
   $$('#thSeg button').forEach(b=>b.onclick=()=>{ S.theme=b.dataset.th; save(); applyTheme(); renderSettings(); });
   $$('[data-tone]').forEach(b=>b.onclick=()=>{ S.tone=b.dataset.tone; save(); renderSettings(); toast('Tone: '+TONE_OPTS.find(t=>t[0]===S.tone)[1]); });
   $('#setThr').onchange=e=>{ S.thr=clamp(parseInt(e.target.value)||67,1,100); e.target.value=S.thr; save(); renderAll(); };
@@ -4885,6 +5073,96 @@ function renderAll(){
   else if(S.tab==='calendar') renderCal();
   else if(S.tab==='settings') renderSettings();
 }
+/* ══════════════ SHORTCUTS ══════════════
+   Apple Shortcuts cannot reach inside a web app, but it can open a URL, so
+   the URL is the interface. An automation that fires when you leave home
+   opens ?do=enroute; a tap on the Home Screen opens ?do=mark&as=p&when=now
+   and you never look at the app at all.
+
+   Three rules this has to obey:
+     · it must work with no signal — parsing a query string does, which is
+       why this is a URL and not an API;
+     · it must never fire twice. The command is stripped from the address
+       bar the moment it is acted on, so a refresh, a restore, or the
+       service worker re-serving the page cannot re-mark a class;
+     · it must say what it did. Silently changing attendance and showing
+       the normal screen is indistinguishable from the shortcut failing.  */
+const SHORTCUT_HELP=[
+  ['?do=enroute',            'I\u2019m on my way',        'Sets off the arrival countdown, same as the button.'],
+  ['?do=mark&as=p',          'Mark present',               'The class on now, or the next one if you\u2019re between.'],
+  ['?do=mark&as=a',          'Mark absent',                ''],
+  ['?do=mark&as=c',          'Class cancelled',            ''],
+  ['?do=mark&as=p&when=all', 'Mark the whole day present', 'Everything on today that isn\u2019t marked yet.'],
+  ['?do=home',               'Heading home',               'Clears the on-my-way state.'],
+  ['?do=open&tab=attendance','Open a tab',                 'home, timetable, attendance, due, calendar.']
+];
+function shortcutTarget(){
+  /* the class a bare "mark" applies to: the one running now, else the next
+     one still to come today */
+  const iso=todayISO(), now=nowMin();
+  const live=liveSlots(iso).filter(sl=>!S.marks[markKey(iso,sl)]);
+  return live.find(sl=>nowMin()>=t2m(sl.start)&&now<t2m(sl.end))
+      || live.find(sl=>t2m(sl.start)>now)
+      || null;
+}
+function runShortcut(q){
+  const get=k=>{ const m=new RegExp('[?&]'+k+'=([^&]*)').exec(q); 
+                 return m?decodeURIComponent(m[1].replace(/\+/g,' ')):''; };
+  const doing=get('do');
+  if(!doing) return null;
+  const iso=todayISO();
+  let msg=null;
+
+  if(doing==='enroute'){
+    S.enroute={iso, at:nowMin()};
+    const ms=morningStatus();
+    msg = ms && ms.arriveAt!=null
+      ? 'On your way \u2014 arriving '+m2t(ms.arriveAt)
+      : 'On your way.';
+  }
+  else if(doing==='home'){
+    S.enroute=null; msg='Not on your way any more.';
+  }
+  else if(doing==='mark'){
+    const as=(get('as')||'p').charAt(0);
+    if(['p','a','c'].indexOf(as)<0) return {msg:'Unknown mark \u2014 use p, a or c.', bad:true};
+    const word = as==='p'?'present':as==='a'?'absent':'cancelled';
+    if(get('when')==='all'){
+      const list=liveSlots(iso).filter(sl=>!S.marks[markKey(iso,sl)]);
+      if(!list.length) return {msg:'Nothing left to mark today.', bad:true};
+      list.forEach(sl=>{ S.marks[markKey(iso,sl)]=as; });
+      if(as==='p') S.enroute=null;
+      msg=list.length+' class'+(list.length===1?'':'es')+' marked '+word+'.';
+    } else {
+      const sl=shortcutTarget();
+      if(!sl) return {msg:'No class to mark right now.', bad:true};
+      S.marks[markKey(iso,sl)]=as;
+      if(as==='p') S.enroute=null;
+      msg=esc(subById(sl.subId).name)+' \u00b7 '+fmtT(sl.start)+' marked '+word+'.';
+    }
+  }
+  else if(doing==='open'){
+    const tab=get('tab');
+    if(TABS.some(t=>t.id===tab)||tab==='settings'){ S.tab=tab; return {msg:null, tab}; }
+    return null;
+  }
+  else return {msg:'Don\u2019t know how to \u201c'+esc(doing)+'\u201d.', bad:true};
+
+  save();
+  return {msg};
+}
+(function(){
+  let q=''; try{ q=location.search||''; }catch(e){}
+  if(!q || q.indexOf('do=')<0) return;
+  let r=null;
+  try{ r=runShortcut(q); }catch(e){ r={msg:'That shortcut didn\u2019t work.', bad:true}; }
+  /* strip it before anything else can re-run it */
+  try{ if(history.replaceState) history.replaceState(null,'',location.pathname); }catch(e){}
+  if(!r) return;
+  if(r.tab) S.tab=r.tab;
+  if(r.msg) setTimeout(()=>toast(r.msg, r.bad?'bad':''), 260);
+})();
+
 applyTheme();
 if(!TABS.some(t=>t.id===S.tab) && S.tab!=='settings') S.tab='home';
 
