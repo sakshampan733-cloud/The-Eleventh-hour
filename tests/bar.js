@@ -1,0 +1,124 @@
+/* The seven mechanisms from bar.md, as checks that run every time.
+   A design system that is only enforced by eye drifts back within a week;
+   these are the parts that can be measured from the stylesheet itself. */
+var SRC=readFile('index.html');
+/* every <style> block, not just the first — the embedded @font-face lives
+   in its own block ahead of the real stylesheet */
+var CSS=(SRC.match(/<style>[\s\S]*?<\/style>/g)||[]).join('\n');
+var flat=CSS.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\s+/g,' ');
+var ok=0,fail=0;
+function t(n,f){ try{ f(); print('  PASS  '+n); ok++; }catch(e){ print('  FAIL  '+n+' :: '+e); fail++; } }
+
+print('— 1. radius is 0 or a full pill, nothing between —');
+t('no corner sits between 1px and 74px', function(){
+  var bad=[];
+  (flat.match(/border-radius:[^;}]+/g)||[]).forEach(function(d){
+    (d.match(/(\d+(?:\.\d+)?)px/g)||[]).forEach(function(v){
+      var n=parseFloat(v);
+      if(n>=1 && n<75) bad.push(d.trim());
+    });
+  });
+  if(bad.length) throw bad.length+' rounded corner(s): '+bad.slice(0,3).join(' | ');
+});
+
+print('\n— 2. no shadow anywhere —');
+t('there is no box-shadow in the stylesheet', function(){
+  var sh=(flat.match(/box-shadow:\s*(?!none)[^;}]+/g)||[]);
+  if(sh.length) throw sh.length+' shadow(s): '+sh.slice(0,2).join(' | ');
+});
+t('no backdrop-filter is used to imply lift', function(){
+  var b=(flat.match(/backdrop-filter:\s*(?!none)[^;}]+/g)||[]);
+  if(b.length) throw b.length+' blur(s): '+b.slice(0,2).join(' | ');
+});
+
+print('\n— 3. one curve, nothing under half a second —');
+t('exactly one easing function is used', function(){
+  var curves={};
+  (flat.match(/cubic-bezier\([^)]*\)/g)||[]).forEach(function(c){
+    curves[c.replace(/\s+/g,'')]=1; });
+  var list=Object.keys(curves);
+  if(list.length>1) throw list.length+' curves: '+list.join(' | ');
+  if(list.length && list[0]!=='cubic-bezier(0.19,1,0.22,1)')
+    throw 'wrong curve: '+list[0];
+});
+t('no transition or animation is faster than 0.5s', function(){
+  var bad=[];
+  /* delays are stagger offsets, not durations — only durations are capped */
+  (flat.match(/(?:transition|animation)(?!-delay)[^;}]*/g)||[]).forEach(function(d){
+    (d.match(/(?:^|[^\d.])(\d*\.?\d+)s/g)||[]).forEach(function(m){
+      var n=parseFloat(m.replace(/[^\d.]/g,''));
+      if(n>0 && n<0.5 && !/\.01s/.test(m)) bad.push(d.trim().slice(0,60));
+    });
+  });
+  if(bad.length) throw bad.length+' fast: '+bad.slice(0,2).join(' | ');
+});
+
+print('\n— 4. three sizes, and nothing in the dead zone —');
+t('no font-size lands between 20px and 40px', function(){
+  var bad=[];
+  (SRC.match(/font-size:\s*(\d+(?:\.\d+)?)px/g)||[]).forEach(function(d){
+    var n=parseFloat(d.replace(/[^\d.]/g,''));
+    if(n>=20 && n<=40) bad.push(d);
+  });
+  if(bad.length) throw bad.length+' in the dead zone: '+bad.slice(0,4).join(', ');
+});
+t('the ramp jumps by at least 3x from body to statement', function(){
+  var lab=parseFloat((flat.match(/--t-label:\s*(\d+)px/)||[])[1]);
+  var body=parseFloat((flat.match(/--t-body:\s*(\d+)px/)||[])[1]);
+  var st=parseFloat((flat.match(/--t-statement:\s*(\d+)px/)||[])[1]);
+  if(!lab||!body||!st) throw 'the ramp tokens are missing';
+  if(st/body < 2.9) throw 'statement is only '+(st/body).toFixed(1)+'x body';
+  if(body/lab < 1.3) throw 'body is only '+(body/lab).toFixed(1)+'x the label';
+});
+
+print('\n— 5. large type whispers —');
+t('nothing above 40px is bolder than weight 400', function(){
+  var bad=[];
+  /* every rule that sets a size at or above the statement step */
+  (flat.match(/\{[^}]*font-size:\s*(?:var\(--t-statement\)|var\(--t-display\)|[4-9]\d px|\d{3}px)[^}]*\}/g)||[])
+    .forEach(function(r){
+      var w=(r.match(/font-weight:\s*(\d+)/)||[])[1];
+      if(w && +w>400) bad.push(r.slice(0,70));
+    });
+  if(bad.length) throw bad.join(' | ');
+});
+t('statement type has locked-up leading', function(){
+  var m=flat.match(/#hero \.hN\{[^}]*\}/);
+  if(!m) throw 'no hero headline rule';
+  var lh=(m[0].match(/line-height:\s*(\.?\d*\.?\d+)/)||[])[1];
+  if(!lh || parseFloat(lh)>=0.9) throw 'line-height is '+lh+', needs to be under 0.9';
+});
+
+print('\n— 6. monochrome interface, colour only as a verdict —');
+t('the action colour is not chromatic', function(){
+  var a=(flat.match(/--accent:\s*([^;]+);/)||[])[1];
+  if(!a) throw 'no accent token';
+  a=a.trim().toLowerCase();
+  var mono=/^#(?:fff(?:fff)?|000(?:000)?)$/.test(a)||/^var\(--(label|obsidian|paper)\)$/.test(a);
+  if(!mono) throw 'accent is '+a;
+});
+t('icons carry no colour', function(){
+  var m=flat.match(/\.row \.ico\{[^}]*\}/);
+  if(!m) throw 'no icon rule';
+  if(!/background:\s*none/.test(m[0])) throw 'icons still take a background colour';
+});
+t('the verdict colours come from the hero gradient', function(){
+  var g=(flat.match(/--green:\s*([^;]+);/)||[])[1];
+  var o=(flat.match(/--orange:\s*([^;]+);/)||[])[1];
+  if(!/A0E0AB/i.test(g||'')) throw 'green is '+g+', not the gradient sage';
+  if(!/FFAC2E/i.test(o||'')) throw 'amber is '+o+', not the gradient amber';
+});
+
+print('\n— 7. one typeface —');
+t('there is no second family', function(){
+  var m=(flat.match(/--mono:\s*([^;]+);/)||[])[1];
+  if(!m || !/var\(--font\)/.test(m)) throw 'a separate mono family survives: '+m;
+});
+t('the face is embedded, not fetched', function(){
+  if(!/@font-face/.test(CSS)) throw 'no embedded face';
+  if(!/src:url\(data:font\/woff2;base64,/.test(flat.replace(/\s+/g,''))) throw 'the font is not inlined';
+  if(/fonts\.googleapis|fonts\.gstatic/.test(SRC)) throw 'the file reaches out for a font';
+});
+
+print('\n═══ '+ok+' passed, '+fail+' failed ═══');
+if(fail) throw new Error(fail+' failures');

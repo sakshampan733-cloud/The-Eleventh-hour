@@ -118,62 +118,50 @@ t('reduced-motion is respected', function(){
 t('nothing leaked', function(){ if(LOG.length) throw LOG.length+' leak(s): '+LOG[0]; });
 
 print('\n— it responds to being touched —');
-t('every control springs under the finger', function(){
-  var css=readFile('index.html');
-  if(!/transform:scale\(var\(--press/.test(css.replace(/\s+/g,'')))
-    throw 'no press compression';
-  if(!/transition-duration:\.09s/.test(css.replace(/\s+/g,'')))
-    throw 'no fast-down, slow-back spring';
+t('pressing dims rather than bounces', function(){
+  var css=readFile('index.html').replace(/\s+/g,'');
+  /* A spring overshoots; this system glides. Feedback is a change of
+     opacity, not a change of size. */
+  if(/transform:scale\(var\(--press/.test(css)) throw 'the spring press survived';
+  if(!/button:active[^}]*opacity:\.55/.test(css)) throw 'no press feedback at all';
 });
-t('cards arrive in reading order, not all at once', function(){
-  var css=readFile('index.html');
-  if(!/@keyframes riseIn/.test(css)) throw 'no entrance';
-  var delays=(css.match(/animation-delay:\.\d+s/g)||[]).length;
-  if(delays<5) throw 'only '+delays+' staggered delays';
+t('everything arrives on the one curve', function(){
+  var css=readFile('index.html').replace(/\s+/g,'');
+  if(!/@keyframesriseIn/.test(css)) throw 'no entrance';
+  if(!/animation:riseInvar\(--t-mid\)var\(--ease\)/.test(css))
+    throw 'the entrance does not use the system curve and tempo';
 });
 t('all of it collapses under reduced motion', function(){
   var css=readFile('index.html').replace(/\s+/g,' ');
-  var m=css.match(/@media \(prefers-reduced-motion: reduce\)\{([^}]*\}){1,8}/g);
+  /* the block is long — the selector list alone runs past 600 chars */
+  var m=css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]{0,1400}/);
   if(!m) throw 'no reduced-motion block';
-  if(!/animation:none/.test(m.join(' '))) throw 'animations not disabled';
-  if(!/transform:none/.test(css.match(/prefers-reduced-motion: reduce[\s\S]{0,400}/)[0]))
-    throw 'press transform not disabled';
+  if(!/animation:none/.test(m[0])) throw 'animations not disabled';
+  if(!/opacity:1/.test(m[0])) throw 'press feedback not disabled';
 });
 t('the panel floats clear of the edges rather than welding to the bottom', function(){
   var css=readFile('index.html').replace(/\s+/g,'');
   if(!/#sheet\{[^}]*top:50%/.test(css)) throw 'sheet is not centred';
   if(/#sheet\{[^}]*bottom:0/.test(css)) throw 'still welded to the bottom edge';
-  if(!/#sheet\{[^}]*backdrop-filter:saturate\(200%\)blur\(40px\)/.test(css))
-    throw 'the panel is not glass';
-  if(!/max-width:540px/.test(css)) throw 'no width limit — it will stretch on a big screen';
+  if(!/max-width:540px/.test(css)) throw 'no width limit';
+  /* and it is a sharp panel now, not a frosted one */
+  if(/#sheet\{[^}]*backdrop-filter/.test(css)) throw 'the panel is still frosted';
+  if(/#sheet\{[^}]*border-radius:(?!0)/.test(css)) throw 'the panel still has rounded corners';
 });
-t('nested surfaces inside the glass do not frost again', function(){
+t('the scrim separates by opacity, not by blurring', function(){
   var css=readFile('index.html').replace(/\s+/g,'');
-  if(!/#sheet\.card,#sheet\.list,#sheet\.setG\{[^}]*backdrop-filter:none/.test(css))
-    throw 'blur stacks on blur inside the panel';
-});
-t('the scrim reveals rather than blacks out', function(){
-  var css=readFile('index.html').replace(/\s+/g,'');
-  if(!/#scrim\{[^}]*backdrop-filter:saturate\(120%\)blur\(3px\)/.test(css))
-    throw 'scrim does not blur what is behind';
+  if(/#scrim\{[^}]*backdrop-filter/.test(css)) throw 'the scrim still blurs';
+  if(!/#scrim\{[^}]*background:var\(--scrim\)/.test(css)) throw 'no scrim fill';
 });
 t('the panel lands before its contents do', function(){
   var css=readFile('index.html').replace(/\s+/g,'');
   if(!/#sheet\.on#sheetBody>\*\{animation:riseIn/.test(css))
     throw 'sheet contents do not arrive separately';
-  if(!/#sheet\.on#sheetBody>\*:nth-child\(1\)\{animation-delay:\.06s/.test(css))
-    throw 'no beat between the panel and what is in it';
 });
-t('surfaces catch the light without every one of them blurring', function(){
+t('no surface is lifted', function(){
   var css=readFile('index.html').replace(/\s+/g,'');
-  if(!/--edge:inset0 1px0/.test(css.replace(/\s+/g,' ').replace(/\s/g,''))
-     && !/--edge:inset01px0/.test(css)) throw 'no lit-edge token';
-  if(!/\.card\{[^}]*box-shadow:var\(--edge\)/.test(css)) throw 'cards are flat';
-  /* blur is expensive: it belongs on chrome that floats, not on every card */
-  if(/\.card\{[^}]*backdrop-filter/.test(css)) throw 'every card is blurring';
-  if(!/\.setG\{[^}]*backdrop-filter:saturate\(185%\)blur\(30px\)/.test(css))
-    throw 'settings groups are not glass';
-  if(!/\.actGrp\{[^}]*backdrop-filter/.test(css)) throw 'the action sheet is not glass';
+  if(/box-shadow:(?!none)/.test(css)) throw 'something is still casting a shadow';
+  if(/--edge-lift:(?!none)/.test(css)) throw 'the lit-edge token survived';
 });
 
 print('\n═══ '+ok+' passed, '+fail+' failed ═══');
