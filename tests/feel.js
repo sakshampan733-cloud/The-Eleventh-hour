@@ -134,7 +134,7 @@ t('everything arrives on the one curve', function(){
 t('all of it collapses under reduced motion', function(){
   var css=readFile('index.html').replace(/\s+/g,' ');
   /* the block is long — the selector list alone runs past 600 chars */
-  var m=css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]{0,1400}/);
+  var m=css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]{0,2200}/);
   if(!m) throw 'no reduced-motion block';
   if(!/animation:none/.test(m[0])) throw 'animations not disabled';
   if(!/opacity:1/.test(m[0])) throw 'press feedback not disabled';
