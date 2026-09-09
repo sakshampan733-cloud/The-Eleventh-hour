@@ -38,8 +38,9 @@ t('exactly one easing function is used', function(){
     curves[c.replace(/\s+/g,'')]=1; });
   var list=Object.keys(curves);
   if(list.length>1) throw list.length+' curves: '+list.join(' | ');
-  if(list.length && list[0]!=='cubic-bezier(0.19,1,0.22,1)')
-    throw 'wrong curve: '+list[0];
+  /* .19 and 0.19 are the same curve written two ways */
+  var norm=(list[0]||'').replace(/0\./g,'.');
+  if(list.length && norm!=='cubic-bezier(.19,1,.22,1)') throw 'wrong curve: '+list[0];
 });
 t('no transition or animation is faster than 0.5s', function(){
   var bad=[];
@@ -75,7 +76,7 @@ print('\n— 5. large type whispers —');
 t('nothing above 40px is bolder than weight 400', function(){
   var bad=[];
   /* every rule that sets a size at or above the statement step */
-  (flat.match(/\{[^}]*font-size:\s*(?:var\(--t-statement\)|var\(--t-display\)|[4-9]\d px|\d{3}px)[^}]*\}/g)||[])
+  (flat.match(/\{[^}]*font-size:\s*(?:var\(--t-statement\)|[4-9]\dpx|\d{3}px)[^}]*\}/g)||[])
     .forEach(function(r){
       var w=(r.match(/font-weight:\s*(\d+)/)||[])[1];
       if(w && +w>400) bad.push(r.slice(0,70));
@@ -83,36 +84,52 @@ t('nothing above 40px is bolder than weight 400', function(){
   if(bad.length) throw bad.join(' | ');
 });
 t('statement type has locked-up leading', function(){
-  var m=flat.match(/#hero \.hN\{[^}]*\}/);
-  if(!m) throw 'no hero headline rule';
+  var m=flat.match(/\.statement\{[^}]*\}/);
+  if(!m) throw 'no statement rule';
   var lh=(m[0].match(/line-height:\s*(\.?\d*\.?\d+)/)||[])[1];
-  if(!lh || parseFloat(lh)>=0.9) throw 'line-height is '+lh+', needs to be under 0.9';
+  if(!lh || parseFloat(lh)>=0.9) throw 'line-height is '+lh;
+  var w=(m[0].match(/font-weight:\s*(\d+)/)||[])[1];
+  if(!w || +w>300) throw 'statement weight is '+w+', should whisper at 300';
+});
+t('nothing anywhere is bold', function(){
+  var heavy=(flat.match(/font-weight:\s*(\d{3})/g)||[])
+    .map(function(x){return parseInt(x.replace(/\D/g,''));})
+    .filter(function(n){return n>500;});
+  if(heavy.length) throw heavy.length+' weight(s) above 500: '+heavy.slice(0,3).join(', ');
 });
 
 print('\n— 6. monochrome interface, colour only as a verdict —');
-t('the action colour is not chromatic', function(){
-  var a=(flat.match(/--accent:\s*([^;]+);/)||[])[1];
-  if(!a) throw 'no accent token';
-  a=a.trim().toLowerCase();
-  var mono=/^#(?:fff(?:fff)?|000(?:000)?)$/.test(a)||/^var\(--(label|obsidian|paper)\)$/.test(a);
-  if(!mono) throw 'accent is '+a;
+t('there is no accent colour at all', function(){
+  /* The reference has no CTA colour: an action is a pill outline. An
+     accent token existing at all is the temptation that starts the drift. */
+  if(/--accent:/.test(flat)) throw 'an accent token survives';
+  if(!/\.pill\{[^}]*background:none/.test(flat)) throw 'the pill has a fill';
+  if(!/\.pill\{[^}]*border:1px solid/.test(flat)) throw 'the pill has no hairline';
 });
-t('icons carry no colour', function(){
-  var m=flat.match(/\.row \.ico\{[^}]*\}/);
-  if(!m) throw 'no icon rule';
-  if(!/background:\s*none/.test(m[0])) throw 'icons still take a background colour';
+t('there are no containers', function(){
+  /* mechanism 1: a card, a list and a tile were the whole old vocabulary */
+  ['.card{','.list{','.tile{','.setG{'].forEach(function(sel){
+    if(flat.indexOf(sel)>=0) throw 'the container vocabulary survives: '+sel;
+  });
+  if(!/\.item\{[^}]*border-top:1px solid/.test(flat))
+    throw 'rows are not separated by a hairline';
 });
 t('the verdict colours come from the hero gradient', function(){
-  var g=(flat.match(/--green:\s*([^;]+);/)||[])[1];
-  var o=(flat.match(/--orange:\s*([^;]+);/)||[])[1];
-  if(!/A0E0AB/i.test(g||'')) throw 'green is '+g+', not the gradient sage';
-  if(!/FFAC2E/i.test(o||'')) throw 'amber is '+o+', not the gradient amber';
+  var g=(flat.match(/--sage:\s*([^;]+);/)||[])[1];
+  var o=(flat.match(/--amber:\s*([^;]+);/)||[])[1];
+  var r=(flat.match(/--oxblood:\s*([^;]+);/)||[])[1];
+  if(!/A0E0AB/i.test(g||'')) throw 'sage is '+g;
+  if(!/FFAC2E/i.test(o||'')) throw 'amber is '+o;
+  if(!/A52D25/i.test(r||'')) throw 'oxblood is '+r;
+  if(!/\.v-ok\{color:var\(--sage\)\}/.test(flat)) throw 'verdicts do not use the gradient';
 });
 
 print('\n— 7. one typeface —');
 t('there is no second family', function(){
-  var m=(flat.match(/--mono:\s*([^;]+);/)||[])[1];
-  if(!m || !/var\(--font\)/.test(m)) throw 'a separate mono family survives: '+m;
+  if(/--mono:/.test(flat)) throw 'a mono token survives — this system has one face';
+  var fams=(flat.match(/font-family:[^;}]+/g)||[]).filter(function(f){
+    return !/var\(--font\)/.test(f) && !/'Inter'/.test(f); });
+  if(fams.length) throw 'a second family: '+fams[0];
 });
 t('the face is embedded, not fetched', function(){
   if(!/@font-face/.test(CSS)) throw 'no embedded face';

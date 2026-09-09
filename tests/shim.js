@@ -132,6 +132,17 @@ var window={
 };
 var navigator={};
 var _timers=[];
+
+/* The rebuilt view registers listeners and animation frames at the top
+   level the way a browser lets you, so the shim has to answer for them. */
+var addEventListener=function(){}, removeEventListener=function(){};
+var requestAnimationFrame=function(f){ return 0; }, cancelAnimationFrame=function(){};
+var innerWidth=375, innerHeight=812;
+var sessionStorage={_d:{},getItem:function(k){return this._d[k]===undefined?null:this._d[k];},
+  setItem:function(k,v){this._d[k]=String(v);},removeItem:function(k){delete this._d[k];}};
+var history={replaceState:function(){}};
+var DeviceOrientationEvent=undefined;
+
 var _pending=[];
 function setTimeout(f,t){ _pending.push(f); return _pending.length; }
 function clearTimeout(id){ }

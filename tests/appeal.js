@@ -3,7 +3,7 @@ app += ';globalThis.__=({get S(){return S},set S(v){S=v},get appealSel(){return 
  'globalThis.addDays=addDays;globalThis.isoOf=isoOf;globalThis.dateOf=dateOf;globalThis.dowOf=dowOf;'+
  'globalThis.todayISO=todayISO;globalThis.markKey=markKey;globalThis.slotsOn=slotsOn;globalThis.subById=subById;'+
  'globalThis.absencesFor=absencesFor;globalThis.reversalsNeeded=reversalsNeeded;globalThis.appealMessage=appealMessage;'+
- 'globalThis.appealHTML=appealHTML;globalThis.dayPlan=dayPlan;globalThis.tomorrowPlan=tomorrowPlan;'+
+ 'globalThis.dayPlan=dayPlan;globalThis.tomorrowPlan=tomorrowPlan;'+
  'globalThis.m2t=m2t;globalThis.pctOf=pctOf;globalThis.t2m=t2m;globalThis.blankState=blankState;globalThis.normalise=normalise;';
 var ok=0,fail=0;
 function t(n,f){ try{ f(); print('  PASS  '+n); ok++; }catch(e){ print('  FAIL  '+n+' :: '+e); fail++; } }

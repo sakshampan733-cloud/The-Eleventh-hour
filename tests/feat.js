@@ -2,7 +2,7 @@ var app = readFile('tests/app.js').replace("'use strict';",'');
 app += ';globalThis.__=({get S(){return S},set S(v){S=v},get ttDate(){return ttDate},set ttDate(v){ttDate=v}});'+
  'globalThis.addDays=addDays;globalThis.isoOf=isoOf;globalThis.dateOf=dateOf;globalThis.dowOf=dowOf;'+
  'globalThis.todayISO=todayISO;globalThis.markKey=markKey;globalThis.slotsOn=slotsOn;globalThis.subById=subById;'+
- 'globalThis.monthEntries=monthEntries;globalThis.monthHTML=monthHTML;'+
+ 'globalThis.monthEntries=monthEntries;'+
  'globalThis.pctOf=pctOf;globalThis.mustAttend=mustAttend;globalThis.uid=uid;';
 var ok=0,fail=0;
 function t(n,f){ var snap=__.S;

@@ -3,7 +3,7 @@ app+=';globalThis.__=({get S(){return S},set S(v){S=v},get pickSel(){return pick
  'globalThis.addDays=addDays;globalThis.isoOf=isoOf;globalThis.dateOf=dateOf;globalThis.dowOf=dowOf;'+
  'globalThis.todayISO=todayISO;globalThis.markKey=markKey;globalThis.t2m=t2m;globalThis.m2t=m2t;'+
  'globalThis.normalise=normalise;globalThis.planImpact=planImpact;globalThis.dayOptions=dayOptions;'+
- 'globalThis.sheetPickDay=sheetPickDay;globalThis.pickHTML=pickHTML;globalThis.planFor=planFor;'+
+ 'globalThis.sheetPickDay=sheetPickDay;globalThis.planFor=planFor;'+
  'globalThis.setPlan=setPlan;globalThis.liveSlots=liveSlots;globalThis.sheetWorthGoing=sheetWorthGoing;globalThis.doSave=function(){return sheetSave&&sheetSave();};';
 var ok=0,fail=0;
 function t(n,f){ try{ f(); print('  PASS  '+n); ok++; }catch(e){ print('  FAIL  '+n+' :: '+e); fail++; } }

@@ -5,7 +5,7 @@ app+=';globalThis.__=({get S(){return S},set S(v){S=v},get ttDate(){return ttDat
  'globalThis.normalise=normalise;globalThis.dayPlan=dayPlan;globalThis.dayOptions=dayOptions;'+
  'globalThis.setPlan=setPlan;globalThis.planFor=planFor;globalThis.subById=subById;globalThis.slotsOn=slotsOn;'+
  'globalThis.tomorrowPlan=tomorrowPlan;globalThis.remainingBySub=remainingBySub;globalThis.slackFor=slackFor;'+
- 'globalThis.attFor=attFor;globalThis.fmtDur=fmtDur;globalThis.liveSlots=liveSlots;globalThis.uid=uid;globalThis.renderMonths=renderMonths;';
+ 'globalThis.attFor=attFor;globalThis.fmtDur=fmtDur;globalThis.liveSlots=liveSlots;globalThis.uid=uid;';
 var found=0, checked=0;
 function bug(area,msg){ found++; print('  ⚠ BUG  ['+area+'] '+msg); }
 function chk(area,f){ checked++; try{ f(); }catch(e){ bug(area,'threw: '+e); } }

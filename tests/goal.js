@@ -2,7 +2,7 @@ var app=readFile('tests/app.js').replace("'use strict';",'');
 app+=';globalThis.__=({get S(){return S},set S(v){S=v}});globalThis.addDays=addDays;globalThis.isoOf=isoOf;'+
  'globalThis.dowOf=dowOf;globalThis.todayISO=todayISO;globalThis.normalise=normalise;globalThis.markKey=markKey;'+
  'globalThis.goalFor=goalFor;globalThis.goalOverall=goalOverall;globalThis.bestFraction=bestFraction;'+
- 'globalThis.goalCardHTML=goalCardHTML;globalThis.marginHTML=marginHTML;globalThis.weekPlan=weekPlan;globalThis.earliestGoalDate=earliestGoalDate;globalThis.classesBetween=classesBetween;globalThis.dateOf=dateOf;globalThis.weekPlanHTML=weekPlanHTML;globalThis.sheetWeekPlan=sheetWeekPlan;globalThis.sheetGoal=sheetGoal;globalThis.pctOf=pctOf;'+
+ 'globalThis.weekPlan=weekPlan;globalThis.earliestGoalDate=earliestGoalDate;globalThis.classesBetween=classesBetween;globalThis.dateOf=dateOf;globalThis.sheetWeekPlan=sheetWeekPlan;globalThis.sheetGoal=sheetGoal;globalThis.pctOf=pctOf;'+
  'globalThis.attFor=attFor;globalThis.remainingBySub=remainingBySub;globalThis.doSave=function(){return sheetSave&&sheetSave();};';
 var ok=0,fail=0;
 function t(n,f){ try{ f(); print('  PASS  '+n); ok++; }catch(e){ print('  FAIL  '+n+' :: '+e); fail++; } }
