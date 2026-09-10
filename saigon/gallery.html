@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Field — every build</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;color:#fff;font-family:'Inter',system-ui,sans-serif;padding:24px}
+h1{font-size:18px;font-weight:400;margin-bottom:6px}
+p.sub{font-size:12px;color:#9a9a9a;margin-bottom:24px;line-height:1.5;max-width:70ch}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+figure{position:relative}
+canvas{width:100%;aspect-ratio:16/10;display:block;background:#000}
+figcaption{margin-top:8px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#fff}
+.note{font-size:11px;color:#6d6d6d;line-height:1.5;margin-top:3px;text-transform:none;letter-spacing:0}
+.num{position:absolute;top:8px;left:10px;font-size:11px;color:#fff;letter-spacing:.1em}
+</style></head><body>
+<h1>Every build, running side by side</h1>
+<p class="sub">Each tile is the same geometry with that build's own palette, transfer curve, motion model and anchor. Pick by number.</p>
+<div class="grid" id="g"></div>
+<script>
+var RAMPS={
+warm:["'  vec3 c=mix(vec3(0.026,0.026,0.022),vec3(0.062,0.078,0.060),smoothstep(0.00,0.20,v));'",
+"'  c=mix(c,vec3(0.150,0.178,0.132),smoothstep(0.18,0.36,v));'",
+"'  c=mix(c,vec3(0.360,0.400,0.300),smoothstep(0.34,0.52,v));'",
+"'  c=mix(c,vec3(0.660,0.640,0.470),smoothstep(0.50,0.68,v));'",
+"'  c=mix(c,vec3(0.875,0.795,0.535),smoothstep(0.66,0.83,v));'",
+"'  c=mix(c,vec3(0.960,0.935,0.830),smoothstep(0.80,1.00,v));'"],
+yellow:["'  vec3 c=mix(vec3(0.000,0.000,0.000),vec3(0.024,0.031,0.022),smoothstep(0.00,0.20,v));'",
+"'  c=mix(c,vec3(0.082,0.112,0.070),smoothstep(0.18,0.36,v));'",
+"'  c=mix(c,vec3(0.195,0.262,0.132),smoothstep(0.34,0.52,v));'",
+"'  c=mix(c,vec3(0.408,0.448,0.168),smoothstep(0.50,0.66,v));'",
+"'  c=mix(c,vec3(0.672,0.628,0.196),smoothstep(0.64,0.79,v));'",
+"'  c=mix(c,vec3(0.880,0.598,0.170),smoothstep(0.78,0.875,v));'",
+"'  c=mix(c,vec3(0.932,0.812,0.330),smoothstep(0.865,0.945,v));'",
+"'  c=mix(c,vec3(0.948,0.906,0.652),smoothstep(0.935,1.00,v));'"],
+tempered:["'  vec3 c=mix(vec3(0.000,0.000,0.000),vec3(0.024,0.031,0.022),smoothstep(0.00,0.20,v));'",
+"'  c=mix(c,vec3(0.082,0.112,0.070),smoothstep(0.18,0.36,v));'",
+"'  c=mix(c,vec3(0.195,0.262,0.132),smoothstep(0.34,0.52,v));'",
+"'  c=mix(c,vec3(0.408,0.448,0.168),smoothstep(0.50,0.66,v));'",
+"'  c=mix(c,vec3(0.560,0.528,0.190),smoothstep(0.64,0.79,v));'",
+"'  c=mix(c,vec3(0.700,0.492,0.160),smoothstep(0.78,0.875,v));'",
+"'  c=mix(c,vec3(0.932,0.812,0.330),smoothstep(0.865,0.945,v));'",
+"'  c=mix(c,vec3(0.948,0.906,0.652),smoothstep(0.935,1.00,v));'"],
+thread:["'  vec3 c=mix(vec3(0.000,0.000,0.000),vec3(0.024,0.031,0.022),smoothstep(0.00,0.20,v));'",
+"'  c=mix(c,vec3(0.082,0.112,0.070),smoothstep(0.18,0.36,v));'",
+"'  c=mix(c,vec3(0.195,0.262,0.132),smoothstep(0.34,0.52,v));'",
+"'  c=mix(c,vec3(0.408,0.448,0.168),smoothstep(0.48,0.62,v));'",
+"'  c=mix(c,vec3(0.672,0.628,0.196),smoothstep(0.60,0.712,v));'",
+"'  c=mix(c,vec3(0.918,0.520,0.118),smoothstep(0.716,0.734,v));'",
+"'  c=mix(c,vec3(0.944,0.808,0.302),smoothstep(0.738,0.790,v));'",
+"'  c=mix(c,vec3(0.952,0.908,0.664),smoothstep(0.800,1.00,v));'"],
+measured:["'  vec3 c=mix(vec3(0.008,0.008,0.008),vec3(0.058,0.062,0.040),smoothstep(0.00,0.14,v));'",
+"'  c=mix(c,vec3(0.138,0.148,0.080),smoothstep(0.12,0.27,v));'",
+"'  c=mix(c,vec3(0.196,0.262,0.168),smoothstep(0.25,0.39,v));'",
+"'  c=mix(c,vec3(0.372,0.320,0.168),smoothstep(0.37,0.505,v));'",
+"'  c=mix(c,vec3(0.330,0.432,0.282),smoothstep(0.465,0.570,v));'",
+"'  c=mix(c,vec3(0.500,0.400,0.205),smoothstep(0.550,0.660,v));'",
+"'  c=mix(c,vec3(0.592,0.452,0.190),smoothstep(0.645,0.790,v));'",
+"'  c=mix(c,vec3(0.535,0.540,0.482),smoothstep(0.735,1.00,v));'"],
+irid:["'  vec3 c=mix(vec3(0.000,0.000,0.000),vec3(0.088,0.026,0.022),smoothstep(0.00,0.20,v));'",
+"'  c=mix(c,vec3(0.318,0.088,0.072),smoothstep(0.18,0.40,v));'",
+"'  c=mix(c,vec3(0.647,0.176,0.145),smoothstep(0.38,0.575,v));'",
+"'  c=mix(c,vec3(1.000,0.675,0.180),smoothstep(0.555,0.760,v));'",
+"'  c=mix(c,vec3(0.627,0.878,0.671),smoothstep(0.740,0.930,v));'",
+"'  c=mix(c,vec3(0.870,0.945,0.860),smoothstep(0.915,1.00,v));'"]};
+
+var BUILDS=[
+{n:1,name:'Warm / molten',note:'Earliest. Oxblood-heavy, reads orange-brown. This is what you called "too much orange".',ramp:'warm',motion:'loop',mo:"'  mo=clamp((mo-0.268)*2.22,0.0,1.0);'",mi:"'    mi=clamp((mi-0.360)*2.66,0.0,1.0)*0.94;'",anchor:'none',gloss:0,sc:'vec2(0.54,-0.26)',sr:'0.78'},
+{n:2,name:'Sage & bone',note:'Neutral desaturated ramp. You said this one had gone "just white, bright".',ramp:'warm',motion:'loop',mo:"'  mo=clamp((mo-0.215)*2.10,0.0,1.0);'",mi:"'    mi=clamp((mi-0.292)*2.25,0.0,1.0)*0.90;'",anchor:'none',gloss:0,sc:'vec2(0.54,-0.26)',sr:'0.78'},
+{n:3,name:'Black, green, yellow',note:'Thin orange thread near the top of the ramp. The one you said to keep.',ramp:'yellow',motion:'loop',mo:"'  mo=clamp((mo-0.3472)*2.92,0.0,1.0);'",mi:"'    mi=clamp((mi-0.3552)*2.66,0.0,1.0)*0.94;'",anchor:'none',gloss:0,rim:'0.115',sc:'vec2(1.12,-0.75)',sr:'1.41'},
+{n:4,name:'Iridescent Fade, literal',note:'Their three brand tokens used at face value. Came out molten red.',ramp:'irid',motion:'loop',mo:"'  mo=clamp((mo-0.268)*2.22,0.0,1.0);'",mi:"'    mi=clamp((mi-0.360)*2.66,0.0,1.0)*0.94;'",anchor:'none',gloss:0,sc:'vec2(1.06,-0.68)',sr:'1.36'},
+{n:5,name:'Measured palette',note:'Ramp built from 149k pixels of their real hero. Drifts bright over time.',ramp:'measured',motion:'loop',mo:"'  mo=clamp((mo-0.440)*6.80+0.625,0.0,1.0);'",mi:"'    mi=clamp((mi-0.440)*6.10+0.595,0.0,1.0)*0.97;'",anchor:'none',gloss:0,sc:'vec2(1.06,-0.68)',sr:'1.36'},
+{n:6,name:'Measured + still anchor',note:'CURRENT. Closed-loop motion, a still noise field pinning part of the dark.',ramp:'measured',motion:'loop',mo:"'  mo=clamp((mo-0.440)*6.80+0.760,0.0,1.0);'",mi:"'    mi=clamp((mi-0.440)*6.10+0.730,0.0,1.0)*0.97;'",anchor:'noise',gloss:0,sc:'vec2(1.06,-0.68)',sr:'1.36'},
+{n:7,name:'Two dark wells',note:'Dark placed where theirs measures dark: left edge low, top-right corner.',ramp:'measured',motion:'inplace',mo:"'  mo=clamp((mo-0.440)*6.80+0.262,0.0,1.0);'",mi:"'    mi=clamp((mi-0.440)*6.10+0.240,0.0,1.0)*0.97;'",anchor:'wells',gloss:0,sc:'vec2(1.06,-0.68)',sr:'1.36'},
+{n:8,name:'In-place + gloss',note:'Evolves in place like theirs (flow measured 0,0). Stable curve, specular sheen.',ramp:'measured',motion:'inplace',mo:"'  mo=smoothstep(0.352,0.548,mo);'",mi:"'    mi=smoothstep(0.360,0.556,mi)*0.97;'",anchor:'wells',gloss:1,sc:'vec2(1.06,-0.68)',sr:'1.36'},
+{n:9,name:'Particles carry the colour',note:'BETWEEN. Every pixel samples the ramp at its own jittered point, so a green grain sits beside a yellow one. You said "that looks good", then asked to lose the static.',ramp:'yellow',motion:'loop',mo:"'  mo=clamp((mo-0.352)*2.92,0.0,1.0);'",mi:"'    mi=clamp((mi-0.360)*2.66,0.0,1.0)*0.94;'",anchor:'none',gloss:0,jitter:1,rim:'0.115',sc:'vec2(1.12,-0.75)',sr:'1.41'},
+{n:10,name:'Orange thread',note:'BETWEEN. Same palette, but the orange band narrowed to a contour line so it reads as a thread running through the light. You said too much.',ramp:'thread',motion:'loop',mo:"'  mo=clamp((mo-0.352)*2.92,0.0,1.0);'",mi:"'    mi=clamp((mi-0.360)*2.66,0.0,1.0)*0.94;'",anchor:'none',gloss:0,rim:'0.115',sc:'vec2(1.12,-0.75)',sr:'1.41'},
+{n:11,name:'Pushed — black reduced 7.5%',note:'THIS IS THE ONE ON GITHUB. Black taken from 19.38% to 17.66%. Matte rim, grain faded out of the shadows so the black stays black.',ramp:'yellow',motion:'loop',mo:"'  mo=clamp((mo-0.3472)*2.92,0.0,1.0);'",mi:"'    mi=clamp((mi-0.3552)*2.66,0.0,1.0)*0.94;'",anchor:'none',gloss:0,rim:'0.115',sc:'vec2(1.12,-0.75)',sr:'1.41'},
+{n:12,name:'Yellow, as freshly added',note:'The moment after the static came out and the yellow went in — same ramp as 11 but before the black was reduced 7.5%. Black sits at 19.38%.',ramp:'yellow',motion:'loop',mo:"'  mo=clamp((mo-0.352)*2.92,0.0,1.0);'",mi:"'    mi=clamp((mi-0.360)*2.66,0.0,1.0)*0.94;'",anchor:'none',gloss:0,rim:'0.115',sc:'vec2(1.12,-0.75)',sr:'1.41'},
+{n:13,name:'Yellow, bright end controlled',note:'NEW. Same as 12, with a knee at 0.62 compressing everything above it to 40% — the light can climb but cannot run. Black and mid-tones untouched.',ramp:'tempered',motion:'loop',mo:"'  mo=clamp((mo-0.352)*2.92,0.0,1.0);'",mi:"'    mi=clamp((mi-0.360)*2.66,0.0,1.0)*0.94;'",anchor:'none',gloss:0,knee:1,rim:'0.115',sc:'vec2(1.12,-0.75)',sr:'1.41'}];
+
+function src(b){
+var motion = b.motion==='loop' ? [
+"'float mat(vec2 p,float t,float d){'",
+"'  vec2 w1=0.42*vec2(cos(t*0.21),sin(t*0.21));'",
+"'  vec2 w2=0.34*vec2(cos(t*0.17+2.1),sin(t*0.17+2.1));'",
+"'  vec2 q=vec2(fbm(p+w1),fbm(p+vec2(5.2,1.3)+w2));'",
+"'  vec2 w3=0.27*vec2(cos(t*0.13+1.3),sin(t*0.13+1.3));'",
+"'  vec2 r=vec2(fbm(p+1.7*q+vec2(1.7,9.2)+w3),fbm(p+1.7*q+vec2(8.3,2.8)-w3));'",
+"'  return fbm(p+d*r);'","'}'"] : [
+"'float mat(vec2 p,float t,float d){'",
+"'  vec2 q=vec2(fbm3(vec3(p,t*0.055)),fbm3(vec3(p+vec2(5.2,1.3),t*0.048+11.0)));'",
+"'  vec2 r=vec2(fbm3(vec3(p+1.7*q+vec2(1.7,9.2),t*0.037+23.0)),fbm3(vec3(p+1.7*q+vec2(8.3,2.8),t*0.033+41.0)));'",
+"'  return fbm3(vec3(p+d*r,t*0.026+59.0));'","'}'"];
+var anchor = b.anchor==='none' ? [] :
+ b.anchor==='noise' ? ["'  float anchor=fbm(uv*0.85+vec2(19.3,7.1));'","'  mm*=mix(0.50,1.0,smoothstep(0.28,0.70,anchor));'"] :
+ ["'  float wl=length((uv-vec2(-0.86,0.46))*vec2(0.80,1.00));'",
+  "'  float wr=length((uv-vec2( 0.92,-0.60))*vec2(0.86,1.00));'",
+  "'  float well=min(wl,wr);'","'  float rough=fbm(uv*1.15+vec2(19.3,7.1));'",
+  "'  float anchor=smoothstep(0.16,0.98,well)*0.76+rough*0.24;'",
+  "'  mm*=mix(0.30,1.06,smoothstep(0.16,0.78,anchor));'"];
+var gloss = b.gloss ? ["'  float spec=pow(lam,30.0);'","'  col+=inside*spec*0.185*vec3(1.00,0.98,0.90);'",
+  "'  float fres=pow(1.0-z,3.4);'","'  col+=inside*fres*0.085*vec3(0.94,0.95,0.90);'"] : [];
+var lines=["'precision highp float;'","'uniform vec2 uRes;uniform float uT;'",
+"'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}'",
+"'float n(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);'",
+"' return mix(mix(h(i),h(i+vec2(1,0)),u.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),u.x),u.y);}'",
+"'float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*n(p);p*=2.03;a*=.5;}return v;}'",
+"'float n3(vec3 p){float z0=floor(p.z),zf=fract(p.z);zf=zf*zf*(3.-2.*zf);'",
+"' return mix(n(p.xy+vec2(z0*37.13,z0*17.31)),n(p.xy+vec2((z0+1.)*37.13,(z0+1.)*17.31)),zf);}'",
+"'float fbm3(vec3 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*n3(p);p.xy*=2.03;p.z*=1.31;a*=.5;}return v;}'"]
+.concat(motion).concat(["'vec3 ramp(float v){'","'  v=clamp(v,0.,1.);'"]).concat(RAMPS[b.ramp]).concat(["'  return c;'","'}'",
+"'void main(){'","'  vec2 fc=gl_FragCoord.xy;'","'  vec2 uv=(fc-0.5*uRes)/min(uRes.x,uRes.y);'","'  uv.y=-uv.y;'","'  float t=uT;'",
+"'  vec2 sc="+b.sc+";'","'  float sr="+b.sr+";'","'  vec2 d=uv-sc;'","'  float dist=length(d);'",
+"'  float inside=1.0-smoothstep(sr-0.004,sr+0.004,dist);'",
+"'  float mo=mat(uv*0.52,t,1.85);'",b.mo,
+"'  float z=sqrt(max(0.0,1.0-(dist*dist)/(sr*sr)));'","'  float mi=0.0;'","'  if(inside>0.001){'",
+"'    vec2 rf=uv-d*(0.26*z);'","'    mi=mat(rf*0.36,t*0.80,1.25);'",b.mi,"'  }'",
+"'  vec3 L=normalize(vec3(-0.44,0.60,0.67));'","'  vec3 N=vec3(d/sr,z);'","'  float lam=max(0.0,dot(N,L));'",
+"'  mi+=inside*(lam*0.15-0.05);'","'  float mm=mix(mo,mi+0.16,inside);'",(b.knee?"'  mm = mm<0.62 ? mm : 0.62+(mm-0.62)*0.40;'":"'  mm=mm;'")])
+.concat(anchor).concat([(b.jitter?"'  float pr=h(fc+floor(t*11.0)*167.0);'":"'  float pr=0.5;'"),
+"'  vec3 col=ramp(clamp(mm+(pr-0.5)*"+(b.jitter?'0.165':'0.0')+",0.0,1.0));'",
+"'  float rim=smoothstep(0.017,0.0,abs(dist-sr));'","'  col+=rim*"+(b.rim||'0.052')+"*(0.35+0.65*lam)*vec3(0.88,0.86,0.74);'"])
+.concat(gloss).concat(["'  float y=fc.y/uRes.y;'","'  col*=mix(0.150,1.0,smoothstep(-0.18,0.52,y));'",
+"'  float gr=h(fc+fract(t)*137.0);'","'  float lv=max(col.r,max(col.g,col.b));'",
+"'  col+=(gr-0.5)*0.030*smoothstep(0.0,0.10,lv);'","'  gl_FragColor=vec4(max(col,0.0),1.0);'","'}'"]);
+return lines.map(function(l){return l.slice(1,-1);}).join('\n');
+}
+
+var solo=(location.search.match(/solo=(\d+)/)||[])[1];
+if(solo){
+  document.body.style.padding='0';
+  document.querySelector('h1').style.display='none';
+  document.querySelector('p.sub').style.display='none';
+  var only=BUILDS.filter(function(b){return String(b.n)===solo;});
+  BUILDS.length=0; only.forEach(function(b){BUILDS.push(b);});
+  var st=document.createElement('style');
+  st.textContent='.grid{grid-template-columns:1fr;gap:0}canvas{aspect-ratio:auto;height:100svh}'+
+    'figcaption{position:fixed;left:20px;bottom:18px;z-index:5}';
+  document.head.appendChild(st);
+}
+var g=document.getElementById('g');
+BUILDS.forEach(function(b){
+  var fig=document.createElement('figure');
+  fig.innerHTML='<canvas></canvas><div class="num">'+b.n+'</div>'+
+    '<figcaption>'+b.n+' · '+b.name+'<div class="note">'+b.note+'</div></figcaption>';
+  g.appendChild(fig);
+  var cv=fig.querySelector('canvas');
+  var gl=cv.getContext('webgl',{alpha:false,antialias:false});
+  if(!gl) return;
+  var vs=gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(vs,'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}');gl.compileShader(vs);
+  var fs=gl.createShader(gl.FRAGMENT_SHADER);gl.shaderSource(fs,src(b));gl.compileShader(fs);
+  if(!gl.getShaderParameter(fs,gl.COMPILE_STATUS)){console.warn(b.n,gl.getShaderInfoLog(fs));return;}
+  var pr=gl.createProgram();gl.attachShader(pr,vs);gl.attachShader(pr,fs);gl.linkProgram(pr);gl.useProgram(pr);
+  var buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  var loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  var uRes=gl.getUniformLocation(pr,'uRes'),uT=gl.getUniformLocation(pr,'uT');
+  function size(){var w=Math.round(cv.clientWidth*0.6),h=Math.round(cv.clientHeight*0.6);
+    if(w&&h&&(cv.width!==w||cv.height!==h)){cv.width=w;cv.height=h;gl.viewport(0,0,w,h);}}
+  var t0=performance.now(),raf=0;
+  function frame(now){raf=requestAnimationFrame(frame);size();
+    gl.uniform2f(uRes,cv.width,cv.height);gl.uniform1f(uT,(now-t0)/1000);
+    gl.drawArrays(gl.TRIANGLES,0,3);}
+  requestAnimationFrame(frame);
+});
+</script></body></html>

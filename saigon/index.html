@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Iridescent Field — a monopo saigon study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Raleway:wght@400&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════════════
+   monopo saigon, as a system.
+
+   Colour is media. The interface never picks up a hue — it is Obsidian,
+   Paper and the greys, and the whole chromatic budget of the page is
+   spent in one place: the field behind everything.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --obsidian:#000000;
+  --paper:#ffffff;
+  --inkstone:#181818;
+  --felt-gray:#6d6d6d;
+  --slate-pill:#636363;
+  --ash-mist:#9a9a9a;
+  --pewter:#808080;
+
+  /* Media only. Never a border, never a fill, never a control. */
+  --iridescent-fade:linear-gradient(90deg,rgb(160,224,171),rgb(255,172,46) 50%,rgb(165,45,37));
+
+  --font:'Inter','Söhne',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --font-accent:'Raleway','Montserrat','Jost',sans-serif;
+  --font-micro:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+
+  /* 4px base unit, all the way down */
+  --gap-element:14px;
+  --pad-card:34px;
+  --gap-section:46px;
+  --max:1078px;
+
+  /* One curve. Patient. */
+  --ease:cubic-bezier(0.19,1,0.22,1);
+  --t:0.8s; --t-long:1.25s;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{background:var(--obsidian);-webkit-text-size-adjust:100%}
+body{
+  background:var(--obsidian);color:var(--paper);
+  font-family:var(--font);font-weight:400;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:var(--paper);color:var(--obsidian)}
+
+/* ── the one visual gesture ──────────────────────────────────────────
+   Fixed behind everything. Never scrolls, never repeats, never joined
+   by a second image — the system is text-dominant and allows exactly
+   one hero-sized visual per page.                                     */
+#field{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* Fallback if WebGL is unavailable: the Iridescent Fade itself, washed
+   over black. Same three colours, no second palette. */
+#fallback{
+  position:absolute;inset:-20%;
+  background:
+    radial-gradient(58% 48% at 68% 26%,rgba(255,172,46,.42) 0%,rgba(255,172,46,0) 68%),
+    radial-gradient(52% 44% at 30% 66%,rgba(160,224,171,.24) 0%,rgba(160,224,171,0) 70%),
+    radial-gradient(60% 50% at 82% 78%,rgba(165,45,37,.34) 0%,rgba(165,45,37,0) 72%);
+  filter:blur(40px);
+}
+html.gl #fallback{display:none}
+
+/* content sits above the field, and nothing else does */
+.page{position:relative;z-index:1}
+
+/* ── chrome ──────────────────────────────────────────────────────────
+   0px radius, no underline, greyscale. Spacing signals affordance.   */
+#top{
+  position:fixed;top:0;left:0;right:0;z-index:20;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  padding:34px max(24px,calc(50vw - var(--max)/2));
+  mix-blend-mode:normal;
+}
+#mark{
+  font-size:16px;font-weight:600;letter-spacing:-0.01em;color:var(--paper);
+}
+#mark span{font-weight:400;color:var(--ash-mist);margin-left:8px}
+#langs{display:flex;gap:18px;padding-top:4px}
+#langs span{
+  font-family:var(--font-micro);font-size:11px;letter-spacing:.16em;
+  color:var(--felt-gray);transition:color var(--t) var(--ease);
+}
+#langs span.on{color:var(--paper)}
+@media (max-width:720px){#langs{display:none}}
+nav{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+nav a{
+  font-size:11px;font-weight:400;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ash-mist);text-decoration:none;border-radius:0;
+  transition:color var(--t) var(--ease),letter-spacing var(--t) var(--ease);
+}
+nav a:hover{color:var(--paper);letter-spacing:.22em}
+
+/* ── the display ─────────────────────────────────────────────────────
+   225px, weight 400, line-height 0.74. It owns the viewport: nothing
+   else is allowed into its band — no subhead, no button, no caption. */
+/* The display owns the viewport. Nothing shares its band — no lede, no
+   subhead, no button. The first draft of this had a paragraph sitting
+   directly under it, which is the one thing the guidelines name outright:
+   never crowd them. Centred, the way the reference sets its own. */
+.hero{
+  min-height:100svh;
+  display:flex;align-items:center;justify-content:center;
+  padding:0 max(24px,calc(50vw - var(--max)/2));
+  text-align:center;
+}
+h1{
+  font-size:clamp(56px,11.4vw,164px);
+  font-weight:400;line-height:0.76;letter-spacing:-0.035em;
+  color:var(--paper);
+}
+h1 i{font-style:italic;font-weight:400}
+
+/* ── the scroll mark, their one ornament ─────────────────────────── */
+#scroll{
+  position:fixed;left:max(24px,calc(50vw - var(--max)/2));bottom:46px;z-index:20;
+  width:96px;height:96px;
+}
+#scroll svg{width:100%;height:100%;display:block;
+  animation:turn 18s linear infinite}
+#scroll text{
+  font-family:var(--font-micro);font-size:9px;letter-spacing:.22em;
+  fill:var(--paper);text-transform:uppercase;
+}
+#scroll .rings{position:absolute;inset:0;display:grid;place-items:center}
+#scroll .rings b{
+  display:block;width:22px;height:22px;border:1px solid var(--paper);
+  border-radius:75px;
+}
+#scroll .rings b:last-child{margin-left:-11px}
+@keyframes turn{to{transform:rotate(360deg)}}
+
+/* ── editorial ───────────────────────────────────────────────────── */
+section{padding:calc(var(--gap-section) * 3) max(24px,calc(50vw - var(--max)/2))}
+.eyebrow{
+  font-family:var(--font-micro);
+  font-size:9px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--felt-gray);margin-bottom:var(--gap-section);
+}
+/* weight 300 at 78px — whisper authority, never above 400 at this scale */
+h2{
+  font-size:clamp(34px,6.1vw,78px);
+  font-weight:300;line-height:1.1;letter-spacing:-0.02em;
+  color:var(--paper);max-width:16ch;
+}
+/* Raleway, 54px, once. A heading accent and nothing else. */
+.accent{
+  font-family:var(--font-accent);
+  font-size:clamp(28px,4.2vw,54px);font-weight:400;line-height:1.39;
+  color:var(--paper);max-width:20ch;
+}
+.body{
+  margin-top:var(--gap-section);
+  max-width:56ch;
+  font-size:18px;line-height:1.21;color:var(--paper);
+}
+.body + .body{margin-top:var(--gap-element)}
+.fine{
+  font-size:16px;line-height:1.15;color:var(--ash-mist);
+}
+
+/* hairline, never a shadow */
+.rule{height:1px;background:rgba(255,255,255,.16);border:0;margin:var(--gap-section) 0}
+
+/* ── specimen ────────────────────────────────────────────────────── */
+.spec{display:grid;gap:0}
+.spec .row{
+  display:flex;align-items:baseline;gap:var(--pad-card);
+  padding:var(--gap-element) 0;
+  border-top:1px solid rgba(255,255,255,.16);
+}
+.spec .row:last-child{border-bottom:1px solid rgba(255,255,255,.16)}
+.spec .meta{
+  flex:none;width:128px;
+  font-family:var(--font-micro);font-size:9px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--felt-gray);
+}
+.spec .sample{flex:1;min-width:0;color:var(--paper);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── the single expressive gesture: a 75px pill ──────────────────── */
+.pill{
+  /* a button does not inherit font-family — left alone it falls back to
+     the UA default, which put Arial into a three-face system */
+  font-family:var(--font);
+  display:inline-flex;align-items:center;justify-content:center;
+  height:56px;padding:0 34px;border-radius:75px;
+  background:var(--slate-pill);color:var(--paper);
+  font-size:16px;font-weight:400;line-height:1.15;
+  border:0;cursor:pointer;
+  transition:background var(--t) var(--ease),transform var(--t) var(--ease);
+}
+.pill:hover{background:var(--pewter);transform:translateY(-2px)}
+.tag{
+  display:inline-flex;align-items:center;height:34px;padding:0 18px;
+  border-radius:75px;border:1px solid rgba(255,255,255,.28);
+  font-family:var(--font-micro);font-size:9px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ash-mist);
+  transition:color var(--t) var(--ease),border-color var(--t) var(--ease);
+}
+.tag:hover{color:var(--paper);border-color:var(--paper)}
+.tags{display:flex;flex-wrap:wrap;gap:var(--gap-element);margin-top:var(--gap-section)}
+
+footer{
+  padding:calc(var(--gap-section)*2) max(24px,calc(50vw - var(--max)/2))
+          calc(var(--gap-section)*2);
+  border-top:1px solid rgba(255,255,255,.16);
+}
+footer .cols{display:flex;flex-wrap:wrap;gap:var(--pad-card) calc(var(--pad-card)*2)}
+footer p{font-size:16px;line-height:1.32;color:var(--ash-mist);max-width:34ch}
+
+/* ── the dot ─────────────────────────────────────────────────────── */
+#dot{
+  position:fixed;left:0;top:0;z-index:60;
+  width:8px;height:8px;border-radius:75px;background:var(--paper);
+  pointer-events:none;opacity:0;
+  transform:translate3d(-60px,-60px,0);
+  transition:opacity var(--t) var(--ease),width var(--t) var(--ease),height var(--t) var(--ease);
+}
+html.fine #dot.on{opacity:1}
+#dot.hot{width:44px;height:44px}
+@media (hover:none),(pointer:coarse){#dot{display:none}}
+
+/* ── the open ────────────────────────────────────────────────────── */
+#cold{
+  position:fixed;inset:0;z-index:90;background:var(--obsidian);
+  display:grid;place-items:center;pointer-events:none;
+  transition:opacity var(--t-long) var(--ease);
+}
+#cold.go{opacity:0;visibility:hidden}
+#cold span{
+  font-size:16px;font-weight:600;letter-spacing:-0.01em;color:var(--paper);
+  opacity:0;animation:markIn var(--t-long) var(--ease) forwards;
+}
+@keyframes markIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* the reveal: one curve, patient, single direction */
+.rise{opacity:0;transform:translateY(28px);
+  transition:opacity var(--t-long) var(--ease),transform var(--t-long) var(--ease)}
+.rise.in{opacity:1;transform:none}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .rise{opacity:1;transform:none}
+  #cold{display:none}
+}
+@media (max-width:720px){
+  :root{--gap-section:34px}
+  #top{padding:24px}
+  .hero,section,footer{padding-left:24px;padding-right:24px}
+  #scroll{display:none}
+  .spec .meta{width:84px}
+}
+</style>
+</head>
+<body>
+
+<div id="field" aria-hidden="true">
+  <canvas id="gl"></canvas>
+  <div id="fallback"></div>
+</div>
+
+<div id="dot" aria-hidden="true"></div>
+
+<div class="page">
+
+  <header id="top">
+    <div id="mark">field<span>study</span></div>
+    <div id="langs" aria-hidden="true">
+      <span class="on">EN</span><span>VN</span><span>JP</span>
+    </div>
+    <nav>
+      <a href="#material">Material</a>
+      <a href="#type">Type</a>
+      <a href="#system">System</a>
+      <a href="#colophon">Colophon</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>L<i>i</i>ght, Held</h1>
+  </div>
+
+  <div id="scroll" aria-hidden="true">
+    <svg viewBox="0 0 100 100">
+      <defs><path id="circ" d="M50,50 m-34,0 a34,34 0 1,1 68,0 a34,34 0 1,1 -68,0"/></defs>
+      <text><textPath href="#circ">SCROLL DOWN · SCROLL DOWN · </textPath></text>
+    </svg>
+    <div class="rings"><b></b><b></b></div>
+  </div>
+
+  <section id="material">
+    <div class="eyebrow rise">The material</div>
+    <h2 class="rise">Colour belongs to the light, never to the interface.</h2>
+    <p class="body rise">One backdrop carries the entire chromatic budget of the page —
+      greens dissolving into amber, anchored in a molten oxblood that sits at the
+      bottom of the range rather than the middle of it. Everything else on this
+      page is black, white, or one of five greys.</p>
+    <p class="body fine rise">The body is rendered per-pixel and reacts to the pointer:
+      the material is displaced around where you are and keeps running everywhere
+      else, so moving through it disturbs the flow rather than dragging the picture.</p>
+    <div class="tags rise">
+      <span class="tag">Live render</span>
+      <span class="tag">Iridescent Fade</span>
+      <span class="tag">75px pill</span>
+    </div>
+  </section>
+
+  <section id="type">
+    <div class="eyebrow rise">Type sets the temperature</div>
+    <p class="accent rise">Weight 300 at 78px whispers. Weight 400 at 225px fills the
+      viewport. Weight 400 at 11px labels everything else.</p>
+    <hr class="rule">
+    <div class="spec">
+      <div class="row rise"><div class="meta">display · 225 · 400</div>
+        <div class="sample" style="font-size:clamp(28px,5vw,64px);font-weight:400;line-height:.76;letter-spacing:-.03em">The quick brown fox</div></div>
+      <div class="row rise"><div class="meta">heading-lg · 94 · 400</div>
+        <div class="sample" style="font-size:clamp(24px,3.6vw,46px);font-weight:400;line-height:.76;letter-spacing:-.02em">The quick brown fox jumps</div></div>
+      <div class="row rise"><div class="meta">heading · 78 · 300</div>
+        <div class="sample" style="font-size:clamp(22px,3vw,38px);font-weight:300;line-height:1.1">The quick brown fox jumps over</div></div>
+      <div class="row rise"><div class="meta">subheading · 39 · 400</div>
+        <div class="sample" style="font-size:clamp(18px,2.1vw,26px);font-weight:400;line-height:1.19">The quick brown fox jumps over the lazy dog</div></div>
+      <div class="row rise"><div class="meta">body · 18 · 400</div>
+        <div class="sample" style="font-size:18px;font-weight:400;line-height:1.21">The quick brown fox jumps over the lazy dog</div></div>
+      <div class="row rise"><div class="meta">caption · 12 · 400</div>
+        <div class="sample" style="font-size:12px;font-weight:400;line-height:1.19;color:var(--felt-gray)">The quick brown fox jumps over the lazy dog</div></div>
+    </div>
+  </section>
+
+  <section id="system">
+    <div class="eyebrow rise">What the system forbids</div>
+    <h2 class="rise">Sharp everywhere, except where it is fully round.</h2>
+    <p class="body rise">Radius jumps from 0 to 75 with nothing in between. No shadow
+      and no elevation anywhere — separation is a one-pixel hairline. No gradient
+      on a control. No chromatic interface colour at any size.</p>
+    <p class="body rise" style="margin-top:var(--gap-section)">
+      <button class="pill" type="button">Accept</button>
+    </p>
+  </section>
+
+  <footer id="colophon">
+    <div class="cols">
+      <p>A visual and motion study built to the monopo saigon style reference —
+         its palette, type scale, spacing rhythm and motion curve.</p>
+      <p>Roobert substituted with Inter. Raleway appears once, as a heading
+         accent. system-ui carries every label at 9 and 16px.</p>
+      <p>Motion runs on cubic-bezier(0.19, 1, 0.22, 1) at 0.8 to 1.25 seconds.
+         Nothing here snaps.</p>
+    </div>
+  </footer>
+</div>
+
+<div id="cold" aria-hidden="true"><span>field<span style="font-weight:400;color:var(--ash-mist);margin-left:8px">study</span></span></div>
+
+<script>
+/* ── the field ─────────────────────────────────────────────────────────
+   One body of iridescent material. The three brand colours are used as
+   the system describes them: oxblood is the ANCHOR, so it sits at the
+   dark end of the range; amber is the body of the light; the sage green
+   is the highest, rarest note. Read from bright to dark that is exactly
+   "greens dissolving into amber into deep oxblood".               */
+(function(){
+  var cv=document.getElementById('gl'), gl=null;
+  try{ gl=cv.getContext('webgl',{alpha:false,antialias:false,depth:false,
+       stencil:false,powerPreference:'low-power',preserveDrawingBuffer:true}); }catch(e){}
+  if(!gl) return;
+
+  var VS='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+  var FS=[
+  'precision highp float;',
+  'uniform vec2 uRes;uniform float uT;uniform vec2 uM;uniform float uIn;',
+
+  'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}',
+  'float n(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);',
+  ' return mix(mix(h(i),h(i+vec2(1,0)),u.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),u.x),u.y);}',
+  'float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*n(p);p*=2.03;a*=.5;}return v;}',
+  /* A third axis. Measured, the reference's material does not travel: the
+     best matching shift between two frames a second apart is exactly
+     (0,0), and shifting improves the match by 0%. It evolves IN PLACE —
+     the structure stays where it is and the colour inside it changes.
+     Every version of mine moved the sample point, so the pattern slid.
+     Walking z instead of xy morphs the same field without moving it. */
+  'float n3(vec3 p){float z0=floor(p.z),zf=fract(p.z);zf=zf*zf*(3.-2.*zf);',
+  ' return mix(n(p.xy+vec2(z0*37.13,z0*17.31)),n(p.xy+vec2((z0+1.)*37.13,(z0+1.)*17.31)),zf);}',
+  'float fbm3(vec3 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*n3(p);p.xy*=2.03;p.z*=1.31;a*=.5;}return v;}',
+
+  /* two levels of warp — one gives a cloud, two gives poured metal */
+/* Time travels a CLOSED LOOP, not a straight line.
+   Adding t to the sample position translates through noise space forever,
+   so the material's own mean wanders — and with the deviation multiplied
+   by nearly seven, a drift of 0.05 in that mean becomes 0.34 in ramp
+   position and the whole field saturates bright. Measured: 14.6% black to
+   0% black, mean 0.238 to 0.513, inside fifteen seconds. On a circle the
+   field returns to where it started, so its statistics are stationary
+   however long it runs. */
+  'float mat(vec2 p,float t,float d){',
+  '  vec2 w1=0.42*vec2(cos(t*0.21),sin(t*0.21));',
+  '  vec2 w2=0.34*vec2(cos(t*0.17+2.1),sin(t*0.17+2.1));',
+  '  vec2 q=vec2(fbm(p+w1),fbm(p+vec2(5.2,1.3)+w2));',
+  '  vec2 w3=0.27*vec2(cos(t*0.13+1.3),sin(t*0.13+1.3));',
+  '  vec2 r=vec2(fbm(p+1.7*q+vec2(1.7,9.2)+w3),fbm(p+1.7*q+vec2(8.3,2.8)-w3));',
+  '  return fbm(p+d*r);',
+  '}',
+
+  /* Iridescent Fade, stood on end. rgb values are the tokens themselves. */
+  'vec3 ramp(float v){',
+  /* Measured off their live hero — 149,058 samples read straight out of
+     the framebuffer, not guessed:
+        olive  44.4%   amber 29.7%   sage 7.5%   bone 6.2%
+        black + deep shadow 12.2%    oxblood 0.0%
+        mean luminance 0.253, p50 0.239, p90 0.474, MAX 0.556
+     Two things that had been wrong every time. Oxblood is in the token
+     list as the gradient endpoint but does not appear in the render at
+     all, which is why putting it in the ramp always turned the field
+     red. And nothing in their hero goes above 0.556 luminance — there is
+     no white in it anywhere, so a ramp that climbs to bone is brighter
+     than the reference ever gets.
+     The stops below are the frame's own dominant bins, ordered by
+     luminance and ending at their ceiling. */
+  '  v=clamp(v,0.,1.);',
+  '  vec3 c=mix(vec3(0.008,0.008,0.008),vec3(0.058,0.062,0.040),smoothstep(0.00,0.14,v));',
+  '  c=mix(c,vec3(0.138,0.148,0.080),smoothstep(0.12,0.27,v));',
+  '  c=mix(c,vec3(0.196,0.262,0.168),smoothstep(0.25,0.39,v));',
+  '  c=mix(c,vec3(0.372,0.320,0.168),smoothstep(0.37,0.505,v));',
+  /* sage: 7.5% of their frame, and my ramp had none of it — every green
+     stop sat below 0.34 luminance and read as olive instead */
+  '  c=mix(c,vec3(0.330,0.432,0.282),smoothstep(0.465,0.570,v));',
+  /* Amber is 29.7% of their frame — nearly a third, and mine was giving
+     it 11.6% because the band was a narrow strip near the top. It gets
+     the whole upper-middle now, which is where the material spends most
+     of its bright time. */
+  '  c=mix(c,vec3(0.500,0.400,0.205),smoothstep(0.550,0.660,v));',
+  '  c=mix(c,vec3(0.592,0.452,0.190),smoothstep(0.645,0.790,v));',
+  /* bone: 6.2% of theirs. Desaturated, and it is the ceiling — 0.553
+     luminance against their measured maximum of 0.556. */
+  /* Bone had to start earlier and sit flatter — at 0.825 the mix with
+     the amber below it never dropped saturation under 0.18, so none of
+     the frame ever classified as bone at all. */
+  '  c=mix(c,vec3(0.535,0.540,0.482),smoothstep(0.735,1.00,v));',
+  '  return c;',
+  '}',
+
+  'void main(){',
+  '  vec2 fc=gl_FragCoord.xy;',
+  '  vec2 uv=(fc-0.5*uRes)/min(uRes.x,uRes.y);',
+  '  uv.y=-uv.y;',
+  '  float t=uT;',
+
+  /* the sphere: big, far out, so its limb is a long shallow arc */
+  /* The site's own geometry, from fitting a circle to three points on
+     its limb: centre (1.12,-0.75), radius 1.41 in units of the smaller
+     viewport side. This page had been carrying (1.06,-0.68) at 1.36 —
+     a centre sitting lower and a slightly smaller body, which is why the
+     arc swept further down the frame than theirs does. */
+  '  vec2 sc=vec2(1.12,-0.75);',
+  '  float sr=1.41;',
+  '  vec2 d=uv-sc;',
+  '  float dist=length(d);',
+  '  float inside=1.0-smoothstep(sr-0.004,sr+0.004,dist);',
+
+  /* the pointer displaces the material before it is sampled */
+  '  float md=length(uv-uM);',
+  '  float pull=exp(-md*md*4.2);',
+  '  vec2 puv=uv+normalize(uv-uM+vec2(1e-4))*pull*0.05;',
+
+  '  float mo=mat(puv*0.42+vec2(0.,0.),t,1.62);',
+    /* Centre-and-spread, not shift-and-scale. Domain-warped fbm clusters
+     tightly around its own mean, so "(m - offset) * gain" moves the
+     whole cluster without opening it, and every version so far came out
+     with p90 at 0.32 against their 0.47 — all mid-tone, no black, no
+     highlight. Anchoring at the mean and multiplying the DEVIATION is
+     what produces their range: a fifth of the frame under 0.10 and a
+     ceiling at 0.556. */
+    /* smoothstep, not a linear gain. "(m - 0.440) * 6.80" assumes the
+     material's mean is exactly 0.440 forever and multiplies any error by
+     seven — which is why this washed out when time translated, and why
+     it swung wildly again the moment the animation sped up and started
+     crossing noise slices with slightly different means. A curve with
+     fixed bounds saturates gracefully at both ends instead: the same
+     drift moves the picture a little rather than destroying it. */
+  '  mo=clamp((mo-0.440)*6.80+0.760,0.0,1.0);',
+  '  mo+=0.09*pull;',
+
+  '  float z=sqrt(max(0.0,1.0-(dist*dist)/(sr*sr)));',
+  '  float mi=0.0;',
+  '  if(inside>0.001){',
+  '    vec2 rf=uv-d*(0.26*z)+normalize(uv-uM+vec2(1e-4))*pull*0.028;',
+  '    mi=mat(rf*0.29,t*0.80,1.10);',
+  '    mi=clamp((mi-0.440)*6.10+0.730,0.0,1.0)*0.97;',
+  '  }',
+
+  '  vec3 L=normalize(vec3(-0.44,0.60,0.67));',
+  '  vec3 N=vec3(d/sr,z);',
+  '  float lam=max(0.0,dot(N,L));',
+  '  mi+=inside*(lam*0.15-0.05);',
+
+  '  float mm=mix(mo,mi+0.16,inside);',
+  /* The dark holds position. Their composition is still half-correlated
+     with itself after fifteen seconds; mine measured MINUS 0.285 — it had
+     inverted, light where it had been dark. A slice of the field is now
+     decided by a term with no time in it at all, so those regions are
+     dark now and dark in a minute. Half anchored, half flowing, which is
+     what a correlation of 0.5 actually looks like. */
+  /* A still noise field, no time in it, so a slice of the picture is
+     dark now and dark in a minute. */
+  '  float anchor=fbm(uv*0.85+vec2(19.3,7.1));',
+  '  mm*=mix(0.50,1.0,smoothstep(0.28,0.70,anchor));',
+  '  vec3 col=ramp(clamp(mm,0.0,1.0));',
+
+  /* matte: the limb is the soft turn of a surface, not a chrome edge */
+  '  float rim=smoothstep(0.017,0.0,abs(dist-sr));',
+  '  col+=rim*0.052*(0.35+0.65*lam)*vec3(0.88,0.86,0.74);',
+
+
+  /* the light gathers before the page opens, then lets go */
+  '  float g=exp(-dot(uv,uv)*mix(0.85,7.0,uIn));',
+  '  col*=mix(1.0,g,uIn);',
+
+  /* a tooth, faded out of the shadow so the black stays black */
+  '  float gr=h(fc+fract(t)*137.0);',
+  '  float lv=max(col.r,max(col.g,col.b));',
+  '  col+=(gr-0.5)*0.030*smoothstep(0.0,0.10,lv);',
+
+  '  gl_FragColor=vec4(max(col,0.0),1.0);',
+  '}'].join('\n');
+
+  function sh(ty,src){var o=gl.createShader(ty);gl.shaderSource(o,src);gl.compileShader(o);
+    if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)){try{console.warn(gl.getShaderInfoLog(o));}catch(e){}return null;}return o;}
+  var vs=sh(gl.VERTEX_SHADER,VS), fs=sh(gl.FRAGMENT_SHADER,FS);
+  if(!vs||!fs) return;
+  var pr=gl.createProgram();gl.attachShader(pr,vs);gl.attachShader(pr,fs);gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) return;
+  gl.useProgram(pr);
+
+  var buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  var loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+
+  var uRes=gl.getUniformLocation(pr,'uRes'),uT=gl.getUniformLocation(pr,'uT'),
+      uM=gl.getUniformLocation(pr,'uM'),uIn=gl.getUniformLocation(pr,'uIn');
+
+  var W=0,H=0;
+  function size(){
+    /* a full-screen fragment shader is paid for per pixel; rendering
+       below CSS resolution is invisible on a surface this soft */
+    /* The sphere here is large enough that most of the frame is inside
+       it, so both material samples run almost everywhere and the shader
+       costs roughly double what a corner sphere would. Rendering further
+       below CSS resolution is free on a surface this soft. */
+    var s=innerWidth<820?0.50:0.58;
+    var dpr=Math.min(devicePixelRatio||1,2)*s;
+    var w=Math.round(innerWidth*dpr),h=Math.round(innerHeight*dpr);
+    if(w===W&&h===H)return;
+    W=w;H=h;cv.width=w;cv.height=h;gl.viewport(0,0,w,h);
+  }
+  size();addEventListener('resize',size);
+
+  var mx=0.25,my=-0.15,tx=mx,ty=my;
+  function aim(cx,cy){var m=Math.min(innerWidth,innerHeight);
+    tx=(cx-innerWidth/2)/m;ty=-((cy-innerHeight/2)/m);}
+  addEventListener('pointermove',function(e){aim(e.clientX,e.clientY);},{passive:true});
+  addEventListener('touchmove',function(e){if(e.touches&&e.touches[0])aim(e.touches[0].clientX,e.touches[0].clientY);},{passive:true});
+
+  var reduce=false;try{reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+  var t0=performance.now(),clock=0,raf=0,gather=1,gatherWant=1;
+  window.__open=function(){gatherWant=0;start();};
+  /* "raf" cannot be the guard. frame() clears it at the top and only
+     reassigns it at the bottom, so any start() arriving in between — and
+     scroll fires constantly — sees zero and schedules a second loop.
+     They accumulate: this was measured at 54fps, then 12, then 2.5, and
+     it was not the shader getting slower, it was four of them running.
+     A separate flag is true for as long as the loop is alive. */
+  var running=false;
+  function frame(now){
+    raf=0;
+    if(!running) return;
+    var dt=Math.min(0.05,(now-t0)/1000);t0=now;
+    if(!reduce)clock+=dt;
+    mx+=(tx-mx)*Math.min(1,dt*3.0);my+=(ty-my)*Math.min(1,dt*3.0);
+    gather+=(gatherWant-gather)*Math.min(1,dt*1.6);
+    gl.uniform2f(uRes,W,H);gl.uniform1f(uT,clock);
+    gl.uniform2f(uM,mx,my);gl.uniform1f(uIn,gather);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    raf=requestAnimationFrame(frame);
+  }
+  function start(){if(running)return;running=true;t0=performance.now();raf=requestAnimationFrame(frame);}
+  function stop(){running=false;if(raf){cancelAnimationFrame(raf);raf=0;}}
+  /* a stopped loop renders as a black screen — every way back in restarts it */
+  document.addEventListener('visibilitychange',function(){document.hidden?stop():start();});
+  addEventListener('focus',start);addEventListener('pageshow',start);
+  addEventListener('pointerdown',start,{passive:true});
+  addEventListener('scroll',start,{passive:true});
+
+  document.documentElement.classList.add('gl');
+  start();
+})();
+
+/* ── the dot ───────────────────────────────────────────────────────── */
+(function(){
+  var dot=document.getElementById('dot');
+  var fine=false;try{fine=matchMedia('(hover:hover) and (pointer:fine)').matches;}catch(e){}
+  if(!fine)return;
+  document.documentElement.classList.add('fine');
+  var x=innerWidth/2,y=innerHeight/2,tx=x,ty=y,raf=0,seen=false,hot=false;
+  addEventListener('pointermove',function(e){
+    tx=e.clientX;ty=e.clientY;
+    if(!seen){seen=true;x=tx;y=ty;dot.classList.add('on');}
+    if(!raf)raf=requestAnimationFrame(step);
+  },{passive:true});
+  function step(){
+    raf=0;x+=(tx-x)*0.12;y+=(ty-y)*0.12;
+    dot.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(1)+'px,0) translate(-50%,-50%)';
+    if(Math.abs(tx-x)>0.4||Math.abs(ty-y)>0.4)raf=requestAnimationFrame(step);
+  }
+  addEventListener('pointerover',function(e){
+    var h=false;
+    for(var nd=e.target;nd&&nd!==document.body;nd=nd.parentElement){
+      if(nd.tagName==='A'||nd.tagName==='BUTTON'){h=true;break;}
+      if(typeof nd.className==='string'&&/\btag\b/.test(nd.className)){h=true;break;}
+    }
+    if(h!==hot){hot=h;dot.classList.toggle('hot',h);}
+  },{passive:true});
+})();
+
+/* ── the open, and the reveal ─────────────────────────────────────── */
+(function(){
+  var cold=document.getElementById('cold');
+  var reduce=false;try{reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+  function go(){
+    if(window.__open)window.__open();
+    if(cold)cold.classList.add('go');
+    setTimeout(function(){if(cold&&cold.parentNode)cold.parentNode.removeChild(cold);},1400);
+  }
+  if(reduce){go();}else{setTimeout(go,1150);}
+
+  var io=null;
+  try{
+    io=new IntersectionObserver(function(es){
+      es.forEach(function(e){
+        if(!e.isIntersecting)return;
+        e.target.classList.add('in');io.unobserve(e.target);
+      });
+    },{rootMargin:'0px 0px -10% 0px',threshold:0.08});
+  }catch(e){}
+  var items=[].slice.call(document.querySelectorAll('.rise'));
+  if(io){items.forEach(function(n){io.observe(n);});}
+  else{items.forEach(function(n){n.classList.add('in');});}
+  /* a missed callback must never leave the page blank */
+  setInterval(function(){
+    items.forEach(function(n){
+      if(n.classList.contains('in'))return;
+      if(n.getBoundingClientRect().top<innerHeight+200)n.classList.add('in');
+    });
+  },1200);
+})();
+</script>
+</body>
+</html>

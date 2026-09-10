@@ -2708,7 +2708,6 @@ function runShortcut(q){
    happens to sit in the range decides how it reads, and both carry some
    of the other. */
   'vec3 ramp(float v){',
-  '  v=clamp(v,0.,1.);',
   '  vec3 c=mix(vec3(0.000,0.000,0.000),vec3(0.024,0.031,0.022),smoothstep(0.00,0.20,v));',
   '  c=mix(c,vec3(0.082,0.112,0.070),smoothstep(0.18,0.36,v));',
   '  c=mix(c,vec3(0.195,0.262,0.132),smoothstep(0.34,0.52,v));',
@@ -2880,7 +2879,14 @@ function runShortcut(q){
   let coldWant=window.__fieldReleased?0:1, cold=coldWant;
   window.__fieldOpen=function(){ coldWant=0; start(); };
   function frame(now){
-    raf=0;
+    /* Rescheduled first, deliberately. If raf is cleared at the top and
+       only reassigned at the bottom, every start() arriving in between —
+       and scroll fires constantly — sees zero and schedules a SECOND
+       loop. They accumulate, and the field appears to get slower and
+       slower when in fact several copies of it are running. Keeping raf
+       non-zero for the whole body makes a concurrent start() a no-op. */
+    if(!running){ raf=0; return; }
+    raf=requestAnimationFrame(frame);
     const dt=Math.min(0.05,(now-t0)/1000); t0=now;
     if(!reduce) clock+=dt;
     mx+=(tx-mx)*Math.min(1,dt*3.2);
@@ -2901,7 +2907,6 @@ function runShortcut(q){
     cold+=(coldWant-cold)*Math.min(1,dt*2.6);
     gl.uniform1f(uCold,cold);
     gl.drawArrays(gl.TRIANGLES,0,3);
-    if(running) raf=requestAnimationFrame(frame);
   }
   function start(){ if(!raf&&running){ t0=performance.now(); raf=requestAnimationFrame(frame); } }
   function stop(){ if(raf){ cancelAnimationFrame(raf); raf=0; } }
