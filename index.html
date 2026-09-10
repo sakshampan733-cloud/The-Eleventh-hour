@@ -62,7 +62,12 @@
 
   --pill:999px;
   --ease:cubic-bezier(.19,1,.22,1);
-  --t-quick:.5s; --t-mid:.8s; --t-long:1.25s;
+  /* These came off a marketing site, where a half-second press is part of
+     the atmosphere because you look at the page rather than use it. This
+     is an app opened for ten seconds between classes: at .5s a tap does
+     not feel considered, it feels late. Feedback is immediate, arrivals
+     still glide, and the curve never changes. */
+  --t-quick:.19s; --t-mid:.34s; --t-long:.58s;
 
   --pad:20px;
   --gap:14px; --gap-block:28px; --gap-section:44px;
@@ -294,7 +299,6 @@ html:not(.glfield) #glfield{display:none}
   transition:opacity var(--t-mid) var(--ease),
              width var(--t-quick) var(--ease),
              height var(--t-quick) var(--ease);
-  mix-blend-mode:difference;
 }
 /* Over something you can click it opens up — the reference does this at
    about 150px with an arrow inside it, which is a studio showing off. At
@@ -439,7 +443,7 @@ body.still #field b{animation-play-state:paused}
       rgba(214,176,104,.62) 0%, rgba(150,152,96,.40) 34%,
       rgba(74,92,66,.22) 56%, rgba(0,0,0,0) 74%);
   filter:blur(18px);
-  animation:coldGlow 2.4s var(--ease) forwards;
+  animation:coldGlow 1.05s var(--ease) forwards;
 }
 #cold::after{
   content:'';position:absolute;left:50%;top:50%;
@@ -448,15 +452,15 @@ body.still #field b{animation-play-state:paused}
   border-radius:50%;
   background:radial-gradient(circle at 50% 50%,#040404 0%,#040404 62%,rgba(4,4,4,0) 78%);
   filter:blur(14px);
-  animation:coldGlow 2.4s var(--ease) forwards;
+  animation:coldGlow 1.05s var(--ease) forwards;
 }
 #cold span{
   position:relative;z-index:2;
   font-size:clamp(26px,5.2vw,44px);letter-spacing:.02em;font-weight:300;
   text-transform:none;color:var(--paper);
-  animation:coldWord 2.4s var(--ease) forwards;
+  animation:coldWord 1.05s var(--ease) forwards;
 }
-#cold.go{animation:coldOut 1.2s var(--ease) .55s forwards}
+#cold.go{animation:coldOut .52s var(--ease) .18s forwards}
 @keyframes coldGlow{
   0%{opacity:0}
   46%{opacity:1}
@@ -2920,43 +2924,12 @@ function runShortcut(q){
 })();
 
 
-/* ── smooth scroll ─────────────────────────────────────────────────────
-   The reference eases the page rather than jumping it by wheel notches.
-   This runs on a mouse or trackpad only: touch already has momentum of
-   its own and hijacking it makes a phone feel broken, so the handler
-   never registers there. Keyboard, the scrollbar and anchor jumps all
-   still work — the target simply resyncs whenever the page moves by any
-   route other than the wheel. */
-(function(){
-  let fine=false;
-  try{ fine=matchMedia('(hover:hover) and (pointer:fine)').matches; }catch(e){}
-  let reduce=false;
-  try{ reduce=matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
-  if(!fine||reduce) return;
-
-  let target=window.scrollY||0, raf=0, driving=false;
-  const max=()=>Math.max(0,document.documentElement.scrollHeight-innerHeight);
-
-  function run(){
-    raf=0;
-    const cur=window.scrollY||0, d=target-cur;
-    if(Math.abs(d)<0.6){ window.scrollTo(0,target); driving=false; return; }
-    window.scrollTo(0,cur+d*0.14);
-    raf=requestAnimationFrame(run);
-  }
-  addEventListener('wheel',function(e){
-    if(e.ctrlKey) return;                        /* pinch zoom is not scroll */
-    if(document.getElementById('panel').classList.contains('on')) return;
-    if(e.deltaMode===1) return;                  /* line-mode wheels: leave alone */
-    e.preventDefault();
-    if(!driving){ driving=true; target=window.scrollY||0; }
-    target=Math.min(max(),Math.max(0,target+e.deltaY));
-    if(!raf) raf=requestAnimationFrame(run);
-  },{passive:false});
-  /* anything that moves the page by another route owns the target again */
-  addEventListener('scroll',function(){ if(!driving) target=window.scrollY||0; },{passive:true});
-  addEventListener('keydown',function(){ driving=false; },{passive:true});
-})();
+/* No wheel handler. An eased scroll on top of a trackpad that already
+   has momentum is not smoother, it is later: every notch waits for a
+   lerp to catch up to where the OS had already put you. Native scrolling
+   is the faster and the smoother of the two, and what actually made
+   scrolling feel heavy was the reveal running at .8s per block, which is
+   fixed at the token. */
 
 /* Boot lives at the bottom of the view now — the engine cannot call into
    it from up here, because the view's helpers are still in the temporal

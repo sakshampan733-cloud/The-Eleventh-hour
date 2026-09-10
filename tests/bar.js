@@ -53,13 +53,22 @@ t('exactly one easing function is used', function(){
   var norm=(list[0]||'').replace(/0\./g,'.');
   if(list.length && norm!=='cubic-bezier(.19,1,.22,1)') throw 'wrong curve: '+list[0];
 });
-t('no transition or animation is faster than 0.5s', function(){
+t('motion sits in the band: nothing snaps, nothing is a wait', function(){
   var bad=[];
   /* delays are stagger offsets, not durations — only durations are capped */
   (flat.match(/(?:transition|animation)(?!-delay)[^;}]*/g)||[]).forEach(function(d){
+    /* The floor used to be 0.5s, taken from the reference. The reference
+       is a site you look at; this is an app opened for ten seconds
+       between classes, and at half a second a press does not read as
+       considered, it reads as late. The rule is now a band: fast enough
+       to be an answer, slow enough to be movement, and never so long
+       that using the thing means waiting for it. */
     (d.match(/(?:^|[^\d.])(\d*\.?\d+)s/g)||[]).forEach(function(m){
       var n=parseFloat(m.replace(/[^\d.]/g,''));
-      if(n>0 && n<0.5 && !/\.01s/.test(m)) bad.push(d.trim().slice(0,60));
+      if(n>0 && n<0.15 && !/\.01s/.test(m)) bad.push('too fast: '+d.trim().slice(0,50));
+      /* An ambient loop is not UI motion — the field breathes on a
+         minute-long cycle by design and is never something you wait for. */
+      if(n>1.4 && !/infinite/.test(d)) bad.push('too slow: '+d.trim().slice(0,50));
     });
   });
   if(bad.length) throw bad.length+' fast: '+bad.slice(0,2).join(' | ');

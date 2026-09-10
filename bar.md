@@ -68,11 +68,23 @@ Not pinned to the cursor. It trails, eases, and catches up along a curve —
 **Check:** move fast across the frame. The dot is visibly behind. Stop. It
 arrives, and does not overshoot twice.
 
-## 7. Everything moves on one curve, slowly, and grain sits over all of it.
+## 7. Everything moves on one curve, and grain sits over all of it.
 
-cubic-bezier(0.19, 1, 0.22, 1), durations up to 1.25s. Nothing snaps,
-nothing is under 400ms. A fine static noise lies over the whole frame — the
-texture is never perfectly flat, even in the black.
+cubic-bezier(0.19, 1, 0.22, 1), and only that curve.
+
+**Revised in round 2.** This said "nothing under 400ms", read straight off
+the reference. That is right for a site you look at and wrong for an app
+you use: at half a second a press does not read as considered, it reads as
+late, and the whole product felt slow because of it. Feedback lands in
+under a fifth of a second, arrivals glide, nothing waits longer than it
+takes to read. Durations sit in a band — 0.15s to 1.4s — rather than above
+a floor.
+
+The reference's own patience is preserved where it belongs: the cold open,
+and type coming up from behind a mask.
+
+A fine static noise lies over the whole frame — the texture is never
+perfectly flat, even in the black.
 
 **Check:** no transition under 400ms and no second easing curve anywhere in
 the stylesheet. Zoom any flat-looking area: it has grain.
