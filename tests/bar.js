@@ -26,9 +26,17 @@ t('there is no box-shadow in the stylesheet', function(){
   var sh=(flat.match(/box-shadow:\s*(?!none)[^;}]+/g)||[]);
   if(sh.length) throw sh.length+' shadow(s): '+sh.slice(0,2).join(' | ');
 });
-t('no backdrop-filter is used to imply lift', function(){
-  var b=(flat.match(/backdrop-filter:\s*(?!none)[^;}]+/g)||[]);
-  if(b.length) throw b.length+' blur(s): '+b.slice(0,2).join(' | ');
+t('blur appears only on the tab pill, which is a sanctioned exception', function(){
+  /* The floating pill is the one place blur is allowed: it sits over a live
+     field, and anything opaque there would cut a hole in the ground. Blur
+     anywhere else is elevation, and elevation is not in this system. */
+  var blurred=[];
+  flat.replace(/([#.][\w-]+)\{([^}]*)\}/g,function(_,sel,body){
+    if(/backdrop-filter:\s*(?!none)/.test(body)) blurred.push(sel);
+    return _;
+  });
+  var stray=blurred.filter(function(sel){ return sel!=='#tabs'; });
+  if(stray.length) throw 'blur outside the pill: '+stray.join(', ');
 });
 
 print('\n— 3. one curve, nothing under half a second —');

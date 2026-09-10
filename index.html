@@ -195,18 +195,37 @@ section.on{display:block}
 /* ── tab bar ──────────────────────────────────────────────────────────
    No fill, no pill, no icons doing decoration. Five words and a rule.  */
 #tabs{
-  position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;
-  height:calc(var(--tabh) + env(safe-area-inset-bottom,0px));
-  padding-bottom:env(safe-area-inset-bottom,0px);
-  background:var(--bg);border-top:1px solid var(--rule-soft);
+  /* The one sanctioned exception to "no containers", kept because you asked
+     for it and because it earns its place here: floating over a live field,
+     a pill that picks up what is behind it is the only chrome that can sit
+     on this ground without cutting a hole in it. Radius is a full pill, so
+     it still obeys the shape rule. */
+  position:fixed;z-index:70;display:flex;align-items:center;
+  left:max(12px,env(safe-area-inset-left,0px));
+  right:max(12px,env(safe-area-inset-right,0px));
+  bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  height:54px;padding:5px;gap:2px;
+  border-radius:var(--pill);
+  background:rgba(18,16,18,.52);
+  -webkit-backdrop-filter:blur(22px) saturate(190%);
+  backdrop-filter:blur(22px) saturate(190%);
+  border:1px solid rgba(255,255,255,.14);
+  /* Its own layer, and kept there: re-sampling a backdrop filter on the
+     main thread during momentum scroll is what makes this stutter on iOS. */
+  transform:translateZ(0);backface-visibility:hidden;
+  transition:opacity var(--t-quick) var(--ease);
+}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  #tabs{background:rgba(14,12,14,.94)}
 }
 #tabs button{
-  flex:1;display:flex;align-items:center;justify-content:center;
-  font-size:var(--t-label);letter-spacing:.12em;text-transform:uppercase;
+  flex:1;height:100%;border-radius:var(--pill);min-width:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:var(--t-label);letter-spacing:.1em;text-transform:uppercase;
   color:var(--ink-3);font-weight:400;
-  transition:color var(--t-quick) var(--ease);
+  transition:color var(--t-quick) var(--ease),background var(--t-mid) var(--ease);
 }
-#tabs button.on{color:var(--ink)}
+#tabs button.on{color:var(--ink);background:rgba(255,255,255,.10)}
 @media(max-width:359px){ #tabs button{font-size:9.5px;letter-spacing:.06em} }
 
 /* ── the iridescent field ─────────────────────────────────────────────
@@ -2387,7 +2406,15 @@ function showTab(id){
     if(s.id!==id) s.classList.remove('enter');
   });
   const sec=document.getElementById(id);
-  if(sec){ sec.classList.remove('enter'); void sec.offsetWidth; sec.classList.add('enter'); }
+  if(sec){
+    /* The class has to come off once the entrance has played. Left on, every
+       later render — the 60-second countdown tick, every mark you make —
+       replaces these blocks, they re-match the rule, and the whole screen
+       animates again. That reads as the app refreshing itself. */
+    sec.classList.remove('enter'); void sec.offsetWidth; sec.classList.add('enter');
+    clearTimeout(sec._enterT);
+    sec._enterT=setTimeout(()=>sec.classList.remove('enter'),1200);
+  }
   renderTabs(); renderAll();
   window.scrollTo(0,scrollMem[id]||0);
 }
@@ -3496,7 +3523,9 @@ applyTheme(); drawIcons();
 if(!TABS.some(t=>t.id===S.tab) && S.tab!=='settings') S.tab='home';
 try{ document.body.dataset.tab=S.tab; }catch(e){}
 document.querySelectorAll('main section').forEach(s=>s.classList.toggle('on',s.id===S.tab));
-{ const sec=document.getElementById(S.tab); if(sec) sec.classList.add('enter'); }
+{ const sec=document.getElementById(S.tab);
+  if(sec){ sec.classList.add('enter');
+           sec._enterT=setTimeout(()=>sec.classList.remove('enter'),1200); } }
 renderTabs(); renderAll();
 el('panelCancel').onclick=closeSheet;
 el('panelDone').onclick=()=>{ if(panelSave && panelSave()!==false) closeSheet(); };
