@@ -460,7 +460,24 @@ body.still #field b{animation-play-state:paused}
   text-transform:none;color:var(--paper);
   animation:coldWord 1.05s var(--ease) forwards;
 }
-#cold.go{animation:coldOut .52s var(--ease) .18s forwards}
+/* While it waits, the light keeps moving. A still plate reads as a page
+   that has failed to load; a breathing one reads as something holding
+   the door. */
+#cold.waiting::before{
+  animation:coldGlow 1.05s var(--ease) forwards,
+            coldBreathe 7s ease-in-out 1.05s infinite;
+}
+@keyframes coldBreathe{
+  0%,100%{transform:translate(-50%,-50%) scale(1)}
+  50%{transform:translate(-50%,-50%) scale(1.07)}
+}
+#cold.go{animation:coldOut .66s var(--ease) forwards}
+/* the light blooms past the edge of the plate as the plate lets go */
+#cold.go::before{animation:coldBloom .66s var(--ease) forwards}
+@keyframes coldBloom{
+  0%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(2.1)}
+}
 @keyframes coldGlow{
   0%{opacity:0}
   46%{opacity:1}
@@ -474,14 +491,15 @@ body.still #field b{animation-play-state:paused}
 /* it opens rather than blinks out: the whole plate lifts and lets go */
 @keyframes coldOut{
   0%{opacity:1;transform:scale(1)}
-  100%{opacity:0;visibility:hidden;transform:scale(1.06)}
+  100%{opacity:0;visibility:hidden;transform:scale(1.12)}
 }
 /* the title lines lift out from behind a mask as the cold open clears */
 .head h1,.head .when{overflow:hidden}
-body.opening .head h1,body.opening .head .when{
-  animation:maskUp var(--t-long) var(--ease) backwards}
-body.opening .head h1{animation-delay:.75s}
-body.opening .head .when{animation-delay:.92s}
+body.opening .head h1,body.opening .head .when{opacity:0}
+body.opened .head h1,body.opened .head .when{
+  opacity:1;animation:maskUp var(--t-long) var(--ease) backwards}
+body.opened .head h1{animation-delay:.08s}
+body.opened .head .when{animation-delay:.18s}
 @keyframes maskUp{from{opacity:0;transform:translateY(1.1em)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){
   #cold span{animation:none;opacity:0}
@@ -3070,7 +3088,16 @@ registerSW();
   });
 })();
 
-/* The cold open runs once a session — twice in one morning is a toll. */
+/* ── the cold open ─────────────────────────────────────────────────────
+   On a desktop this is a door rather than a delay. The plate holds — the
+   same palette as the app behind it, so it is already hinting at what is
+   coming — and it opens when you move the pointer. Not a click: the
+   first movement is enough, which is why it feels like the app noticing
+   you rather than a screen you had to dismiss.
+
+   On a phone there is no pointer to notice, so it simply plays and
+   clears. And it runs once a session either way — twice in one morning
+   is a toll, not an entrance. */
 (function(){
   var cold=document.getElementById('cold');
   if(!cold) return;
@@ -3081,11 +3108,38 @@ registerSW();
   if(seen||reduce){ cold.parentNode&&cold.parentNode.removeChild(cold); return; }
   try{ sessionStorage.setItem('eh-cold','1'); }catch(e){}
   document.body.classList.add('opening');
-  cold.classList.add('go');
-  setTimeout(function(){
-    cold.parentNode&&cold.parentNode.removeChild(cold);
-    document.body.classList.remove('opening');
-  },2100);
+
+  var gated=false;
+  try{ gated=matchMedia('(hover:hover) and (pointer:fine)').matches; }catch(e){}
+
+  var done=false;
+  function open(){
+    if(done) return; done=true;
+    cold.classList.remove('waiting');
+    cold.classList.add('go');
+    document.body.classList.add('opened');
+    setTimeout(function(){
+      cold.parentNode&&cold.parentNode.removeChild(cold);
+      document.body.classList.remove('opening');
+    },900);
+  }
+
+  if(!gated){ setTimeout(open,1150); return; }
+
+  /* A pointer that has not moved still fires one event when it enters the
+     window, so the first sample is a reference point rather than a
+     trigger — the door opens on movement, not on presence. */
+  cold.classList.add('waiting');
+  var x0=null,y0=null;
+  function look(e){
+    if(x0===null){ x0=e.clientX; y0=e.clientY; return; }
+    if(Math.abs(e.clientX-x0)+Math.abs(e.clientY-y0) < 18) return;
+    removeEventListener('pointermove',look);
+    open();
+  }
+  addEventListener('pointermove',look,{passive:true});
+  /* a trackpad nobody touches must not be able to lock the app out */
+  setTimeout(function(){ removeEventListener('pointermove',look); open(); },7000);
 })();
 
 /* keep the countdown and "in class now" honest without a visible redraw */
