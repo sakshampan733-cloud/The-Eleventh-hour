@@ -221,12 +221,13 @@ section.on{display:block}
 #tabs button{
   flex:1;height:100%;border-radius:var(--pill);min-width:0;
   display:flex;align-items:center;justify-content:center;
-  font-size:var(--t-label);letter-spacing:.1em;text-transform:uppercase;
+  font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  white-space:nowrap;overflow:hidden;
   color:var(--ink-3);font-weight:400;
   transition:color var(--t-quick) var(--ease),background var(--t-mid) var(--ease);
 }
 #tabs button.on{color:var(--ink);background:rgba(255,255,255,.10)}
-@media(max-width:359px){ #tabs button{font-size:9.5px;letter-spacing:.06em} }
+@media(max-width:389px){ #tabs button{font-size:8.5px;letter-spacing:.02em} }
 
 /* ── the iridescent field ─────────────────────────────────────────────
    The reference's one moving surface: sage dissolving through amber into
@@ -238,33 +239,72 @@ section.on{display:block}
      black — the atmosphere is the app's ground, not a decoration on one
      page. Lower saturation than the reference's video because type sits on
      top of this everywhere, not just over a headline. */
+  /* The reference's backdrop has volume: a lit form with a defined edge
+     sitting in near-black, not a haze. Soft gradients alone can never do
+     that — they have no edge to catch light on.
+
+     Blurring and then crushing the contrast does. The blur melts the
+     shapes into each other, and the contrast pushes the midtones apart
+     until the blend hardens into a rim: a bright edge where two fields
+     overlap, deep black where none of them reach. Same trick that makes
+     metaballs read as liquid, and it costs one filter pass. */
   position:fixed;inset:0;z-index:0;
-  overflow:hidden;pointer-events:none;opacity:.82;
+  overflow:hidden;pointer-events:none;opacity:1;
   transition:opacity var(--t-long) var(--ease);
-  filter:blur(48px) saturate(190%);
-  -webkit-mask-image:radial-gradient(120% 85% at 50% 12%,#000 0%,rgba(0,0,0,.72) 46%,rgba(0,0,0,.4) 74%,rgba(0,0,0,.22) 100%);
-  mask-image:radial-gradient(120% 85% at 50% 12%,#000 0%,rgba(0,0,0,.72) 46%,rgba(0,0,0,.4) 74%,rgba(0,0,0,.22) 100%);
+  filter:blur(34px) contrast(1.5) saturate(1.28) brightness(.92);
+  -webkit-mask-image:radial-gradient(128% 74% at 44% 6%,#000 0%,#000 46%,rgba(0,0,0,.6) 70%,rgba(0,0,0,.2) 88%,transparent 100%);
+  mask-image:radial-gradient(128% 74% at 44% 6%,#000 0%,#000 46%,rgba(0,0,0,.6) 70%,rgba(0,0,0,.2) 88%,transparent 100%);
 }
-#field b{position:absolute;display:block;border-radius:50%;will-change:transform}
-#field .f1{width:130vw;height:130vw;left:-44vw;top:-40vw;
-  background:radial-gradient(circle,#A0E0AB 0%,rgba(160,224,171,.55) 34%,rgba(160,224,171,0) 68%);
-  animation:d1 37s linear infinite}
-#field .f2{width:118vw;height:118vw;left:14vw;top:-14vw;
-  background:radial-gradient(circle,#FFAC2E 0%,rgba(255,172,46,.6) 32%,rgba(255,172,46,0) 66%);
-  animation:d2 29s linear infinite}
-#field .f3{width:150vw;height:150vw;left:-34vw;top:14vh;
-  background:radial-gradient(circle,#A52D25 0%,rgba(165,45,37,.62) 34%,rgba(165,45,37,0) 64%);
-  animation:d3 43s linear infinite}
-#field .f4{width:92vw;height:92vw;left:30vw;top:44vh;
-  background:radial-gradient(circle,#6B8F5A 0%,rgba(107,143,90,.5) 36%,rgba(107,143,90,0) 68%);
-  animation:d4 31s linear infinite}
-#field .f5{width:104vw;height:104vw;left:-18vw;top:56vh;
-  background:radial-gradient(circle,#E0655A 0%,rgba(224,101,90,.42) 34%,rgba(224,101,90,0) 66%);
-  animation:d5 53s linear infinite}
-@keyframes d5{0%{transform:translate3d(0,0,0) scale(1.04)}
-  38%{transform:translate3d(16vw,-12vw,0) scale(.88)}
-  72%{transform:translate3d(-10vw,8vw,0) scale(1.2)}
-  100%{transform:translate3d(0,0,0) scale(1.04)}}
+#field b{position:absolute;display:block;will-change:transform}
+/* Clustered so they read as one body with a lit edge, not five lights in
+   a row. The deep green is the mass; the amber is the rim catching light
+   along one side of it; the oxblood is the shadow it sits in. */
+/* ── the surface ──────────────────────────────────────────────────────
+   Not blobs. Round lights composited together can only ever make a haze
+   of overlapping circles, which is what the last four attempts were.
+
+   What the reference actually shows is one large curved surface with
+   light raking across it on a diagonal: olive where it turns away, a
+   broad amber band where the light catches, oxblood in the shadow under
+   it, and near-black at the edges of the frame. So this is built the
+   same way — an angled sweep for the light, a big soft body for the
+   curve, and a tight bright arc for the rim where the two meet. The
+   blur-and-contrast pass binds them into one object.               */
+#field .sweep{
+  position:absolute;inset:-30%;
+  background:
+    conic-gradient(from 210deg at 42% 34%,
+      #10261A 0deg, #1C3A26 44deg, #2E5233 88deg,
+      #7E6A22 132deg, #E0A63C 168deg, #C07B2A 196deg,
+      #6E2417 236deg, #2A0D09 282deg, #0C1A12 330deg, #10261A 360deg);
+  animation:sweep 64s linear infinite;
+}
+#field .body{
+  position:absolute;left:-24%;top:-32%;width:150%;height:150%;
+  background:radial-gradient(closest-side at 38% 40%,
+    rgba(255,255,255,.30) 0%, rgba(255,255,255,.10) 38%,
+    rgba(0,0,0,.42) 62%, rgba(0,0,0,.88) 84%, #000 100%);
+  mix-blend-mode:overlay;
+  animation:bodyDrift 47s linear infinite;
+}
+#field .rim{
+  position:absolute;left:-10%;top:-18%;width:120%;height:120%;
+  background:radial-gradient(closest-side at 54% 44%,
+    rgba(255,210,120,0) 52%, rgba(255,206,110,.55) 61%,
+    rgba(255,190,90,.16) 66%, rgba(0,0,0,0) 72%);
+  animation:rimDrift 39s linear infinite;
+}
+@keyframes sweep{to{transform:rotate(360deg)}}
+@keyframes bodyDrift{
+  0%{transform:translate3d(0,0,0) scale(1)}
+  40%{transform:translate3d(6%,-4%,0) scale(1.12)}
+  70%{transform:translate3d(-5%,3%,0) scale(.96)}
+  100%{transform:translate3d(0,0,0) scale(1)}}
+@keyframes rimDrift{
+  0%{transform:translate3d(0,0,0) scale(1.02)}
+  45%{transform:translate3d(-7%,5%,0) scale(.92)}
+  100%{transform:translate3d(0,0,0) scale(1.02)}}
+}
 @keyframes d1{0%{transform:translate3d(0,0,0) scale(1)}33%{transform:translate3d(14vw,6vw,0) scale(1.14)}
   66%{transform:translate3d(-8vw,12vw,0) scale(.94)}100%{transform:translate3d(0,0,0) scale(1)}}
 @keyframes d2{0%{transform:translate3d(0,0,0) scale(1.06)}40%{transform:translate3d(-18vw,10vw,0) scale(.9)}
@@ -276,10 +316,17 @@ section.on{display:block}
 /* A soft vignette under the content so type never has to fight the field,
    without going back to boxes: it is one gradient across the whole page,
    not a panel behind each thing. */
+/* Enough shade for type to sit on, applied where the type is rather than
+   over the whole form — a flat wash across everything would undo the depth
+   the contrast pass just created. */
 #floor{position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:radial-gradient(130% 70% at 50% 0%,rgba(0,0,0,.30) 0%,rgba(0,0,0,.62) 48%,rgba(0,0,0,.86) 100%)}
-main,#top,#tabs{position:relative;z-index:1}
-#top{z-index:60}#tabs{z-index:70}
+  background:linear-gradient(180deg,rgba(0,0,0,.52) 0%,rgba(0,0,0,.30) 22%,
+    rgba(0,0,0,.66) 54%,#000 86%)}
+/* Only main needs lifting off the field. Setting position on the two bars
+   here overrode the fixed positioning declared above them, which is what
+   made the header and the pill scroll away with the page instead of
+   staying on the screen. */
+main{position:relative;z-index:1}
 body.still #field b{animation-play-state:paused}
 
 
@@ -287,7 +334,7 @@ body.still #field b{animation-play-state:paused}
    the layer leans toward you, the field inside it keeps drifting. Nesting
    is what lets both run without one overwriting the other's transform. */
 #field .lay{
-  position:absolute;inset:0;display:block;
+  position:absolute;inset:0;display:block;overflow:hidden;
   transform:translate3d(calc(var(--mx,0) * var(--amp)),calc(var(--my,0) * var(--amp)),0);
   will-change:transform;
 }
@@ -408,36 +455,75 @@ select{-webkit-appearance:none;appearance:none;
    One curve, nothing under half a second, and everything glides in the
    order you read it.                                                   */
 @media (prefers-reduced-motion: no-preference){
-  /* Only on arrival. Without the gate every mark re-runs the entrance and
-     the whole screen flickers each time you tap Present. */
-  section.enter .block,section.enter .head{animation:rise var(--t-mid) var(--ease) backwards}
-  section.enter>div:nth-of-type(1) .block{animation-delay:.04s}
-  section.enter>div:nth-of-type(2) .block{animation-delay:.10s}
-  section.enter>div:nth-of-type(3) .block{animation-delay:.16s}
-  section.enter>div:nth-of-type(4) .block{animation-delay:.22s}
-  section.enter>div:nth-of-type(n+5) .block{animation-delay:.28s}
-  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  /* ── reveal on scroll ─────────────────────────────────────────────────
+     The reference's content arrives as you move through it, not once when
+     the page loads. Everything below starts a little low and a little
+     transparent and resolves as it comes into view — always upward, always
+     on the one curve, never faster than the tempo the rest of the system
+     runs at. */
+  .block{opacity:0;transform:translateY(26px);
+    transition:opacity var(--t-mid) var(--ease),transform var(--t-mid) var(--ease)}
+  .block.in{opacity:1;transform:none}
+  .block.now{transition:none}          /* a re-render, not an arrival */
+
+  /* Statements come out from behind a mask, line by line, the way a
+     headline does on the reference rather than simply fading. */
+  .reveal{display:block;overflow:hidden}
+  .reveal>span{display:block;transform:translateY(105%);
+    transition:transform var(--t-long) var(--ease)}
+  .in .reveal>span,.reveal.in>span{transform:none}
+  .block.in .reveal:nth-child(2)>span{transition-delay:.06s}
+
+  /* Rows arrive in sequence behind their block. */
+  .block .item{opacity:0;transform:translateY(14px);
+    transition:opacity var(--t-mid) var(--ease),transform var(--t-mid) var(--ease)}
+  .block.in .item{opacity:1;transform:none}
+  .block.in .item:nth-child(1){transition-delay:.04s}
+  .block.in .item:nth-child(2){transition-delay:.09s}
+  .block.in .item:nth-child(3){transition-delay:.14s}
+  .block.in .item:nth-child(4){transition-delay:.19s}
+  .block.in .item:nth-child(n+5){transition-delay:.24s}
+  .block.now .item{transition:none}
+
+  /* The title holds while the field moves behind it, then lifts away as
+     you scroll past — the same relationship their hero has. */
+  .head{will-change:transform,opacity}
+
+  /* The pill answers a press the way theirs does: the border lights and
+     the label opens up, rather than the whole thing shrinking. */
+  .pill{transition:border-color var(--t-mid) var(--ease),
+        letter-spacing var(--t-mid) var(--ease),color var(--t-quick) var(--ease)}
+  .pill:active{border-color:var(--ink);letter-spacing:.10em;opacity:1}
+
+  /* A tab change wipes rather than cuts. */
+  section.on{animation:wipe var(--t-mid) var(--ease)}
+  @keyframes wipe{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
   #panel.on #panelBody>*{animation:rise var(--t-mid) var(--ease) backwards}
   #panel.on #panelBody>*:nth-child(1){animation-delay:.14s}
   #panel.on #panelBody>*:nth-child(2){animation-delay:.20s}
   #panel.on #panelBody>*:nth-child(3){animation-delay:.26s}
   #panel.on #panelBody>*:nth-child(n+4){animation-delay:.32s}
+  @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 }
 @media (prefers-reduced-motion: reduce){
-  section.enter .block,section.enter .head,#panel.on #panelBody>*{animation:none}
+  .block,.block .item{opacity:1;transform:none}
+  .reveal>span{transform:none}
+  section.on{animation:none}
+  #panel.on #panelBody>*{animation:none}
   #field b{animation:none}
-  body[data-tab="home"] #field{opacity:.38}
+  #field{opacity:.5}
   .item:active,.pill:active,button:active{opacity:1}
 }
+
+
 </style>
 </head>
 <body>
 <div id="field" aria-hidden="true">
-  <span class="lay" style="--amp:60px"><b class="f1"></b></span>
-  <span class="lay" style="--amp:110px"><b class="f2"></b></span>
-  <span class="lay" style="--amp:38px"><b class="f3"></b></span>
-  <span class="lay" style="--amp:150px"><b class="f4"></b></span>
-  <span class="lay" style="--amp:84px"><b class="f5"></b></span>
+  <span class="lay" style="--amp:34px"><b class="sweep"></b></span>
+  <span class="lay" style="--amp:96px"><b class="body"></b></span>
+  <span class="lay" style="--amp:150px"><b class="rim"></b></span>
 </div>
 <div id="floor" aria-hidden="true"></div>
 <div id="cold" aria-hidden="true"><span>Eleventh Hour</span></div>
@@ -453,7 +539,9 @@ select{-webkit-appearance:none;appearance:none;
 
 <main>
   <section id="home" class="on">
-    <div class="head"><h1>Today</h1><div class="when" id="todayWhen"></div></div>
+    <div class="head"><h1 class="reveal"><span>Today</span></h1>
+      <div class="when reveal" id="todayWhen"><span></span></div>
+</div>
     <div id="vHero"></div>
     <div id="vNow"></div>
     <div id="vStanding"></div>
@@ -2304,6 +2392,10 @@ function block(label,inner,opts){
   return '<div class="block pad'+(opts.cls?' '+opts.cls:'')+'">'+
     (label?'<div class="eyebrow">'+esc(label)+'</div>':'')+inner+'</div>';
 }
+/* a statement that comes out from behind a mask rather than fading */
+function statement(text,cls){
+  return '<div class="statement reveal'+(cls?' '+cls:'')+'"><span>'+text+'</span></div>';
+}
 function pill(label,id,cls){
   return '<button class="pill'+(cls?' '+cls:'')+'"'+(id?' id="'+id+'"':'')+'>'+label+'</button>';
 }
@@ -2417,6 +2509,7 @@ function showTab(id){
   }
   renderTabs(); renderAll();
   window.scrollTo(0,scrollMem[id]||0);
+  reveal(true);
 }
 function renderAll(){
   renderTabs();
@@ -2426,6 +2519,7 @@ function renderAll(){
   else if(S.tab==='deadlines') renderDue();
   else if(S.tab==='calendar') renderCal();
   else if(S.tab==='settings') renderSettings();
+  reveal(false);
 }
 function showIntro(){ /* the cold open replaced the tour */ }
 
@@ -2449,13 +2543,91 @@ function bindMarks(root){
   });
 }
 
+
+/* ══════════════ MOTION DRIVEN BY THE SCROLL ══════════════
+   The reference is alive because it responds to you moving through it.
+   Three things do that here.
+
+   Reveal: every block resolves as it comes into view, once. The `once`
+   part matters — the sixty-second countdown tick re-renders Today, and
+   without a memory of what has already arrived the whole screen would
+   replay its entrance every minute, which is exactly the bug that made
+   the app look like it was refreshing itself.
+
+   Parallax: the title holds while the field drifts behind it, then lifts
+   away as you scroll past — the same relationship their hero has with
+   its backdrop.
+
+   The mark: a circle of type turning slowly, their one ornament.        */
+let revealIO=null;
+const revealed=new WeakSet();
+function reveal(fresh){
+  /* The head is not a block but it carries masked type, so it opens on
+     arrival rather than on scroll — it is already in view. */
+  document.querySelectorAll('section.on .head .reveal').forEach(r=>{
+    if(fresh){ r.classList.remove('in'); void r.offsetWidth; }
+    r.classList.add('in');
+  });
+  const blocks=[].slice.call(document.querySelectorAll('section.on .block'));
+  if(!blocks.length) return;
+  let reduce=false;
+  try{ reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(reduce){ blocks.forEach(b=>b.classList.add('in')); return; }
+
+  if(!revealIO && typeof IntersectionObserver!=='undefined'){
+    revealIO=new IntersectionObserver(es=>{
+      es.forEach(e=>{
+        if(!e.isIntersecting) return;
+        e.target.classList.remove('now');
+        e.target.classList.add('in');
+        revealed.add(e.target);
+        revealIO.unobserve(e.target);
+      });
+    },{rootMargin:'0px 0px -8% 0px',threshold:.04});
+  }
+  blocks.forEach(b=>{
+    if(b.classList.contains('in')) return;
+    /* a re-render of something already seen must not animate again */
+    if(!fresh && b.dataset.seen==='1'){ b.classList.add('now','in'); return; }
+    b.dataset.seen='1';
+    if(revealIO) revealIO.observe(b);
+    else b.classList.add('in');
+  });
+}
+/* Containers keep their identity across re-renders, so "already seen" is
+   remembered per screen region rather than per element. */
+function markSeenRegions(){
+  document.querySelectorAll('section.on .block').forEach(b=>{ b.dataset.seen='1'; });
+}
+
+(function(){
+  let reduce=false;
+  try{ reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(reduce) return;
+  let raf=0;
+  function frame(){
+    raf=0;
+    const y=window.scrollY||0;
+    document.querySelectorAll('section.on .head').forEach(h=>{
+      /* holds, then leaves — never faster than the page itself */
+      const t=Math.min(1,y/420);
+      h.style.transform='translate3d(0,'+(y*0.24).toFixed(1)+'px,0)';
+      h.style.opacity=String(1-t*0.85);
+    });
+
+  }
+  addEventListener('scroll',function(){ if(!raf) raf=requestAnimationFrame(frame); },{passive:true});
+})();
+
+
 /* ── TODAY ──────────────────────────────────────────────────────────────
    One statement, then the answers to the three questions this app exists
    for: where do I stand, what is happening now, and can I skip.        */
 function renderHome(){
   const now=new Date(), iso=todayISO(), mins=nowMin();
   const d=now.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'});
-  const w=el('todayWhen'); if(w) w.textContent=d;
+  const w=el('todayWhen'); if(w) w.innerHTML='<span>'+esc(d)+'</span>';
+
 
   const rp=resolvePlan(iso), going=rp.going;
   const live=going.find(sl=>mins>=t2m(sl.start)&&mins<t2m(sl.end)&&!S.marks[markKey(iso,sl)]);
@@ -2467,14 +2639,14 @@ function renderHome(){
   if(live){
     const sub=subById(live.subId);
     hero=block('In class now',
-      '<div class="statement">'+esc(sub.name)+'</div>'+
+      statement(esc(sub.name))+
       '<div class="body" style="margin-top:16px">'+fmtT(live.start)+'–'+fmtT(live.end)+
         (placeOf(live)?' · '+esc(placeOf(live)):'')+' · <b>'+
         fmtDur(t2m(live.end)-mins)+' left</b></div>'+
       '<div style="margin-top:22px">'+markChoice(markKey(iso,live))+'</div>');
   } else if(ms && ms.atHome){
     hero=block('From home',
-      '<div class="statement">'+(ms.untilClass<1?'Starting now':'Online in '+fmtDur(ms.untilClass))+'</div>'+
+      statement((ms.untilClass<1?'Starting now':'Online in '+fmtDur(ms.untilClass)))+
       '<div class="body" style="margin-top:16px">'+esc(subById(ms.p.first.subId).name)+' at '+
         fmtT(ms.p.first.start)+' — no travel.</div>'+
       '<div style="margin-top:22px">'+markChoice(markKey(iso,ms.p.first))+'</div>');
@@ -2511,7 +2683,7 @@ function renderHome(){
       const p=nd.plan, cm=commute();
       const dayName=nd.offset===1?'Tomorrow':p.d.toLocaleDateString(undefined,{weekday:'long'});
       hero=block(dayName,
-        '<div class="statement">'+esc(cm.verb)+' '+m2t(p.leaveAt)+'</div>'+
+        statement(esc(cm.verb)+' '+m2t(p.leaveAt))+
         '<div class="body" style="margin-top:16px">First class '+fmtT(p.firstOnsite.start)+
           ' · '+esc(subById(p.firstOnsite.subId).name)+
           (p.wakeAt!=null&&!p.dayBefore?' · wake by <b>'+m2t(p.wakeAt)+'</b>':'')+'</div>'+
@@ -3526,7 +3698,7 @@ document.querySelectorAll('main section').forEach(s=>s.classList.toggle('on',s.i
 { const sec=document.getElementById(S.tab);
   if(sec){ sec.classList.add('enter');
            sec._enterT=setTimeout(()=>sec.classList.remove('enter'),1200); } }
-renderTabs(); renderAll();
+renderTabs(); renderAll(); reveal(true);
 el('panelCancel').onclick=closeSheet;
 el('panelDone').onclick=()=>{ if(panelSave && panelSave()!==false) closeSheet(); };
 el('scrim').onclick=closeSheet;
