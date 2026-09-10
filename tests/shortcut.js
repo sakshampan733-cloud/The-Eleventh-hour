@@ -114,9 +114,23 @@ t('no command at all does nothing', function(){
 
 print('\n— opening a tab —');
 t('?do=open&tab=attendance switches tab', function(){
+  /* attendance was a tab of its own before the rebuild and is a view
+     inside Term now, so a shortcut naming it has to land on Term with
+     that view selected — shortcuts already written must keep working. */
   day();
   var r=runShortcut('?do=open&tab=attendance');
-  if(!r||r.tab!=='attendance') throw 'did not switch';
+  if(!r||r.tab!=='term') throw 'did not switch (tab='+(r&&r.tab)+')';
+  if(r.view!=='attendance') throw 'wrong view: '+(r&&r.view);
+});
+t('the term views are all reachable by their old and new names', function(){
+  var want={attendance:'attendance',timetable:'timetable',classes:'timetable',
+            due:'deadlines',deadlines:'deadlines',calendar:'calendar'};
+  Object.keys(want).forEach(function(k){
+    day();
+    var r=runShortcut('?do=open&tab='+k);
+    if(!r||r.tab!=='term') throw k+' did not open Term';
+    if(r.view!==want[k]) throw k+' opened '+(r&&r.view)+', wanted '+want[k];
+  });
 });
 t('an unknown tab is ignored rather than blanking the app', function(){
   day(); __.S.tab='home';

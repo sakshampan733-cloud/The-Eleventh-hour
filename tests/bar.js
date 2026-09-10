@@ -148,5 +148,54 @@ t('the face is embedded, not fetched', function(){
   if(/fonts\.googleapis|fonts\.gstatic/.test(SRC)) throw 'the file reaches out for a font';
 });
 
+print('\n— 8. what is hidden can be shown again —');
+t('the reveal un-hide rules outrank the rule that hides them', function(){
+  /* This one shipped broken. "html.revealing .reveal>span" is (0,2,2);
+     ".in .reveal>span" and ".reveal.in>span" are (0,2,1), so the hiding
+     rule won and every masked line in the app — the page titles, every
+     statement — stayed translated 105% behind its own overflow:hidden.
+     Nothing about the page looked wrong; the words were simply absent.
+     Specificity is countable, so count it. */
+  function spec(sel){
+    var ids=(sel.match(/#[\w-]+/g)||[]).length;
+    var cls=(sel.match(/\.[\w-]+/g)||[]).length;
+    var els=(sel.replace(/[#.][\w-]+/g,'').match(/\b[a-z]+\b/g)||[]).length;
+    return ids*10000+cls*100+els;
+  }
+  /* The reduced-motion block carries its own ".reveal>span{transform:none}",
+     and it never competes: the script only adds html.revealing when reduced
+     motion is off. Cut that block out before counting. */
+  var scan=(function(){
+    var out=flat, guard=0;
+    while(guard++<20){
+      var i=out.indexOf('@media (prefers-reduced-motion: reduce)');
+      if(i<0) break;
+      var d=0, k=out.indexOf('{',i);
+      for(;k<out.length;k++){
+        if(out[k]==='{') d++;
+        else if(out[k]==='}'){ d--; if(!d){ k++; break; } }
+      }
+      out=out.slice(0,i)+out.slice(k);
+    }
+    return out;
+  })();
+  var hide=null, show=[];
+  scan.replace(/([^{}]+)\{([^}]*)\}/g,function(_,sel,body){
+    if(!/\.reveal\s*>\s*span/.test(sel)) return _;
+    if(/transform:translateY\(105%\)/.test(body.replace(/\s+/g,'')))
+      hide=sel.trim();
+    else if(/transform:none/.test(body.replace(/\s+/g,'')))
+      sel.split(',').forEach(function(x){ if(/\.reveal\s*>\s*span/.test(x)) show.push(x.trim()); });
+    return _;
+  });
+  if(!hide) throw 'no rule hides .reveal>span — has the mechanism gone?';
+  if(!show.length) throw 'nothing ever un-hides .reveal>span';
+  var h=spec(hide);
+  show.forEach(function(sel){
+    if(spec(sel)<=h)
+      throw '"'+sel+'" ('+spec(sel)+') cannot beat "'+hide+'" ('+h+') — the line stays hidden';
+  });
+});
+
 print('\n═══ '+ok+' passed, '+fail+' failed ═══');
 if(fail) throw new Error(fail+' failures');

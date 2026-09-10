@@ -168,14 +168,23 @@ button,.item,.tap,.pill,#tabs,#tabs button,.eyebrow,.chip{
    The header is invisible until content passes behind it.              */
 #top{
   position:fixed;top:0;left:0;right:0;z-index:60;
-  height:calc(46px + env(safe-area-inset-top,0px));
+  height:calc(62px + env(safe-area-inset-top,0px));
   padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:16px;
   display:flex;align-items:center;justify-content:space-between;
   padding-left:var(--pad);padding-right:12px;
   background:transparent;border-bottom:1px solid transparent;
   transition:background var(--t-quick) var(--ease),border-color var(--t-quick) var(--ease);
 }
-#top.solid{background:var(--bg);border-bottom-color:var(--rule-soft)}
+/* A fade, never a fill. Filling this put a hard horizontal edge straight
+   across the sphere the moment you scrolled, which is what stopped it
+   reading as one continuous object. The reference never fills its header
+   either — it stays invisible and lets content pass behind it. */
+#top.solid{
+  background:linear-gradient(180deg,rgba(0,0,0,.78) 0%,rgba(0,0,0,.44) 52%,
+    rgba(0,0,0,0) 100%);
+  border-bottom-color:transparent;
+}
 #brand{font-size:var(--t-label);letter-spacing:.24em;text-transform:uppercase;color:var(--ink-3)}
 #topR{display:flex;align-items:center;gap:2px}
 .iconbtn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;
@@ -289,9 +298,8 @@ section.on{display:block}
   left:-62vmin;bottom:-56vmin;
   border-radius:50%;
   background:
-    radial-gradient(circle at 66% 30%,
-      #B4693A 0%, #7E3520 18%, #4A1C14 34%, #2A100D 50%,
-      #150807 66%, #000 84%);
+    radial-gradient(circle at 62% 34%,
+      #8A3A22 0%, #5A1F14 22%, #331410 42%, #16090A 62%, #000 82%);
   animation:orbBreathe 67s ease-in-out infinite reverse;
 }
 #field .haze{
@@ -401,7 +409,7 @@ body.opening .head .when{animation-delay:.92s}
 @media (min-width:900px){
   :root{ --pad:0px; --t-body:16px; --t-statement:78px; }
 
-  body{ padding-bottom:80px; }
+  body{ padding-bottom:120px; }
   main{ max-width:1078px; margin:0 auto; padding:0 40px; }
   #top{
     height:auto;padding:26px 40px 0;background:none;border-bottom:0;
@@ -410,34 +418,39 @@ body.opening .head .when{animation-delay:.92s}
   #top.solid{ background:none;border-bottom-color:transparent; }
   #brand{ font-size:12px;letter-spacing:.26em; }
 
-  /* the menu, stacked and right-aligned, the way the reference sets it */
+  /* The menu used to be stacked in the top-right corner, unstyled, because
+     that is where the reference puts its own. But the reference does not
+     also put its render in that corner — we do. Measured, the sphere's lit
+     rim sits at 0.40 luminance right where those labels were, and grey
+     11px text on 0.40 is a 1.6:1 contrast: it was not dim, it was gone.
+
+     So the pill stays a pill on a desktop too. It is legible over anything
+     because it carries its own ground, the bottom-centre is measured at
+     0.001 luminance, and it is the floating control you asked to keep. */
   #tabs{
-    position:fixed;top:24px;right:max(24px,calc(50vw - 519px));
-    left:auto;bottom:auto;width:auto;height:auto;
-    flex-direction:column;align-items:flex-end;gap:10px;
-    padding:0;border:0;border-radius:0;background:none;
-    -webkit-backdrop-filter:none;backdrop-filter:none;
-    z-index:80;
+    left:50%;right:auto;transform:translateX(-50%) translateZ(0);
+    bottom:28px;width:auto;height:52px;
+    padding:5px;gap:4px;
   }
   #tabs button{
-    flex:none;height:auto;padding:2px 0;border-radius:0;
-    font-size:11px;letter-spacing:.16em;text-align:right;
-    background:none;width:auto;
+    flex:none;width:auto;min-width:132px;padding:0 26px;
+    font-size:10.5px;letter-spacing:.14em;
   }
-  #tabs button.on{ background:none;color:var(--ink); }
   #tabs button:not(.on):hover{ color:var(--ink-2); }
 
   .head{ padding:96px 0 0; }
   .head h1{ line-height:.88; }
   .head .when{ margin-top:20px;font-size:12px; }
 
-  /* two columns: the answer on the left, everything else beside it */
-  #home,#attendance,#deadlines,#calendar,#timetable,#settings{
+  /* Two columns — but only for the surface that is actually showing.
+     Without .on this sets display:grid on every section and overrides the
+     display:none that hides the others, so all of them render at once,
+     stacked down the page. That was the desktop behaving strangely. */
+  #home.on,#term.on,#settings.on{
     display:grid;grid-template-columns:1.08fr .92fr;
     column-gap:72px;align-items:start;
   }
-  #home>.head,#attendance>.head,#deadlines>.head,
-  #calendar>.head,#timetable>.head,#settings>.head{ grid-column:1/-1; }
+  #home>.head,#term>.head,#settings>.head{ grid-column:1/-1; }
   /* Rows are pinned rather than left to auto-placement: flowing, the
      right-hand column starts on the row after the last left-hand block
      and lands halfway down the page instead of level with the top. */
@@ -465,16 +478,29 @@ body.opening .head .when{animation-delay:.92s}
   #vCalGrid   { grid-column:1;grid-row:3 }
   #vCalDay    { grid-column:2;grid-row:2/span 2 }
   /* Settings reads as one column of groups — two would make it a form. */
-  #settings{ grid-template-columns:1fr; }
+  #settings.on{ grid-template-columns:1fr; }
   #vSettings{ grid-column:1;max-width:620px; }
 
   .block{ margin-bottom:52px; }
   .block>.eyebrow{ margin-bottom:22px; }
 
-  /* the field is a whole-window backdrop on a wide screen, so the sphere
-     sits in the corner rather than filling the frame */
-  #field .orb{ width:104vmin;height:104vmin;right:-26vmin;top:-24vmin; }
-  #field .orb2{ width:70vmin;height:70vmin;left:-24vmin;bottom:-22vmin; }
+  /* The desktop override used to shrink the sphere and pull it INTO the
+     frame (104vmin at -26/-24). On a phone the lit core sits just off the
+     top edge and only the shaded flank crosses the screen; that override
+     dragged the core to (905,18) — on canvas, directly behind the right
+     column. Measured over the 1078px content band, that put text on a
+     ground averaging 0.145 luminance and peaking at 0.86, against the
+     reference's 0.049-0.078. Half the screen was brighter than the
+     reference ever gets.
+
+     So the desktop sphere is bigger and pushed further out, not smaller
+     and pulled in: the core goes off-canvas past the top-right, and what
+     crosses the content is the dark outer flank. Same gradient, same
+     colour, same breathe — only the framing changed.
+       content band  0.145 -> 0.028 mean, 0.86 -> 0.43 max
+       whole frame   0.144 -> 0.048 mean, 53% -> 82% of pixels under 0.10 */
+  #field .orb{ width:140vmin;height:140vmin;right:-105vmin;top:-70vmin; }
+  #field .orb2{ width:110vmin;height:110vmin;left:-75vmin;bottom:-60vmin; }
 
   /* a pointer means hover states are worth having */
   .item{ padding:20px 0; }
@@ -563,7 +589,7 @@ body.opening .head .when{animation-delay:.92s}
 
 @media (min-width:900px){
   #cmdOpen{display:none}            /* the keyboard is the way in */
-  #term{ grid-template-columns:1.08fr .92fr; }
+  #term.on{ grid-template-columns:1.08fr .92fr; }
   #vTermSwitch{ grid-column:1/-1;grid-row:2 }
   #vTermBody { grid-column:1;grid-row:3 }
   #vTermSide { grid-column:2;grid-row:3 }
@@ -617,6 +643,17 @@ select{-webkit-appearance:none;appearance:none;
 .field-row .in input,.field-row .in select{text-align:right}
 
 /* ── choice: three words on a rule, the chosen one lit ────────────────── */
+/* ── settings, as a list ──────────────────────────────────────────────
+   Nine groups used to be nine .blocks. A .block is a unit of content and
+   carries a section's worth of margin under it, so nine one-line rows sat
+   119px apart with nothing between them — a ribbon you scrolled rather
+   than a list you read. They are rows now, in one block, separated by the
+   same hairline every other list in this app uses. */
+#setList .item{padding:20px 0}
+#setList .item.open{padding-bottom:12px}
+#setList .ginner{padding:0 0 30px}
+#setList>.item:first-of-type{border-top:0}
+
 .choice{display:flex;gap:0;border-top:1px solid var(--rule-soft)}
 .choice button{
   flex:1;padding:16px 4px;font-size:12px;letter-spacing:.08em;
@@ -656,29 +693,33 @@ select{-webkit-appearance:none;appearance:none;
      transparent and resolves as it comes into view — always upward, always
      on the one curve, never faster than the tempo the rest of the system
      runs at. */
-  .block{opacity:0;transform:translateY(26px);
+  /* Hidden only once the script has said it will do the revealing. Left
+     hidden by default, any hiccup in the observer — or a script that never
+     runs at all — leaves a blank page, and a blank page is a far worse
+     failure than a missing animation. */
+  html.revealing .block{opacity:0;transform:translateY(26px);
     transition:opacity var(--t-mid) var(--ease),transform var(--t-mid) var(--ease)}
-  .block.in{opacity:1;transform:none}
-  .block.now{transition:none}          /* a re-render, not an arrival */
+  html.revealing .block.in{opacity:1;transform:none}
+  html.revealing .block.now{transition:none}   /* a re-render, not an arrival */
 
   /* Statements come out from behind a mask, line by line, the way a
      headline does on the reference rather than simply fading. */
   .reveal{display:block;overflow:hidden}
-  .reveal>span{display:block;transform:translateY(105%);
+  html.revealing .reveal>span{display:block;transform:translateY(105%);
     transition:transform var(--t-long) var(--ease)}
-  .in .reveal>span,.reveal.in>span{transform:none}
+  /* These must outrank the rule that hides them. "html.revealing
+     .reveal>span" is (0,2,2); ".in .reveal>span" and ".reveal.in>span"
+     are both (0,2,1), so the hiding rule won every time and no masked
+     line ever came up — the titles and every statement in the app stayed
+     translated 105% behind their own overflow:hidden. Qualifying these
+     with html.revealing takes them to (0,3,2), which is the whole fix. */
+  html.revealing .in .reveal>span,
+  html.revealing .reveal.in>span{transform:none}
   .block.in .reveal:nth-child(2)>span{transition-delay:.06s}
 
-  /* Rows arrive in sequence behind their block. */
-  .block .item{opacity:0;transform:translateY(14px);
-    transition:opacity var(--t-mid) var(--ease),transform var(--t-mid) var(--ease)}
-  .block.in .item{opacity:1;transform:none}
-  .block.in .item:nth-child(1){transition-delay:.04s}
-  .block.in .item:nth-child(2){transition-delay:.09s}
-  .block.in .item:nth-child(3){transition-delay:.14s}
-  .block.in .item:nth-child(4){transition-delay:.19s}
-  .block.in .item:nth-child(n+5){transition-delay:.24s}
-  .block.now .item{transition:none}
+  /* No per-row stagger. Rows arriving one after another as you scroll past
+     reads as a stepped sequence — a tick — rather than as movement. The
+     block resolves as one thing, which is what the reference does. */
 
   /* The title holds while the field moves behind it, then lifts away as
      you scroll past — the same relationship their hero has. */
@@ -2377,7 +2418,7 @@ const SHORTCUT_HELP=[
   ['?do=mark&as=c',          'Class cancelled',            ''],
   ['?do=mark&as=p&when=all', 'Mark the whole day present', 'Everything on today that isn\u2019t marked yet.'],
   ['?do=home',               'Heading home',               'Clears the on-my-way state.'],
-  ['?do=open&tab=attendance','Open a tab',                 'home, timetable, attendance, due, calendar.']
+  ['?do=open&tab=attendance','Open a tab',                 'home, term, settings, attendance, classes, due, calendar.']
 ];
 function shortcutTarget(){
   /* the class a bare "mark" applies to: the one running now, else the next
@@ -2425,8 +2466,18 @@ function runShortcut(q){
     }
   }
   else if(doing==='open'){
+    /* The restructure turned attendance/timetable/due/calendar from tabs
+       into views inside Term. Shortcuts already out in the world still ask
+       for them by their old names, and they were silently doing nothing —
+       the check only knew about the two tabs that survived. Both spellings
+       resolve, so a shortcut written before the rebuild still lands. */
     const tab=get('tab');
-    if(TABS.some(t=>t.id===tab)||tab==='settings'){ S.tab=tab; return {msg:null, tab}; }
+    const ALIAS={due:'deadlines',classes:'timetable',today:'home'};
+    const want=ALIAS[tab]||tab;
+    if(TABS.some(t=>t.id===want)||want==='settings'){ S.tab=want; return {msg:null, tab:want}; }
+    if(TERM_VIEWS.some(v=>v[0]===want)){
+      S.tab='term'; S.termView=want; return {msg:null, tab:'term', view:want};
+    }
     return null;
   }
   else return {msg:'Don\u2019t know how to \u201c'+esc(doing)+'\u201d.', bad:true};
@@ -2443,6 +2494,7 @@ function runShortcut(q){
   try{ if(history.replaceState) history.replaceState(null,'',location.pathname); }catch(e){}
   if(!r) return;
   if(r.tab) S.tab=r.tab;
+  if(r.view){ try{ termView=r.view; }catch(e){} }
   if(r.msg) setTimeout(()=>toast(r.msg, r.bad?'bad':''), 260);
 })();
 
@@ -2813,7 +2865,13 @@ function cmdIsOpen(){ return el('cmd').classList.contains('on'); }
 const TABS=[{id:'home',t:'Today'},{id:'term',t:'Term'}];
 const TERM_VIEWS=[['attendance','Attendance'],['timetable','Classes'],
                   ['deadlines','Due'],['calendar','Calendar']];
-let termView='attendance';
+/* Which Term view you were last on is worth remembering: a shortcut can
+   ask for one by name, and coming back to Term should land where you
+   left it rather than resetting to Attendance every time. */
+let termView=(function(){
+  const w=(S&&S.termView)||'attendance';
+  return TERM_VIEWS.some(v=>v[0]===w)?w:'attendance';
+})();
 function renderTabs(){
   set('tabs',TABS.map(t=>'<button data-tab="'+t.id+'"'+(S.tab===t.id?' class="on"':'')+
     '>'+t.t+'</button>').join(''));
@@ -2828,7 +2886,7 @@ function drawIcons(){
 }
 let scrollMem={}, lastTab='home';
 function keepScroll(fn){ const y=window.scrollY||0; fn(); window.scrollTo(0,y); }
-function openTerm(view){ termView=view||termView; showTab('term'); }
+function openTerm(view){ termView=view||termView; S.termView=termView; showTab('term'); }
 function showTab(id){
   if(S.tab&&S.tab!==id) scrollMem[S.tab]=window.scrollY||0;
   if(id!=='settings') lastTab=id;
@@ -2879,7 +2937,7 @@ function renderTerm(){
   }[termView]||[];
   set('vTermBody',L[0]||''); set('vTermSide',L[1]||'');
   if(L[2]) L[2]();
-  onAll('#vTermSwitch [data-tv]',n=>{ termView=n.dataset.tv; renderTerm(); reveal(true); });
+  onAll('#vTermSwitch [data-tv]',n=>{ termView=n.dataset.tv; S.termView=termView; save(); renderTerm(); reveal(true); });
 }
 function termWhenLine(){
   if(termView==='attendance')
@@ -2929,6 +2987,21 @@ function bindMarks(root){
    The mark: a circle of type turning slowly, their one ornament.        */
 let revealIO=null;
 const revealed=new WeakSet();
+/* Claim the reveal only if this browser can actually deliver it. */
+(function(){
+  let reduce=false;
+  try{ reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(!reduce && typeof IntersectionObserver!=='undefined')
+    document.documentElement.classList.add('revealing');
+})();
+/* and a backstop: anything still unrevealed after a moment is shown
+   regardless, so a missed callback can never hide the app */
+setInterval(function(){
+  document.querySelectorAll('section.on .block:not(.in)').forEach(function(b){
+    const r=b.getBoundingClientRect();
+    if(r.top < innerHeight + 200) b.classList.add('in');
+  });
+}, 1200);
 function reveal(fresh){
   /* The head is not a block but it carries masked type, so it opens on
      arrival rather than on scroll — it is already in view. */
@@ -3243,6 +3316,30 @@ function renderTT(){
 
 /* ── ATTENDANCE ─────────────────────────────────────────────────────────
    One figure, then each subject as a line of type.                    */
+/* monthEntries(mo) answers "what happened in this month" — it is not a
+   list of months. Building that list is a separate job, and calling it
+   with no argument was why the month-by-month section rendered nothing
+   and its panel opened empty. */
+function monthsWithMarks(){
+  const seen={};
+  Object.keys(S.marks||{}).forEach(k=>{
+    const m=k.slice(0,7);
+    if(/^\d{4}-\d{2}$/.test(m)) seen[m]=1;
+  });
+  return Object.keys(seen).sort().reverse().map(mo=>{
+    const days=monthEntries(mo);
+    let p=0,t=0;
+    Object.keys(days).forEach(d=>days[d].forEach(e=>{
+      if(e.mark==='c') return;            /* cancelled is not a class held */
+      t++; if(e.mark==='p') p++;
+    }));
+    return {key:mo, days,
+      label:new Date(mo+'-01T00:00:00').toLocaleDateString(undefined,
+              {month:'long',year:'numeric'}),
+      p, t};
+  });
+}
+
 function renderAtt(){
   let P=0,T=0; S.subs.forEach(s=>{const a=attFor(s.id);P+=a.p;T+=a.t;});
   const pct=pctOf(P,T);
@@ -3300,11 +3397,14 @@ function renderAtt(){
   }).join('')) : '<div class="empty"><div class="t">No subjects</div>'+
       '<div class="s">Add one in Settings to begin.</div></div>');
 
-  const months=monthEntries?monthEntries():[];
-  set('vMonths', months.length? block('Month by month', months.map(m=>
-    '<button class="item" data-mo="'+m.key+'"><div class="grow"><div class="lead">'+
-    esc(m.label)+'</div><div class="sub">'+m.p+' of '+m.t+'</div></div>'+
-    '<span class="val num">'+(m.t?pctFmt(pctOf(m.p,m.t))+'%':'—')+'</span></button>').join('')) : '');
+  const months=monthsWithMarks();
+  set('vMonths', months.length? block('Month by month', months.map(m=>{
+    const pc=pctOf(m.p,m.t);
+    const lv=!m.t?'none':pc>=S.thr?'ok':pc>=S.thr-6?'tight':'gone';
+    return '<button class="item" data-mo="'+m.key+'"><div class="grow"><div class="lead">'+
+      esc(m.label)+'</div><div class="sub">'+m.p+' of '+m.t+' attended</div></div>'+
+      '<span class="val num '+vCls(lv)+'">'+(m.t?pctFmt(pc)+'%':'—')+'</span></button>';
+  }).join('')) : '');
 
   set('vAttMore', block('', 
     '<button class="item" id="attLeave"><div class="grow"><div class="lead">Taking leave?</div>'+
@@ -3392,17 +3492,22 @@ function renderCal(){
    the time the answer is readable without opening anything.           */
 function renderSettings(){
   const w=el('setWhen'); if(w) w.textContent='Everything stays on this device';
+  /* Each group used to be its own .block, which on a desktop carries 52px
+     of margin under it. Nine one-line rows spaced like nine paragraphs of
+     content made Settings a 1,100px ribbon with the control stranded at
+     the far right of an otherwise empty row. They are rows, so they are
+     one list now: the hairline between them comes from .item the way it
+     does everywhere else in the app, and only an open group gets air. */
   const grp=(key,title,summary,inner)=>{
     const open=(S.openGroups||[]).indexOf(key)>=0;
-    return '<div class="block pad"><button class="item" data-g="'+key+'" '+
-      'style="border-top:0;padding-top:0"><div class="grow">'+
+    return '<button class="item'+(open?' open':'')+'" data-g="'+key+'"><div class="grow">'+
       '<div class="eyebrow bare" style="margin-bottom:8px">'+esc(title)+'</div>'+
       '<div class="sub">'+summary+'</div></div>'+
       '<span class="chev">'+(open?'−':'+')+'</span></button>'+
-      (open?'<div style="margin-top:8px">'+inner+'</div>':'')+'</div>';
+      (open?'<div class="ginner">'+inner+'</div>':'');
   };
   const cm=COMMUTE[S.commute]||COMMUTE.self;
-  let h='';
+  let h='<div class="block pad" id="setList">';
   h+=grp('look','Appearance',
     (S.theme==='auto'?'Auto':S.theme==='light'?'Light':'Dark')+' · '+
     ((TONE_OPTS.filter(t=>t[0]===S.tone)[0]||[])[1]||'')+' tone',
@@ -3498,6 +3603,7 @@ function renderSettings(){
       '<div class="lead" style="color:var(--oxblood-lit)">Erase everything</div>'+
       '<div class="sub">Export first</div></div></button>');
 
+  h+='</div>';
   h+='<div class="block pad"><div class="cap" style="text-align:center">Eleventh Hour · v'+
      APP_VERSION+'<br>Everything stays on this device. No account, no cloud.</div></div>';
   set('vSettings',h);
@@ -3961,29 +4067,40 @@ function sheetDeadline(dl){
 }
 function sheetMonth(mo){
   const draw=()=>{
-    const entries=monthEntries().filter(m=>m.key===mo)[0];
+    const m=monthsWithMarks().filter(x=>x.key===mo)[0];
     let b='';
-    if(!entries) b='<div class="empty"><div class="t">Nothing here</div></div>';
+    if(!m){ b='<div class="empty"><div class="t">Nothing here</div>'+
+      '<div class="s">No classes marked in this month.</div></div>'; }
     else {
-      b='<div class="figure"><span class="n">'+(entries.t?pctFmt(pctOf(entries.p,entries.t))+'%':'—')+
-        '</span><span class="of">'+entries.p+' of '+entries.t+'</span></div>';
-      (entries.days||[]).forEach(d=>{
-        b+='<div class="eyebrow" style="margin:26px 0 4px">'+
-          dateOf(d.iso).toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'short'})+
-          '</div>';
-        d.slots.forEach(sl=>{
-          b+='<div class="item" style="display:block"><div style="display:flex;gap:16px">'+
-            '<span class="time">'+fmtT(sl.start)+'</span><div class="grow">'+
-            '<div class="lead">'+esc(subById(sl.subId).name)+'</div></div></div>'+
-            '<div style="margin-top:14px">'+markChoice(markKey(d.iso,sl))+'</div></div>';
+      const pc=pctOf(m.p,m.t);
+      const lv=!m.t?'none':pc>=S.thr?'ok':pc>=S.thr-6?'tight':'gone';
+      b='<div class="figure"><span class="n '+vCls(lv)+'">'+
+        (m.t?pctFmt(pc)+'%':'—')+'</span><span class="of">'+m.p+' of '+m.t+
+        ' attended</span></div>';
+      Object.keys(m.days).sort().forEach(iso=>{
+        b+='<div class="eyebrow" style="margin:28px 0 4px">'+
+          dateOf(iso).toLocaleDateString(undefined,
+            {weekday:'long',day:'numeric',month:'short'})+'</div>';
+        m.days[iso].forEach(e=>{
+          b+='<div class="item" style="display:block">'+
+            '<div style="display:flex;gap:16px">'+
+            '<span class="time">'+(e.slot?fmtT(e.slot.start):'')+'</span>'+
+            '<div class="grow"><div class="lead">'+esc(e.sub.name)+'</div>'+
+            '<div class="sub">'+esc(e.sub.code)+
+              (e.kind&&e.kind!=='th'?' · '+KIND_NAME[e.kind]:'')+'</div></div></div>'+
+            '<div style="margin-top:14px">'+markChoice(e.key)+'</div></div>';
         });
       });
     }
     el('panelBody').innerHTML=b;
     bindMarks('#panelBody');
   };
-  openSheet({title:'Month', body:'', after:draw});
+  /* Name the month you opened. "Month" told you nothing you had not just
+     tapped, and with several months listed it read as the wrong one. */
+  const m0=monthsWithMarks().filter(x=>x.key===mo)[0];
+  openSheet({title:(m0&&m0.label)||'Month', body:'', after:draw});
 }
+
 function sheetThreshold(){
   openSheet({title:'Minimum required', doneLabel:'Save',
     body:'<div class="intro">The percentage you must hold. Everything in the app is measured '+
