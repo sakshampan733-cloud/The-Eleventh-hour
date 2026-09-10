@@ -7,7 +7,7 @@ itself). Previous bar kept as `bar.v2.md`.
 
 | # | Piece | Built | Brief | System | Craft |
 |---|-------|-------|-------|--------|-------|
-| 1 | The field — shader, sphere-as-boundary, grain | v6 | — | — | — |
+| 1 | The field — shader, sphere-as-boundary, grain | v9 | — | — | — |
 | 2 | The pointer — trailing dot, grows on clickables | v3 | — | — | — |
 | 3 | Type and interface — monumental scale, no hue | partial | — | — | — |
 | 4 | Sheets, cold open, scroll feel | v1 | — | — | — |
@@ -38,6 +38,25 @@ the reference uses (its hero is a WebGL2 canvas, confirmed in the DOM).
 - **The pointer deforms the material** rather than adding a light on top of
   it, and a damped dot trails the cursor and settles.
 
+## Round 3 — the two-material sphere
+
+A full-resolution screenshot of the hero showed two things had been
+structurally wrong the whole time, and both were measurable rather than
+matters of taste.
+
+**The sphere was half the size it should be.** Fitting a circle to three
+points on the limb gives centre (1.12, -0.75), radius 1.41 in units of the
+smaller viewport side. I had been drawing 0.78 at (0.54, -0.26) — a ball
+in a corner, where theirs is a long shallow arc sweeping the whole frame.
+
+**The bright green half is OUTSIDE the sphere; inside is darker and warm.**
+Every previous attempt ran a single palette across the whole field and
+then tried to fix the result by moving stops around, which cannot work:
+their field is two materials meeting at an edge. Green sage outside, high
+contrast, holding the brightest thing in frame. Brown into amber inside,
+smooth and slow and darker than the ground it sits on. Their own doc says
+"greens dissolving into amber" and I had read it as a gradient.
+
 ## Gap history
 
 | Round | Gap named | By |
@@ -48,6 +67,9 @@ the reference uses (its hero is a WebGL2 canvas, confirmed in the DOM).
 | 1 | Too yellow — wanted the earlier shade | user |
 | 1 | Too bright overall once full-bleed | user |
 | 1 | `#floor` scrim double-dimmed a canvas measuring 0.42 at the top | self, measured |
+| 2 | Warm ramp had green at 0.76 of red; reference measures 0.60 | self, sampled from their image |
+| 3 | Sphere half the size it should be — 0.78 against a measured 1.41 | self, circle fit to the limb |
+| 3 | One palette across both sides of the limb; reference has two | self, from the hero screenshot |
 
 ## Round 2
 

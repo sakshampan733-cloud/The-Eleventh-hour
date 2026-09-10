@@ -22,7 +22,28 @@ texture*, shaded regions of the same material.
 **Check:** sample the four corners and the centre of a hero frame. All five
 are texture. None is a flat background colour.
 
-## 2. The sphere is a boundary inside the texture, never a shape on top of it.
+## 2. The sphere is huge, and the two sides of its edge are different materials.
+
+Measured off the hero by fitting a circle to three points on the limb: the
+centre sits at (1.12, -0.75) with a radius of 1.41, in units of the smaller
+viewport side. That is nearly twice the radius I had been drawing and far
+further out of frame, which is why theirs reads as a long shallow arc
+sweeping the whole picture and mine read as a ball sitting in a corner.
+
+And the two sides are not the same stuff:
+
+- **Outside** is the bright half — green. Sage and olive, high contrast,
+  tight ribbons, and the brightest thing in frame is out here.
+- **Inside** is the dark half — warm. Brown into amber, smooth, large slow
+  shapes, and darker overall than the ground outside it.
+
+Their own doc says it: "greens dissolving into amber". It is not one
+palette across the whole field, it is two, meeting at the limb.
+
+**Check:** sample a patch either side of the arc. If both are the same hue
+family, it is wrong. Green outside, amber inside.
+
+## 2b. The sphere is a boundary inside the texture, never a shape on top of it.
 
 Its edge is one continuous arc crossing the frame, and the texture continues
 on **both** sides of that arc — different in character (smoother inside,
