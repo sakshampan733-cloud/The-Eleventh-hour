@@ -162,6 +162,8 @@ button,.item,.tap,.pill,#tabs,#tabs button,.eyebrow,.chip{
 .margin i.spent{opacity:.25}
 .margin .n{font-size:11px;color:var(--ink-3);margin-left:8px;letter-spacing:.04em}
 
+
+
 /* ── shell ────────────────────────────────────────────────────────────
    The header is invisible until content passes behind it.              */
 #top{
@@ -500,6 +502,73 @@ body.opening .head .when{animation-delay:.92s}
   #top{ padding-left:40px; }
 }
 
+
+/* ═══ THE COMMAND BAR ══════════════════════════════════════════════════
+   The point of collapsing five tabs into two is that navigation stops
+   being how you reach things. You type what you want. Marking a class,
+   jumping to a subject, planning a day off, adding a deadline — all of it
+   is one surface away from anywhere, on a keyboard or a thumb.          */
+#cmdScrim{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.55);
+  opacity:0;pointer-events:none;transition:opacity var(--t-quick) var(--ease)}
+#cmdScrim.on{opacity:1;pointer-events:auto}
+#cmd{
+  position:fixed;z-index:130;left:50%;top:14vh;width:min(620px,92vw);
+  transform:translate(-50%,-12px);opacity:0;pointer-events:none;
+  background:rgba(16,15,16,.82);
+  -webkit-backdrop-filter:blur(26px) saturate(190%);
+  backdrop-filter:blur(26px) saturate(190%);
+  border:1px solid rgba(255,255,255,.16);border-radius:18px;overflow:hidden;
+  transition:opacity var(--t-quick) var(--ease),transform var(--t-mid) var(--ease);
+}
+#cmd.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#cmdInput{
+  width:100%;padding:22px 24px;font-size:17px;color:var(--ink);
+  background:none;border:0;border-bottom:1px solid rgba(255,255,255,.12);
+  border-radius:0;
+}
+#cmdInput::placeholder{color:var(--ink-3)}
+#cmdList{max-height:52vh;overflow-y:auto;padding:8px 0}
+.cmdRow{
+  display:flex;align-items:baseline;gap:14px;width:100%;
+  padding:13px 24px;text-align:left;
+  transition:background var(--t-quick) var(--ease);
+}
+.cmdRow .t{flex:1;font-size:15px;color:var(--ink)}
+.cmdRow .k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.cmdRow.sel{background:rgba(255,255,255,.09)}
+.cmdEmpty{padding:26px 24px;color:var(--ink-3);font-size:14px}
+#cmdOpen{
+  position:fixed;z-index:71;right:max(14px,env(safe-area-inset-right,0px));
+  bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 22px);
+  width:48px;height:48px;border-radius:var(--pill);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;letter-spacing:.02em;color:var(--ink-2);
+  background:rgba(18,16,18,.62);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid rgba(255,255,255,.14);
+  transition:opacity var(--t-quick) var(--ease);
+}
+#cmdOpen:active{opacity:.55}
+
+/* the switch between the term's four views */
+#vTermSwitch .switch{display:flex;gap:0;border-bottom:1px solid var(--rule-soft)}
+#vTermSwitch .switch button{
+  padding:14px 0;margin-right:26px;font-size:12px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);
+  border-bottom:1px solid transparent;margin-bottom:-1px;
+  transition:color var(--t-quick) var(--ease),border-color var(--t-quick) var(--ease);
+}
+#vTermSwitch .switch button.on{color:var(--ink);border-bottom-color:var(--ink)}
+
+@media (min-width:900px){
+  #cmdOpen{display:none}            /* the keyboard is the way in */
+  #term{ grid-template-columns:1.08fr .92fr; }
+  #vTermSwitch{ grid-column:1/-1;grid-row:2 }
+  #vTermBody { grid-column:1;grid-row:3 }
+  #vTermSide { grid-column:2;grid-row:3 }
+}
+
 /* ── the panel ────────────────────────────────────────────────────────
    Detail arrives as a full sheet of black, not a floating card. It has
    no corners, no border and no shadow — it is simply the next screen.  */
@@ -717,32 +786,15 @@ select{-webkit-appearance:none;appearance:none;
     <div id="vWeek"></div>
   </section>
 
-  <section id="timetable">
-    <div class="head"><h1>Classes</h1><div class="when" id="ttWhen"></div></div>
-    <div id="vRail"></div>
-    <div id="vClasses"></div>
-  </section>
-
-  <section id="attendance">
-    <div class="head"><h1>Attendance</h1><div class="when" id="attWhen"></div></div>
-    <div id="vOverall"></div>
-    <div id="vGoal"></div>
-    <div id="vSubjects"></div>
-    <div id="vMonths"></div>
-    <div id="vAttMore"></div>
-  </section>
-
-  <section id="deadlines">
-    <div class="head"><h1>Due</h1><div class="when" id="dueWhen"></div></div>
-    <div id="vDueFilter"></div>
-    <div id="vDueList"></div>
-  </section>
-
-  <section id="calendar">
-    <div class="head"><h1>Calendar</h1><div class="when" id="calWhen"></div></div>
-    <div id="vCalBar"></div>
-    <div id="vCalGrid"></div>
-    <div id="vCalDay"></div>
+  <!-- Everything you review rather than do. Four tabs collapsed into one
+       surface with a switch, because they are four views of the same term
+       and none of them is a daily errand. -->
+  <section id="term">
+    <div class="head"><h1 class="reveal"><span>Term</span></h1>
+      <div class="when reveal" id="termWhen"><span></span></div></div>
+    <div id="vTermSwitch"></div>
+    <div id="vTermBody"></div>
+    <div id="vTermSide"></div>
   </section>
 
   <section id="settings">
@@ -766,6 +818,13 @@ select{-webkit-appearance:none;appearance:none;
 </div>
 
 <input type="file" id="impFile" accept="application/json" hidden>
+<div id="cmdScrim"></div>
+<div id="cmd" role="dialog" aria-modal="true" aria-label="Command">
+  <input id="cmdInput" type="text" autocomplete="off" spellcheck="false"
+         placeholder="Type a class, a subject, or what you want to do">
+  <div id="cmdList"></div>
+</div>
+<button id="cmdOpen" aria-label="Command">⌘K</button>
 <div id="toast"></div>
 
 <script>
@@ -1694,8 +1753,12 @@ const unmarkedCount=days=>unmarkedPast(days).reduce((n,g)=>n+g.slots.length,0);
    works as well as dragging the list under it. The card follows your
    finger while you drag, so it's obvious the gesture is live.      */
 (function(){
-  const sec=document.getElementById('timetable');
-  const body=()=>document.getElementById('ttBody');
+  /* The timetable lives inside Term now. Guarded as well, because one
+     missing node here throws and takes every line of script after it with
+     it — which is what turned the whole app into a black screen. */
+  const sec=document.getElementById('term');
+  if(!sec) return;
+  const body=()=>document.getElementById('vClasses');
   let x0=null, y0=null, drag=false;
 
   const settle=()=>{ const b=body(); if(b){ b.style.transition=''; b.style.transform=''; } };
@@ -1704,7 +1767,7 @@ const unmarkedCount=days=>unmarkedPast(days).reduce((n,g)=>n+g.slots.length,0);
   sec.addEventListener('touchstart',e=>{
     if(e.touches.length!==1){ reset(); return; }
     /* the date rail scrolls itself — don't also step the day underneath it */
-    if(e.target&&e.target.closest&&e.target.closest('#dayStrip')){ reset(); return; }
+    if(e.target&&e.target.closest&&e.target.closest('#vRail,.switch')){ reset(); return; }
     x0=e.touches[0].clientX; y0=e.touches[0].clientY; drag=false;
   },{passive:true});
 
@@ -2635,10 +2698,102 @@ function openAct(o){
 }
 function closeAct(){ closeSheet(); }
 
+/* ══════════════ COMMAND ══════════════
+   Typing is cheaper than navigating. Everything the app can do is listed
+   here, matched loosely so "pres" finds "Mark management accounting
+   present" and "mgm" finds the subject. Actions that apply to the class
+   you are actually in come first, because that is the thing you open this
+   for in a corridor.                                                    */
+let cmdSel=0, cmdItems=[];
+function cmdActions(){
+  const out=[], iso=todayISO(), now=nowMin();
+  const live=liveSlots(iso).filter(sl=>!S.marks[markKey(iso,sl)]);
+  const here=live.find(sl=>now>=t2m(sl.start)&&now<t2m(sl.end))
+           || live.find(sl=>t2m(sl.start)>now);
+  if(here){
+    const nm=subById(here.subId).name;
+    [['p','present'],['a','absent'],['c','cancelled']].forEach(m=>{
+      out.push({t:'Mark '+nm+' '+m[1], k:fmtT(here.start),
+        run(){ setMark(markKey(iso,here),m[0]);
+               toast('Marked '+m[1]+'.'); }});
+    });
+  }
+  if(live.length>1) out.push({t:'Mark the whole day present', k:live.length+' classes',
+    run(){ live.forEach(sl=>{ S.marks[markKey(iso,sl)]='p'; }); save(); renderAll();
+           toast('Whole day marked present.'); }});
+  if(plannerReady()) out.push({t:'I’m on my way', k:'travel',
+    run(){ S.enroute={iso,at:nowMin()}; save(); renderAll(); toast('On your way.'); }});
+
+  out.push({t:'Can I skip today?', k:'plan', run(){ sheetSkipToday(); }});
+  out.push({t:'Is today worth going?', k:'plan',
+            run(){ sheetWorthGoing(dayOptions(iso)?iso:isoOf(addDays(new Date(),1))); }});
+  out.push({t:'Pick which classes I’m doing', k:'plan', run(){ sheetPickDay(iso); }});
+  out.push({t:'Plan time off', k:'plan', run(){ sheetLeave(); }});
+  out.push({t:'Attendance goal', k:'plan', run(){ sheetGoal(); }});
+  out.push({t:'How my weeks look', k:'plan', run(){ sheetWeekPlan(); }});
+  const unm=unmarkedPast(21).length;
+  if(unm) out.push({t:'Catch up on '+unm+' unmarked classes', k:'fix',
+                    run(){ sheetCatchUp(); }});
+
+  S.subs.forEach(sb=>{
+    const A=attFor(sb.id);
+    out.push({t:sb.name, k:A.t?pctFmt(pctOf(A.p,A.t))+'%':'no data',
+              run(){ sheetSubject(sb); }});
+  });
+
+  out.push({t:'Today', k:'go', run(){ showTab('home'); }});
+  TERM_VIEWS.forEach(v=>out.push({t:v[1], k:'go', run(){ openTerm(v[0]); }}));
+  out.push({t:'Settings', k:'go', run(){ showTab('settings'); }});
+  out.push({t:'Add a class', k:'new', run(){ sheetClass(null,iso); }});
+  out.push({t:'Add a deadline', k:'new', run(){ sheetDeadline(null); }});
+  out.push({t:'Add a subject', k:'new', run(){ sheetSubject(null); }});
+  out.push({t:'Attendance appeal', k:'end of term', run(){ sheetAppealPick(); }});
+  return out;
+}
+/* loose match: every letter of the query in order, anywhere in the label */
+function cmdMatch(q,t){
+  if(!q) return true;
+  q=q.toLowerCase(); t=t.toLowerCase();
+  let i=0;
+  for(let c=0;c<t.length && i<q.length;c++) if(t[c]===q[i]) i++;
+  return i===q.length;
+}
+function cmdDraw(){
+  const q=(el('cmdInput').value||'').trim();
+  cmdItems=cmdActions().filter(a=>cmdMatch(q,a.t)).slice(0,9);
+  if(cmdSel>=cmdItems.length) cmdSel=Math.max(0,cmdItems.length-1);
+  set('cmdList', cmdItems.length
+    ? cmdItems.map((a,i)=>'<button class="cmdRow'+(i===cmdSel?' sel':'')+'" data-ci="'+i+'">'+
+        '<span class="t">'+esc(a.t)+'</span><span class="k">'+esc(a.k||'')+'</span></button>').join('')
+    : '<div class="cmdEmpty">Nothing matches that.</div>');
+  onAll('#cmdList [data-ci]',n=>cmdRun(+n.dataset.ci));
+}
+function cmdRun(i){
+  const a=cmdItems[i]; if(!a) return;
+  cmdClose();
+  setTimeout(()=>{ try{ a.run(); }catch(e){ toast('That didn’t work.','bad'); } },140);
+}
+function cmdOpen(){
+  cmdSel=0;
+  el('cmdScrim').classList.add('on');
+  el('cmd').classList.add('on');
+  const inp=el('cmdInput'); inp.value=''; cmdDraw();
+  setTimeout(()=>{ try{ inp.focus(); }catch(e){} },60);
+}
+function cmdClose(){
+  el('cmd').classList.remove('on');
+  el('cmdScrim').classList.remove('on');
+  try{ el('cmdInput').blur(); }catch(e){}
+}
+function cmdIsOpen(){ return el('cmd').classList.contains('on'); }
+
 /* ── shell ─────────────────────────────────────────────────────────────── */
-const TABS=[{id:'home',t:'Today'},{id:'timetable',t:'Classes'},
-            {id:'attendance',t:'Attendance'},{id:'deadlines',t:'Due'},
-            {id:'calendar',t:'Calendar'}];
+/* Two. Today is what you do; Term is what you review. Everything else is
+   reachable by typing, which is cheaper than a tab you pass through. */
+const TABS=[{id:'home',t:'Today'},{id:'term',t:'Term'}];
+const TERM_VIEWS=[['attendance','Attendance'],['timetable','Classes'],
+                  ['deadlines','Due'],['calendar','Calendar']];
+let termView='attendance';
 function renderTabs(){
   set('tabs',TABS.map(t=>'<button data-tab="'+t.id+'"'+(S.tab===t.id?' class="on"':'')+
     '>'+t.t+'</button>').join(''));
@@ -2653,6 +2808,7 @@ function drawIcons(){
 }
 let scrollMem={}, lastTab='home';
 function keepScroll(fn){ const y=window.scrollY||0; fn(); window.scrollTo(0,y); }
+function openTerm(view){ termView=view||termView; showTab('term'); }
 function showTab(id){
   if(S.tab&&S.tab!==id) scrollMem[S.tab]=window.scrollY||0;
   if(id!=='settings') lastTab=id;
@@ -2679,12 +2835,39 @@ function showTab(id){
 function renderAll(){
   renderTabs();
   if(S.tab==='home') renderHome();
-  else if(S.tab==='timetable') renderTT();
-  else if(S.tab==='attendance') renderAtt();
-  else if(S.tab==='deadlines') renderDue();
-  else if(S.tab==='calendar') renderCal();
+  else if(S.tab==='term') renderTerm();
   else if(S.tab==='settings') renderSettings();
   reveal(false);
+}
+/* The four old tabs are still four renderers; they just draw into one
+   surface now. Rebuilding their containers here rather than rewriting
+   each of them keeps a single definition of what an attendance screen
+   looks like. */
+function renderTerm(){
+  const w=el('termWhen');
+  if(w) w.innerHTML='<span>'+esc(termWhenLine())+'</span>';
+  set('vTermSwitch','<div class="block pad" style="margin-bottom:26px"><div class="switch">'+
+    TERM_VIEWS.map(v=>'<button data-tv="'+v[0]+'"'+(termView===v[0]?' class="on"':'')+
+      '>'+v[1]+'</button>').join('')+'</div></div>');
+  const L={
+    attendance:['<div id="vOverall"></div><div id="vGoal"></div>',
+                '<div id="vSubjects"></div><div id="vMonths"></div><div id="vAttMore"></div>',
+                renderAtt],
+    timetable :['<div id="vRail"></div><div id="vClasses"></div>','',renderTT],
+    deadlines :['<div id="vDueFilter"></div><div id="vDueList"></div>','',renderDue],
+    calendar  :['<div id="vCalBar"></div><div id="vCalGrid"></div>','<div id="vCalDay"></div>',renderCal]
+  }[termView]||[];
+  set('vTermBody',L[0]||''); set('vTermSide',L[1]||'');
+  if(L[2]) L[2]();
+  onAll('#vTermSwitch [data-tv]',n=>{ termView=n.dataset.tv; renderTerm(); reveal(true); });
+}
+function termWhenLine(){
+  if(termView==='attendance')
+    return termWeeksLeft()!=null? termWeeksLeft()+' weeks of term left':'Set a term end date';
+  if(termView==='timetable') return S.slots.length+' classes a week';
+  if(termView==='deadlines'){ const n=S.dls.filter(x=>!x.done).length;
+    return n? n+' open':'nothing open'; }
+  return dateOf(calSel).toLocaleDateString(undefined,{month:'long',year:'numeric'});
 }
 function showIntro(){ /* the cold open replaced the tour */ }
 
@@ -2974,7 +3157,7 @@ function renderHome(){
   });
   on('heroHomeCopy',()=>{ const w=homewardStatus(); if(w)
     copy('Please come at '+m2t(w.leaveAt)+' — my classes are done.'); });
-  onAll('#vWeek [data-day]',n=>{ ttDate=dateOf(n.dataset.day); showTab('timetable'); });
+  onAll('#vWeek [data-day]',n=>{ ttDate=dateOf(n.dataset.day); openTerm('timetable'); });
   onAll('#vDue [data-dl]',n=>sheetDeadline(S.dls.find(x=>x.id===n.dataset.dl)));
 }
 function copy(msg){
@@ -2989,8 +3172,7 @@ function copy(msg){
 let ttDate=new Date();
 function renderTT(){
   const iso=isoOf(ttDate), dow=dowOf(ttDate);
-  const w=el('ttWhen');
-  if(w) w.textContent=ttDate.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'});
+
 
   const mon=addDays(ttDate,-((dowOf(ttDate)+6)%7));
   let rail='<div class="choice" style="border-top:0">';
@@ -3045,8 +3227,7 @@ function renderAtt(){
   let P=0,T=0; S.subs.forEach(s=>{const a=attFor(s.id);P+=a.p;T+=a.t;});
   const pct=pctOf(P,T);
   const lv=!T?'none':pct>=S.thr?'ok':pct>=S.thr-6?'tight':'gone';
-  const w=el('attWhen');
-  if(w) w.textContent=(termWeeksLeft()!=null? termWeeksLeft()+' weeks of term left':'Set a term end date');
+
 
   set('vOverall', block('Overall',
     '<div class="figure"><span class="n '+vCls(lv)+'">'+(T?pctFmt(pct)+'%':'—')+'</span>'+
@@ -3123,9 +3304,7 @@ function renderAtt(){
 /* ── DUE ────────────────────────────────────────────────────────────────── */
 let dueFilter='todo';
 function renderDue(){
-  const w=el('dueWhen');
   const open=S.dls.filter(x=>!x.done).length;
-  if(w) w.textContent=open?open+' open':'nothing open';
   set('vDueFilter','<div class="block pad"><div class="choice" style="border-top:0">'+
     [['todo','To do'],['all','All'],['done','Done']].map(f=>
       '<button data-f="'+f[0]+'"'+(dueFilter===f[0]?' class="on"':'')+'>'+f[1]+'</button>').join('')+
@@ -3155,8 +3334,7 @@ let calY=new Date().getFullYear(), calM=new Date().getMonth(), calSel=todayISO()
 function renderCal(){
   const first=new Date(calY,calM,1), start=(first.getDay()+6)%7;
   const days=new Date(calY,calM+1,0).getDate();
-  const w=el('calWhen');
-  if(w) w.textContent=first.toLocaleDateString(undefined,{month:'long',year:'numeric'});
+
   set('vCalBar','<div class="block pad" style="display:flex;justify-content:space-between;'+
     'align-items:center"><button class="pill sm" id="calPrev">Back</button>'+
     '<button class="pill sm" id="calNext">Next</button></div>');
@@ -3865,6 +4043,28 @@ document.querySelectorAll('main section').forEach(s=>s.classList.toggle('on',s.i
            sec._enterT=setTimeout(()=>sec.classList.remove('enter'),1200); } }
 renderTabs(); renderAll(); reveal(true);
 el('panelCancel').onclick=closeSheet;
+el('cmdOpen').onclick=cmdOpen;
+el('cmdScrim').onclick=cmdClose;
+el('cmdInput').oninput=()=>{ cmdSel=0; cmdDraw(); };
+addEventListener('keydown',e=>{
+  const k=e.key;
+  if((e.metaKey||e.ctrlKey) && k.toLowerCase()==='k'){ e.preventDefault();
+    cmdIsOpen()?cmdClose():cmdOpen(); return; }
+  if(cmdIsOpen()){
+    if(k==='Escape'){ e.preventDefault(); cmdClose(); }
+    else if(k==='ArrowDown'){ e.preventDefault(); cmdSel=Math.min(cmdItems.length-1,cmdSel+1); cmdDraw(); }
+    else if(k==='ArrowUp'){ e.preventDefault(); cmdSel=Math.max(0,cmdSel-1); cmdDraw(); }
+    else if(k==='Enter'){ e.preventDefault(); cmdRun(cmdSel); }
+    return;
+  }
+  const typing=/^(INPUT|TEXTAREA|SELECT)$/.test((e.target&&e.target.tagName)||'');
+  if(typing) return;
+  if(k==='Escape'){ if(el('panel').classList.contains('on')) closeSheet(); return; }
+  /* the two surfaces, and the four views inside the second one */
+  if(k==='1'){ showTab('home'); }
+  else if(k==='2'){ showTab('term'); }
+  else if(k==='/'){ e.preventDefault(); cmdOpen(); }
+});
 el('panelDone').onclick=()=>{ if(panelSave && panelSave()!==false) closeSheet(); };
 el('scrim').onclick=closeSheet;
 addEventListener('scroll',()=>{
