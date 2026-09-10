@@ -2595,10 +2595,10 @@ function runShortcut(q){
   '  v=clamp(v,0.,1.);',
   '  vec3 c=mix(vec3(0.026,0.026,0.022),vec3(0.062,0.078,0.060),smoothstep(0.00,0.20,v));',
   '  c=mix(c,vec3(0.150,0.178,0.132),smoothstep(0.18,0.36,v));',
-  '  c=mix(c,vec3(0.330,0.385,0.298),smoothstep(0.34,0.52,v));',
-  '  c=mix(c,vec3(0.545,0.585,0.462),smoothstep(0.50,0.68,v));',
-  '  c=mix(c,vec3(0.745,0.762,0.628),smoothstep(0.66,0.83,v));',
-  '  c=mix(c,vec3(0.925,0.930,0.882),smoothstep(0.80,1.00,v));',
+  '  c=mix(c,vec3(0.360,0.400,0.300),smoothstep(0.34,0.52,v));',
+  '  c=mix(c,vec3(0.660,0.640,0.470),smoothstep(0.50,0.68,v));',
+  '  c=mix(c,vec3(0.875,0.795,0.535),smoothstep(0.66,0.83,v));',
+  '  c=mix(c,vec3(0.960,0.935,0.830),smoothstep(0.80,1.00,v));',
   '  return c;',
   '}',
 
@@ -2646,10 +2646,6 @@ function runShortcut(q){
   '  m+=inside*(lam*0.20-0.07);',
   '  float rim=smoothstep(0.030,0.0,abs(dist-sr));',
   '  m+=rim*0.26*(0.35+0.65*lam);',
-  /* The warmth is a minority note, not the temperature of the whole
-     ramp: a little amber only where the material is brightest and facing
-     the light. Running it through every stop turned the field yellow. */
-  '  float warm=smoothstep(0.72,0.97,m)*(0.45+0.55*lam);',
 
   /* The pointer. A slow light that never quite arrives — the damping is
      done on the JS side, so by the time uM gets here it is already
@@ -2663,7 +2659,6 @@ function runShortcut(q){
      filled frame. */
   '  m=clamp((m-0.215)*2.10,0.0,1.0);',
   '  vec3 col=ramp(m);',
-  '  col=mix(col,col*vec3(1.10,0.985,0.80),warm*0.55);',
 
   /* The reference goes near-black along the bottom of every frame it
      holds. That is not decoration here: it is what lets a screen full of
