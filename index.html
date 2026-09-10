@@ -2739,8 +2739,14 @@ function runShortcut(q){
      viewport side. Nearly twice the radius I had been drawing and much
      further out of frame — which is the whole reason theirs sweeps the
      picture as a long shallow arc and mine sat in a corner as a ball. */
+  /* Smaller. At 1.41 the screen centre sat 0.06 INSIDE the orb, so the
+     body covered the middle of the frame and the limb had to sweep the
+     whole picture to get around it. At 1.20 the nearest edge is 0.15
+     clear of centre: the orb reads as a body in the upper right with the
+     limb curving through, rather than as the ground everything sits on.
+     Centre unchanged, so it is framed the same way — only the radius. */
   '  vec2 sc=vec2(1.12,-0.75);',
-  '  float sr=1.41;',
+  '  float sr=1.20;',
   '  vec2 d=uv-sc;',
   '  float dist=length(d);',
   '  float inside=1.0-smoothstep(sr-0.004,sr+0.004,dist);',
