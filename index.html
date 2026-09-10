@@ -2694,33 +2694,14 @@ function runShortcut(q){
      bottom, olive through sage, then bone, with amber where the material
      turns toward the light. Their doc calls it "greens dissolving into
      amber into deep oxblood" — this is that ramp. */
-  /* One ramp, holding both colours.
-
-   The pass before this gave the two sides of the limb separate palettes —
-   green outside, amber inside — and that was wrong. It is one material
-   with one colour profile; what makes the sphere look like a different
-   substance is that the flow inside it has carried the colour somewhere
-   else, not that it is made of something else. Split into two exclusive
-   ramps you get a hard seam and two halves that never share a tone.
-
-   So green and amber both live on this one ramp, green low and amber
-   high, and both sides of the limb draw from all of it. Where a side
-   happens to sit in the range decides how it reads, and both carry some
-   of the other. */
   'vec3 ramp(float v){',
-  '  vec3 c=mix(vec3(0.000,0.000,0.000),vec3(0.024,0.031,0.022),smoothstep(0.00,0.20,v));',
-  '  c=mix(c,vec3(0.082,0.112,0.070),smoothstep(0.18,0.36,v));',
-  '  c=mix(c,vec3(0.195,0.262,0.132),smoothstep(0.34,0.52,v));',
-  '  c=mix(c,vec3(0.408,0.448,0.168),smoothstep(0.50,0.66,v));',
-  '  c=mix(c,vec3(0.672,0.628,0.196),smoothstep(0.64,0.79,v));',
-  /* The warm end sits above where the material actually reaches — it
-     peaks around 0.72 — so it is there for the rare ridge that climbs
-     into it and nothing more. Pulled down into range it became an orange
-     mass, and narrowed it became a thread; both were too much. Left
-     where it is, the field is black, green and yellow. */
-  '  c=mix(c,vec3(0.880,0.598,0.170),smoothstep(0.78,0.875,v));',
-  '  c=mix(c,vec3(0.932,0.812,0.330),smoothstep(0.865,0.945,v));',
-  '  c=mix(c,vec3(0.948,0.906,0.652),smoothstep(0.935,1.00,v));',
+  '  v=clamp(v,0.,1.);',
+  '  vec3 c=mix(vec3(0.026,0.026,0.022),vec3(0.062,0.078,0.060),smoothstep(0.00,0.20,v));',
+  '  c=mix(c,vec3(0.150,0.178,0.132),smoothstep(0.18,0.36,v));',
+  '  c=mix(c,vec3(0.360,0.400,0.300),smoothstep(0.34,0.52,v));',
+  '  c=mix(c,vec3(0.660,0.640,0.470),smoothstep(0.50,0.68,v));',
+  '  c=mix(c,vec3(0.875,0.795,0.535),smoothstep(0.66,0.83,v));',
+  '  c=mix(c,vec3(0.960,0.935,0.830),smoothstep(0.80,1.00,v));',
   '  return c;',
   '}',
 
@@ -2734,63 +2715,68 @@ function runShortcut(q){
      Fixed centre, fixed radius: it does not drift, breathe or parallax.
      Its only job is to bend how the material is sampled on one side of
      its edge. */
-  /* Measured, by fitting a circle to three points on the limb in the
-     reference: centre (1.12,-0.75), radius 1.41 in units of the smaller
-     viewport side. Nearly twice the radius I had been drawing and much
-     further out of frame — which is the whole reason theirs sweeps the
-     picture as a long shallow arc and mine sat in a corner as a ball.
-
-     Briefly taken to 1.20 to make the orb smaller, and put back: the
-     screen centre sitting just inside the body IS what the reference
-     does, and it is what makes the limb sweep the whole picture. */
-  '  vec2 sc=vec2(1.12,-0.75);',
-  '  float sr=1.41;',
+  /* Pushed right to sit where the reference frames its own: the limb
+     enters top-left and the body fills to the right, so the lit rim runs
+     down the left side of the sphere rather than across the middle. */
+  '  vec2 sc=vec2(0.54,-0.26);',
+  '  float sr=0.78;',
   '  vec2 d=uv-sc;',
   '  float dist=length(d);',
   '  float inside=1.0-smoothstep(sr-0.004,sr+0.004,dist);',
 
+  /* Outside: the material at full detail. */
   /* The pointer pushes the material away from itself before it is
      sampled, so the colour genuinely deforms around where you are rather
-     than a light being added on top of it. */
+     than a light being added on top of it. That is the difference
+     between the field reacting to you and a spotlight following you. */
   '  float md0=length(uv-uM);',
   '  float pull=exp(-md0*md0*mix(4.0,11.0,uCold))*mix(1.0,1.7,uCold);',
   '  vec2 puv=uv+normalize(uv-uM+vec2(1e-4))*pull*0.055;',
+  '  float mo=material(puv*0.92+vec2(0.,uScroll*0.12),t,2.2);',
 
-  /* Outside the limb: tight, contrasty, and the brightest thing in the
-     frame lives out here. */
-  '  float mo=material(puv*0.52+vec2(0.,uScroll*0.12),t,1.85);',
-  '  mo=clamp((mo-0.3472)*2.92,0.0,1.0);',
-  '  mo+=0.11*pull;',
-
-  /* Inside: refracted through the curvature and run smoother and larger,
-     and it sits DARKER than the ground outside it — in the reference the
-     sphere is the shadowed half, not the lit one. */
+  /* Inside: the SAME material, refracted through the curvature and run
+     with less detail, so it reads as the same substance seen through a
+     lens. This is the whole trick — one material, two samplings. */
   '  float z=sqrt(max(0.0,1.0-(dist*dist)/(sr*sr)));',
-  '  float mi=0.0;',
-  '  if(inside>0.001){',
-  '    vec2 refr=uv-d*(0.26*z)+normalize(uv-uM+vec2(1e-4))*pull*0.030;',
-  '    mi=material(refr*0.36+vec2(0.,uScroll*0.12),t*0.80,1.25);',
-  '    mi=clamp((mi-0.3552)*2.66,0.0,1.0)*0.94;',
-  '  }',
+  '  vec2 refr=uv-d*(0.30*z)+normalize(uv-uM+vec2(1e-4))*pull*0.030;',
+  '  float mi=material(refr*0.74+vec2(0.,uScroll*0.12),t*0.82,1.5);',
+  '  mi=mi*0.86+0.10;',
 
-  /* Shading across the curvature, before either side is coloured. */
+  '  float m=mix(mo,mi,inside);',
+
+  /* Shading across the curvature, and a thin bright rim exactly on the
+     edge — a real sphere catches light along its limb. */
   '  vec3 L=normalize(vec3(-0.42,0.62,0.66));',
   '  vec3 N=vec3(d/sr,z);',
   '  float lam=max(0.0,dot(N,L));',
-  '  mi+=inside*(lam*0.16-0.05);',
+  '  m+=inside*(lam*0.20-0.07);',
+  '  float rim=smoothstep(0.030,0.0,abs(dist-sr));',
+  '  m+=rim*0.26*(0.35+0.65*lam);',
 
-  /* Same ramp for both. The inside is nudged along it rather than given
-     a palette of its own — enough that it reads warmer, not so much that
-     the limb becomes a seam between two different materials. */
-  '  float mm=mix(mo,mi+0.17,inside);',
-  '  vec3 col=ramp(clamp(mm,0.0,1.0));',
+  /* The pointer. A slow light that never quite arrives — the damping is
+     done on the JS side, so by the time uM gets here it is already
+     behind your cursor, and the material lifts where it has got to. */
+  '  m+=0.13*pull;',
 
-  /* Matte. A bright specular line was the one glossy thing in an
-     otherwise diffuse picture, and it read as chrome — the reference's
-     limb is barely there, the soft turn of a surface rather than a
-     highlight sitting on it. */
-  '  float rim=smoothstep(0.018,0.0,abs(dist-sr));',
-  '  col+=rim*0.115*(0.35+0.65*lam)*vec3(0.96,0.94,0.88);',
+  /* Level the material before it hits the ramp. Domain warping narrows
+     the distribution around the middle, so raw fbm lands almost entirely
+     in the dark half of the palette — which is how the first pass came
+     out as "a hint of texture on black" rather than the reference's
+     filled frame. */
+    /* A little more black in the orb. Raising the floor the material is
+     measured from drops the bottom of the distribution out of the ramp
+     entirely, so the dark parts go properly dark instead of sitting at a
+     dim olive — without touching the colour of anything that stays lit. */
+  '  m=clamp((m-0.268)*2.22,0.0,1.0);',
+  /* Highlights roll off instead of climbing to near-white. Measured, the
+     material was reaching 0.88 luminance and pure white 16px type on that
+     is 1.13:1 — the words were not dim, they were gone, and because the
+     highlight flows they dropped out as it passed. Compressing the top of
+     the range keeps every hue in the ramp and simply stops it blowing
+     out; if anything it reads warmer, because the near-white was the
+     least warm part of the material. */
+  '  m=m<0.62?m:0.62+(m-0.62)*0.42;',
+  '  vec3 col=ramp(m);',
 
   /* The reference goes near-black along the bottom of every frame it
      holds. That is not decoration here: it is what lets a screen full of
@@ -2810,13 +2796,10 @@ function runShortcut(q){
   '  col*=mix(1.0,cg,uCold);',
 '  col*=uFade;',
 
-  /* A tooth on the surface, nothing more — enough that no area is
-     perfectly flat, faded out of the deepest shadow so the black stays
-     black. Not the storm: the particles carrying their own colour was a
-     different thing entirely, and this is not that. */
+  /* Grain, over everything, static per frame. The reference has it even
+     in the black — nothing in that frame is ever perfectly flat. */
   '  float g=h(fc+fract(t)*137.0);',
-  '  float lv=max(col.r,max(col.g,col.b));',
-  '  col+=(g-0.5)*0.030*smoothstep(0.0,0.10,lv);',
+  '  col+=(g-0.5)*0.028;',
 
   '  gl_FragColor=vec4(max(col,0.0),1.0);',
   '}'].join('\n');
