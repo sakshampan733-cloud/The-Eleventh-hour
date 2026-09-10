@@ -2636,18 +2636,13 @@ function runShortcut(q){
   save();
   return {msg};
 }
-(function(){
-  let q=''; try{ q=location.search||''; }catch(e){}
-  if(!q || q.indexOf('do=')<0) return;
-  let r=null;
-  try{ r=runShortcut(q); }catch(e){ r={msg:'That shortcut didn\u2019t work.', bad:true}; }
-  /* strip it before anything else can re-run it */
-  try{ if(history.replaceState) history.replaceState(null,'',location.pathname); }catch(e){}
-  if(!r) return;
-  if(r.tab) S.tab=r.tab;
-  if(r.view){ try{ termView=r.view; }catch(e){} }
-  if(r.msg) setTimeout(()=>toast(r.msg, r.bad?'bad':''), 260);
-})();
+/* The shortcut runs at the bottom of the file, not here. runShortcut
+   reaches for TABS and TERM_VIEWS, and both are declared further down —
+   calling it from this point threw a temporal-dead-zone ReferenceError
+   that the caller's own try/catch swallowed into "that shortcut didn't
+   work". Every Shortcut asking for a tab had been failing that way, and
+   the unit tests could not see it because they call runShortcut after
+   the whole script has finished evaluating. */
 
 /* ── the field ─────────────────────────────────────────────────────────
    The reference's hero is a WebGL canvas, and every attempt to fake it
@@ -2969,6 +2964,11 @@ function runShortcut(q){
 const SEEN_KEY='eh-last-seen';
 function markSeen(){ try{ localStorage.setItem(SEEN_KEY,String(Date.now())); }catch(e){} }
 (function(){
+  /* Unless you asked for somewhere. A shortcut naming a tab has just set
+     it a few lines above this, and "you probably want Today" is a guess
+     about someone arriving cold — it has no business overruling an
+     explicit instruction that came in with the URL. */
+  if(window.__summoned) return;
   let last=0; try{ last=+localStorage.getItem(SEEN_KEY)||0; }catch(e){}
   const gap=Date.now()-last;
   if(!last || gap>15*60000 || S.tab==='settings') S.tab='home';
@@ -3110,18 +3110,30 @@ registerSW();
 (function(){
   var cold=document.getElementById('cold');
   if(!cold) return;
-  var seen=false;
-  try{ seen=sessionStorage.getItem('eh-cold')==='1'; }catch(e){}
   var reduce=false;
   try{ reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  /* It used to run once a session, on the reasoning that a second one in
+     the same morning is a toll. It is not — it is the part you play
+     with, and sessionStorage survives a refresh, which is why refreshing
+     never brought it back. Every load opens on it now.
+
+     The exception is a Shortcut. "?do=mark&as=p" is someone marking a
+     class from their phone in a corridor, not visiting: that is a
+     purposeful action arriving with an instruction attached, and putting
+     a screen in front of it would be putting a screen in front of the
+     thing they actually asked for. */
+  /* The shortcut handler runs before this and strips the query as soon as
+     it has read it, so by now location.search is empty however the app
+     was opened. It leaves a flag instead. */
+  var summoned=!!window.__summoned;
+  try{ summoned=summoned||(location.search||'').indexOf('do=')>=0; }catch(e){}
   function release(){ if(window.__fieldOpen) window.__fieldOpen(); }
-  if(seen||reduce){
+  if(reduce||summoned){
     release();
     cold.parentNode&&cold.parentNode.removeChild(cold);
     document.body.classList.add('opened');
     return;
   }
-  try{ sessionStorage.setItem('eh-cold','1'); }catch(e){}
   document.body.classList.add('opening');
 
   var gated=false;
@@ -3409,6 +3421,23 @@ function drawIcons(){
 }
 let scrollMem={}, lastTab='home';
 function keepScroll(fn){ const y=window.scrollY||0; fn(); window.scrollTo(0,y); }
+/* Now that TABS, TERM_VIEWS and termView all exist. */
+(function(){
+  let q=''; try{ q=location.search||''; }catch(e){}
+  if(!q || q.indexOf('do=')<0) return;
+  let r=null;
+  try{ r=runShortcut(q); }catch(e){ r={msg:'That shortcut didn\u2019t work.', bad:true}; }
+  /* Anything downstream that wants to know this load was summoned has to
+     be told, because the next line removes the only evidence. */
+  window.__summoned=true;
+  /* strip it before anything else can re-run it */
+  try{ if(history.replaceState) history.replaceState(null,'',location.pathname); }catch(e){}
+  if(!r) return;
+  if(r.tab) S.tab=r.tab;
+  if(r.view){ try{ termView=r.view; }catch(e){} }
+  if(r.msg) setTimeout(()=>toast(r.msg, r.bad?'bad':''), 260);
+})();
+
 function openTerm(view){ termView=view||termView; S.termView=termView; showTab('term'); }
 function showTab(id){
   if(S.tab&&S.tab!==id) scrollMem[S.tab]=window.scrollY||0;
