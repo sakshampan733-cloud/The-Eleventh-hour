@@ -209,8 +209,8 @@ section.on{display:block}
   height:54px;padding:5px;gap:2px;
   border-radius:var(--pill);
   background:rgba(18,16,18,.52);
-  -webkit-backdrop-filter:blur(22px) saturate(190%);
-  backdrop-filter:blur(22px) saturate(190%);
+  -webkit-backdrop-filter:blur(14px) saturate(170%);
+  backdrop-filter:blur(14px) saturate(170%);
   border:1px solid rgba(255,255,255,.14);
   /* Its own layer, and kept there: re-sampling a backdrop filter on the
      main thread during momentum scroll is what makes this stutter on iOS. */
@@ -237,25 +237,17 @@ section.on{display:block}
    resynchronise; the blur is applied once to the container rather than
    per field, which is one composite layer instead of four.            */
 #field{
-  /* Full bleed, every screen. Confining it to Today left four tabs of flat
-     black — the atmosphere is the app's ground, not a decoration on one
-     page. Lower saturation than the reference's video because type sits on
-     top of this everywhere, not just over a headline. */
-  /* The reference's backdrop has volume: a lit form with a defined edge
-     sitting in near-black, not a haze. Soft gradients alone can never do
-     that — they have no edge to catch light on.
+  /* No filter here. A filter on a full-bleed element that is animating
+     forces the whole screen through a filter pass every frame, and with a
+     blurred pill sitting on top of it the browser re-samples that blur
+     every frame too. Between them, that was the app feeling slow: not the
+     work it was doing, but the work it was redoing sixty times a second.
 
-     Blurring and then crushing the contrast does. The blur melts the
-     shapes into each other, and the contrast pushes the midtones apart
-     until the blend hardens into a rim: a bright edge where two fields
-     overlap, deep black where none of them reach. Same trick that makes
-     metaballs read as liquid, and it costs one filter pass. */
+     The gradients carry their own colour, the layers only ever translate,
+     and nothing here needs repainting once it has been composited. */
   position:fixed;inset:0;z-index:0;
   overflow:hidden;pointer-events:none;opacity:1;
   transition:opacity var(--t-long) var(--ease);
-  filter:contrast(1.12) saturate(1.14) brightness(.96);
-  /* No mask. A sphere has its own edge; cropping it from the top is what
-     turned this into a band across the header. */
 }
 #field b{position:absolute;display:block;will-change:transform}
 /* Clustered so they read as one body with a lit edge, not five lights in
@@ -273,47 +265,52 @@ section.on{display:block}
    liquid filter then warps its edge so it moves like the reference's
    render rather than sitting there like a ball.                       */
 #field .orb{
+  /* No filter. The SVG one generated its own noise — that was the grain —
+     and re-ran a displacement map and an animated specular light over a
+     full-screen element on every repaint, which was the stall. A radial
+     gradient shades a sphere just as convincingly and costs nothing: the
+     browser composites it once and then only moves it. */
   position:absolute;
-  width:150vmin;height:150vmin;
-  right:-58vmin;top:-34vmin;
+  width:152vmin;height:152vmin;
+  right:-56vmin;top:-40vmin;
   border-radius:50%;
   background:
-    radial-gradient(circle at 34% 26%,
-      #F2D08A 0%, #E0A63C 9%, #A8761F 19%,
-      #4E6B36 34%, #2C4A2A 48%, #1A2E20 60%,
-      #14100E 72%, #0A0708 84%, #000 100%);
-  filter:url(#liquid);
-  animation:orbBreathe 44s ease-in-out infinite;
+    radial-gradient(circle at 33% 25%,
+      #F6E0A4 0%, #E9B252 7%, #B9822A 15%, #7C7A2E 24%,
+      #3E6236 36%, #26452A 48%, #16291C 60%, #0C1611 72%,
+      #060B09 84%, #000 100%);
+  animation:orbBreathe 52s ease-in-out infinite;
 }
-/* a second, smaller body low on the other side, so the frame has depth
-   rather than one object floating in nothing */
 #field .orb2{
+  /* Sized and placed so its arc actually crosses the bottom-left corner
+     rather than stopping short of it and leaving a visible edge. */
   position:absolute;
-  width:96vmin;height:96vmin;
-  left:-44vmin;bottom:-30vmin;
+  width:128vmin;height:128vmin;
+  left:-62vmin;bottom:-56vmin;
   border-radius:50%;
   background:
-    radial-gradient(circle at 62% 34%,
-      #8A3A22 0%, #5A1F14 22%, #331410 42%,
-      #16090A 62%, #000 82%);
-  filter:url(#liquid);
-  animation:orbBreathe 57s ease-in-out infinite reverse;
+    radial-gradient(circle at 66% 30%,
+      #B4693A 0%, #7E3520 18%, #4A1C14 34%, #2A100D 50%,
+      #150807 66%, #000 84%);
+  animation:orbBreathe 67s ease-in-out infinite reverse;
 }
-/* the light it throws into the room */
 #field .haze{
   position:absolute;inset:-20%;
   background:
-    radial-gradient(60% 44% at 78% 16%, rgba(224,166,60,.20) 0%, rgba(224,166,60,0) 70%),
-    radial-gradient(52% 40% at 12% 88%, rgba(138,58,34,.16) 0%, rgba(138,58,34,0) 72%);
-  animation:hazeDrift 39s linear infinite;
+    radial-gradient(58% 42% at 76% 14%, rgba(233,178,82,.16) 0%, rgba(233,178,82,0) 72%),
+    radial-gradient(50% 38% at 14% 90%, rgba(180,105,58,.13) 0%, rgba(180,105,58,0) 74%);
+  animation:hazeDrift 44s linear infinite;
 }
+/* Translation only. Rotating or scaling a layer this size forces the
+   browser to re-rasterise the gradient every frame; moving it just
+   repositions a texture it already has. */
 @keyframes orbBreathe{
-  0%{transform:translate3d(0,0,0) scale(1) rotate(0deg)}
-  50%{transform:translate3d(-3vmin,2vmin,0) scale(1.06) rotate(8deg)}
-  100%{transform:translate3d(0,0,0) scale(1) rotate(0deg)}}
+  0%  {transform:translate3d(0,0,0)}
+  50% {transform:translate3d(-4vmin,3vmin,0)}
+  100%{transform:translate3d(0,0,0)}}
 @keyframes hazeDrift{
-  0%{transform:translate3d(0,0,0)}
-  45%{transform:translate3d(4%,-3%,0)}
+  0%  {transform:translate3d(0,0,0)}
+  45% {transform:translate3d(4%,-3%,0)}
   100%{transform:translate3d(0,0,0)}}
 }
 }
@@ -347,8 +344,11 @@ body.still #field b{animation-play-state:paused}
    the layer leans toward you, the field inside it keeps drifting. Nesting
    is what lets both run without one overwriting the other's transform. */
 #field .lay{
+  /* The transform is owned by the parallax loop, which writes it directly
+     rather than through a custom property — a variable write invalidates
+     style for everything downstream of it, a transform write does not. */
   position:absolute;inset:0;display:block;overflow:hidden;
-  transform:translate3d(calc(var(--mx,0) * var(--amp)),calc(var(--my,0) * var(--amp)),0);
+  transform:translate3d(0,0,0);
   will-change:transform;
 }
 /* ── the cold open ────────────────────────────────────────────────────
@@ -515,8 +515,8 @@ body.opening .head .when{animation-delay:.92s}
   position:fixed;z-index:130;left:50%;top:14vh;width:min(620px,92vw);
   transform:translate(-50%,-12px);opacity:0;pointer-events:none;
   background:rgba(16,15,16,.82);
-  -webkit-backdrop-filter:blur(26px) saturate(190%);
-  backdrop-filter:blur(26px) saturate(190%);
+  -webkit-backdrop-filter:blur(16px) saturate(170%);
+  backdrop-filter:blur(16px) saturate(170%);
   border:1px solid rgba(255,255,255,.16);border-radius:0;overflow:hidden;
   transition:opacity var(--t-quick) var(--ease),transform var(--t-mid) var(--ease);
 }
@@ -544,8 +544,8 @@ body.opening .head .when{animation-delay:.92s}
   display:flex;align-items:center;justify-content:center;
   font-size:11px;letter-spacing:.02em;color:var(--ink-2);
   background:rgba(18,16,18,.62);
-  -webkit-backdrop-filter:blur(20px) saturate(180%);
-  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(14px) saturate(170%);
+  backdrop-filter:blur(14px) saturate(170%);
   border:1px solid rgba(255,255,255,.14);
   transition:opacity var(--t-quick) var(--ease);
 }
@@ -715,45 +715,7 @@ select{-webkit-appearance:none;appearance:none;
 </style>
 </head>
 <body>
-<svg id="fieldFx" aria-hidden="true" width="0" height="0" style="position:absolute">
-  <defs>
-    <!-- The reference's backdrop is a rendered 3D surface: it has light on
-         it, not just colour. feSpecularLighting is the one thing in a
-         browser that does actual lighting maths — it treats the alpha
-         channel as a height map and computes a highlight from a light
-         position. Turbulence supplies the surface, the displacement warps
-         the colour over it, and the specular pass puts the light on top.
-         No asset, no shader, nothing fetched. -->
-    <filter id="liquid" x="-20%" y="-20%" width="140%" height="140%"
-            color-interpolation-filters="sRGB">
-      <!-- The noise is computed once and left alone. Animating
-           baseFrequency regenerates the entire field every frame, which is
-           the single most expensive thing you can ask a mobile GPU to do
-           here. The movement comes from the light and from the bodies'
-           own transforms instead, which are composited and free. -->
-      <feTurbulence type="fractalNoise" baseFrequency="0.0016 0.0034"
-                    numOctaves="2" seed="7" result="noise"/>
-      <feGaussianBlur in="noise" stdDeviation="9" result="soft"/>
-      <!-- 260 was melting the circle into a cloud. Enough displacement to
-           give the edge some liquid character, not enough to stop it being
-           a sphere. -->
-      <feDisplacementMap in="SourceGraphic" in2="soft" scale="46"
-                         xChannelSelector="R" yChannelSelector="G" result="warped"/>
-      <feSpecularLighting in="soft" surfaceScale="6" specularConstant="1.5"
-                          specularExponent="26" lighting-color="#FFE7B8" result="spec">
-        <fePointLight x="140" y="90" z="220">
-          <animate attributeName="x" dur="29s" repeatCount="indefinite"
-                   values="140;330;90;140"/>
-          <animate attributeName="y" dur="41s" repeatCount="indefinite"
-                   values="90;250;60;90"/>
-        </fePointLight>
-      </feSpecularLighting>
-      <feComposite in="spec" in2="warped" operator="in" result="specClipped"/>
-      <feBlend in="warped" in2="specClipped" mode="screen" result="lit"/>
-      <feGaussianBlur in="lit" stdDeviation="7"/>
-    </filter>
-  </defs>
-</svg>
+
 <div id="field" aria-hidden="true">
   <span class="lay" style="--amp:120px"><b class="orb"></b></span>
   <span class="lay" style="--amp:70px"><b class="orb2"></b></span>
@@ -964,8 +926,51 @@ let S=blankState();
 try{ const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(S,JSON.parse(raw)||{}); }catch(e){}
 S=normalise(S);
 
+/* A term of marking is real work and there is no server copy of it, so
+   saving refuses to be the thing that loses it.
+
+   Two guards. An empty state never overwrites a populated one — if the app
+   has somehow ended up with no subjects and no marks while the stored copy
+   has plenty, that is a fault, not an edit, and the write is dropped. And
+   every healthy save leaves a rollback copy behind, so even a bad write
+   that gets past the first guard can be undone. */
+const BAK=KEY+'.bak';
+function stateWeight(o){
+  if(!o) return 0;
+  return (o.subs||[]).length + (o.slots||[]).length + Object.keys(o.marks||{}).length;
+}
 function save(){
+  try{
+    const now=stateWeight(S);
+    let prev=null;
+    try{ prev=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(e){}
+    const had=stateWeight(prev);
+    if(had>0 && now===0) return;            /* refuse to erase */
+    if(had>=6 && now<had*0.5){              /* a big loss — keep the old copy */
+      try{ localStorage.setItem(BAK,JSON.stringify(prev)); }catch(e){}
+    } else if(now>=6){
+      try{ localStorage.setItem(BAK,JSON.stringify(S)); }catch(e){}
+    }
+    localStorage.setItem(KEY,JSON.stringify(S));
+  }catch(e){}
+}
+/* what the rollback copy holds, if anything */
+function backupInfo(){
+  try{
+    const b=JSON.parse(localStorage.getItem(BAK)||'null');
+    if(!b) return null;
+    return {subs:(b.subs||[]).length, marks:Object.keys(b.marks||{}).length,
+            weight:stateWeight(b), raw:b};
+  }catch(e){ return null; }
+}
+function restoreBackup(){
+  const b=backupInfo();
+  if(!b) return false;
+  S=normalise(b.raw);
   try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){}
+  renderAll();
+  toast('Restored '+b.subs+' subjects and '+b.marks+' marks.');
+  return true;
 }
 
 /* ══════════════ TONE ══════════════
@@ -2526,6 +2531,12 @@ registerSW();
 (function(){
   var f=document.getElementById('field');
   if(!f) return;
+  var lays=f.querySelectorAll('.lay');
+  var amps=[];
+  for(var i=0;i<lays.length;i++){
+    var a=parseFloat(getComputedStyle(lays[i]).getPropertyValue('--amp'))||40;
+    amps.push(a);
+  }
   var reduce=false;
   try{ reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
   if(reduce) return;
@@ -2540,8 +2551,13 @@ registerSW();
   function tick(){
     /* .045 is slow on purpose: the field trails you rather than tracking */
     cx+=(tx-cx)*.045; cy+=(ty-cy)*.045;
-    f.style.setProperty('--mx',cx.toFixed(4));
-    f.style.setProperty('--my',cy.toFixed(4));
+    /* Setting a custom property invalidates style for everything that
+       reads it; setting the transform touches only the layer. */
+    for(let i=0;i<lays.length;i++){
+      const amp=amps[i];
+      lays[i].style.transform='translate3d('+(cx*amp).toFixed(1)+'px,'+
+                              (cy*amp).toFixed(1)+'px,0)';
+    }
     if(Math.abs(tx-cx)<.001 && Math.abs(ty-cy)<.001){ raf=0; idle=true; return; }
     raf=requestAnimationFrame(tick);
   }
@@ -2748,6 +2764,10 @@ function cmdActions(){
   out.push({t:'Add a deadline', k:'new', run(){ sheetDeadline(null); }});
   out.push({t:'Add a subject', k:'new', run(){ sheetSubject(null); }});
   out.push({t:'Attendance appeal', k:'end of term', run(){ sheetAppealPick(); }});
+  const bk=backupInfo();
+  if(bk && bk.weight>stateWeight(S))
+    out.unshift({t:'Restore the last good copy', k:bk.subs+' subjects',
+                 run(){ restoreBackup(); }});
   return out;
 }
 /* loose match: every letter of the query in order, anywhere in the label */
@@ -3465,6 +3485,11 @@ function renderSettings(){
       '<span class="chev">⧉</span></button>').join(''));
 
   h+=grp('data','Data','Backup, restore, erase',
+    (function(){ const b=backupInfo();
+      return b? '<button class="item" id="restoreBtn"><div class="grow">'+
+        '<div class="lead">Restore the last good copy</div>'+
+        '<div class="sub">'+b.subs+' subjects · '+b.marks+' marks, saved automatically</div>'+
+        '</div><span class="chev">→</span></button>' : ''; })()+
     '<button class="item" id="expBtn"><div class="grow"><div class="lead">Export a backup</div>'+
       '</div><span class="chev">→</span></button>'+
     '<button class="item" id="demoBtn"><div class="grow"><div class="lead">Load example data</div>'+
@@ -3503,6 +3528,9 @@ function renderSettings(){
   { const n=el('setCommute'); if(n) n.onchange=e=>{ S.commute=e.target.value; save(); }; }
   on('setGoalRow',sheetGoal); on('addSub',()=>sheetSubject(null));
   on('apBtn',sheetAppealPick); on('setWho',()=>sheetWhoAmI());
+  on('restoreBtn',()=>openAct({title:'Restore the last good copy',
+    note:'Replaces what is on this device now with the automatic copy.',
+    items:[{label:'Restore',run(){ restoreBackup(); }}]}));
   on('expBtn',doExport); on('demoBtn',()=>{ loadDemo(); toast('Example data loaded.'); });
   on('wipeBtn',()=>openAct({title:'Erase everything',
     note:'This clears the app on this device. Export first.',
