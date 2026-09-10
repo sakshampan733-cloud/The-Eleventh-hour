@@ -385,6 +385,121 @@ body.opening .head .when{animation-delay:.92s}
   #field .lay{transform:none}
 }
 
+
+/* ═══ DESKTOP ═════════════════════════════════════════════════════════
+   Not the phone layout stretched. A wide screen has room to answer more
+   than one question at once, which is the whole point of using this at a
+   desk: where you stand, what is happening today, and what is coming, all
+   without scrolling.
+
+   The reference's own chrome moves the same way — a wordmark top left, a
+   menu stacked top right, content in a 1078px column — so the tab pill
+   becomes that menu rather than staying a thumb control on a screen with
+   no thumbs.                                                           */
+@media (min-width:900px){
+  :root{ --pad:0px; --t-body:16px; --t-statement:78px; }
+
+  body{ padding-bottom:80px; }
+  main{ max-width:1078px; margin:0 auto; padding:0 40px; }
+  #top{
+    height:auto;padding:26px 40px 0;background:none;border-bottom:0;
+    max-width:1078px;left:50%;transform:translateX(-50%);
+  }
+  #top.solid{ background:none;border-bottom-color:transparent; }
+  #brand{ font-size:12px;letter-spacing:.26em; }
+
+  /* the menu, stacked and right-aligned, the way the reference sets it */
+  #tabs{
+    position:fixed;top:24px;right:max(24px,calc(50vw - 519px));
+    left:auto;bottom:auto;width:auto;height:auto;
+    flex-direction:column;align-items:flex-end;gap:10px;
+    padding:0;border:0;border-radius:0;background:none;
+    -webkit-backdrop-filter:none;backdrop-filter:none;
+    z-index:80;
+  }
+  #tabs button{
+    flex:none;height:auto;padding:2px 0;border-radius:0;
+    font-size:11px;letter-spacing:.16em;text-align:right;
+    background:none;width:auto;
+  }
+  #tabs button.on{ background:none;color:var(--ink); }
+  #tabs button:not(.on):hover{ color:var(--ink-2); }
+
+  .head{ padding:96px 0 0; }
+  .head h1{ line-height:.88; }
+  .head .when{ margin-top:20px;font-size:12px; }
+
+  /* two columns: the answer on the left, everything else beside it */
+  #home,#attendance,#deadlines,#calendar,#timetable,#settings{
+    display:grid;grid-template-columns:1.08fr .92fr;
+    column-gap:72px;align-items:start;
+  }
+  #home>.head,#attendance>.head,#deadlines>.head,
+  #calendar>.head,#timetable>.head,#settings>.head{ grid-column:1/-1; }
+  /* Rows are pinned rather than left to auto-placement: flowing, the
+     right-hand column starts on the row after the last left-hand block
+     and lands halfway down the page instead of level with the top. */
+  #vHero      { grid-column:1;grid-row:2 }
+  #vNow       { grid-column:1;grid-row:3 }
+  #vStanding  { grid-column:1;grid-row:4 }
+  #vQuestions { grid-column:2;grid-row:2 }
+  #vDay       { grid-column:2;grid-row:3 }
+  #vDue       { grid-column:2;grid-row:4 }
+  #vWeek      { grid-column:2;grid-row:5 }
+
+  #vOverall   { grid-column:1;grid-row:2 }
+  #vGoal      { grid-column:1;grid-row:3 }
+  #vSubjects  { grid-column:2;grid-row:2 }
+  #vMonths    { grid-column:2;grid-row:3 }
+  #vAttMore   { grid-column:2;grid-row:4 }
+
+  #vRail      { grid-column:1/-1;grid-row:2 }
+  #vClasses   { grid-column:1;grid-row:3 }
+
+  #vDueFilter { grid-column:1;grid-row:2 }
+  #vDueList   { grid-column:1;grid-row:3 }
+
+  #vCalBar    { grid-column:1;grid-row:2 }
+  #vCalGrid   { grid-column:1;grid-row:3 }
+  #vCalDay    { grid-column:2;grid-row:2/span 2 }
+  /* Settings reads as one column of groups — two would make it a form. */
+  #settings{ grid-template-columns:1fr; }
+  #vSettings{ grid-column:1;max-width:620px; }
+
+  .block{ margin-bottom:52px; }
+  .block>.eyebrow{ margin-bottom:22px; }
+
+  /* the field is a whole-window backdrop on a wide screen, so the sphere
+     sits in the corner rather than filling the frame */
+  #field .orb{ width:104vmin;height:104vmin;right:-26vmin;top:-24vmin; }
+  #field .orb2{ width:70vmin;height:70vmin;left:-24vmin;bottom:-22vmin; }
+
+  /* a pointer means hover states are worth having */
+  .item{ padding:20px 0; }
+  .item:hover .lead{ color:var(--ink); }
+  .pill:hover{ border-color:var(--ink);letter-spacing:.08em; }
+  .iconbtn:hover{ opacity:1; }
+
+  #panel{
+    left:50%;right:auto;transform:translate(-50%,101%);
+    width:min(680px,92vw);max-height:86dvh;
+    border:1px solid var(--rule);border-bottom:0;
+  }
+  #panel.on{ transform:translate(-50%,0); }
+  #panelBody{ padding:6px 40px 48px; }
+  #panelBar{ padding:26px 40px 18px; }
+  #toast{ left:50%;right:auto;transform:translate(-50%,8px);min-width:280px; }
+  #toast.on{ transform:translate(-50%,0); }
+}
+
+/* Between a phone and a laptop: one column, but with the room a tablet
+   actually has rather than phone margins. */
+@media (min-width:640px) and (max-width:899px){
+  :root{ --pad:40px; --t-statement:62px; }
+  main{ max-width:720px;margin:0 auto; }
+  #top{ padding-left:40px; }
+}
+
 /* ── the panel ────────────────────────────────────────────────────────
    Detail arrives as a full sheet of black, not a floating card. It has
    no corners, no border and no shadow — it is simply the next screen.  */
@@ -550,7 +665,10 @@ select{-webkit-appearance:none;appearance:none;
       <feTurbulence type="fractalNoise" baseFrequency="0.0016 0.0034"
                     numOctaves="2" seed="7" result="noise"/>
       <feGaussianBlur in="noise" stdDeviation="9" result="soft"/>
-      <feDisplacementMap in="SourceGraphic" in2="soft" scale="260"
+      <!-- 260 was melting the circle into a cloud. Enough displacement to
+           give the edge some liquid character, not enough to stop it being
+           a sphere. -->
+      <feDisplacementMap in="SourceGraphic" in2="soft" scale="46"
                          xChannelSelector="R" yChannelSelector="G" result="warped"/>
       <feSpecularLighting in="soft" surfaceScale="6" specularConstant="1.5"
                           specularExponent="26" lighting-color="#FFE7B8" result="spec">
