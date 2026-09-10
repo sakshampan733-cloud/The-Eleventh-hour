@@ -287,13 +287,19 @@ html:not(.glfield) #glfield{display:none}
    there is no pointer to trail. */
 #dot{
   position:fixed;left:0;top:0;z-index:95;
-  width:7px;height:7px;border-radius:var(--pill);
+  width:8px;height:8px;border-radius:var(--pill);
   background:var(--paper);
   pointer-events:none;opacity:0;
   transform:translate3d(-50px,-50px,0);
-  transition:opacity var(--t-mid) var(--ease);
+  transition:opacity var(--t-mid) var(--ease),
+             width var(--t-quick) var(--ease),
+             height var(--t-quick) var(--ease);
   mix-blend-mode:difference;
 }
+/* Over something you can click it opens up — the reference does this at
+   about 150px with an arrow inside it, which is a studio showing off. At
+   this size it reads as the pointer noticing, not as a second cursor. */
+#dot.hot{ width:34px;height:34px; }
 html.haspointer #dot.on{opacity:1}
 @media (hover:none),(pointer:coarse){ #dot{display:none} }
 
@@ -386,8 +392,8 @@ html.haspointer #dot.on{opacity:1}
   background:linear-gradient(180deg,rgba(0,0,0,.34) 0%,rgba(0,0,0,.46) 40%,
     rgba(0,0,0,.72) 76%,rgba(0,0,0,.88) 100%)}
 html.glfield #floor{
-  background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,0) 34%,
-    rgba(0,0,0,.30) 62%,rgba(0,0,0,.62) 86%,rgba(0,0,0,.80) 100%)}
+  background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,0) 56%,
+    rgba(0,0,0,.20) 78%,rgba(0,0,0,.46) 100%)}
 /* Only main needs lifting off the field. Setting position on the two bars
    here overrode the fixed positioning declared above them, which is what
    made the header and the pill scroll away with the page instead of
@@ -412,23 +418,60 @@ body.still #field b{animation-play-state:paused}
    then dissolves into the hero. Ours does the same, once per session:
    the name, then the field blooming behind it, then the app. Anyone who
    opens this app twice in a morning should not sit through it twice. */
+/* The reference opens on near-black with a single soft crescent of warm
+   light behind a centred wordmark, and then the site arrives. The
+   crescent is two radials, not one: a warm bloom with a black bloom
+   sitting over it and offset, which is what carves the arc — a plain
+   radial is a blob, and a blob was what this had. */
 #cold{
-  position:fixed;inset:0;z-index:200;background:var(--bg);
+  position:fixed;inset:0;z-index:200;background:#040404;
   display:flex;align-items:center;justify-content:center;
   pointer-events:none;
+  transition:opacity var(--t-long) var(--ease);
+}
+#cold::before{
+  content:'';position:absolute;left:50%;top:50%;
+  width:min(52vmin,420px);height:min(52vmin,420px);
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(214,176,104,.62) 0%, rgba(150,152,96,.40) 34%,
+      rgba(74,92,66,.22) 56%, rgba(0,0,0,0) 74%);
+  filter:blur(18px);
+  animation:coldGlow 2.4s var(--ease) forwards;
+}
+#cold::after{
+  content:'';position:absolute;left:50%;top:50%;
+  width:min(46vmin,372px);height:min(46vmin,372px);
+  transform:translate(-62%,-56%);
+  border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,#040404 0%,#040404 62%,rgba(4,4,4,0) 78%);
+  filter:blur(14px);
+  animation:coldGlow 2.4s var(--ease) forwards;
 }
 #cold span{
-  font-size:var(--t-label);letter-spacing:.42em;text-transform:uppercase;
-  color:var(--ink-3);
-  animation:coldWord 1.9s var(--ease) forwards;
+  position:relative;z-index:2;
+  font-size:clamp(26px,5.2vw,44px);letter-spacing:.02em;font-weight:300;
+  text-transform:none;color:var(--paper);
+  animation:coldWord 2.4s var(--ease) forwards;
 }
-#cold.go{animation:coldOut 1.1s var(--ease) .8s forwards}
+#cold.go{animation:coldOut 1.2s var(--ease) .55s forwards}
+@keyframes coldGlow{
+  0%{opacity:0}
+  46%{opacity:1}
+  100%{opacity:1}
+}
 @keyframes coldWord{
-  0%{opacity:0;letter-spacing:.2em}
-  38%{opacity:1;letter-spacing:.42em}
-  100%{opacity:0;letter-spacing:.52em}
+  0%{opacity:0;transform:translateY(14px)}
+  40%{opacity:1;transform:none}
+  100%{opacity:1;transform:none}
 }
-@keyframes coldOut{to{opacity:0;visibility:hidden}}
+/* it opens rather than blinks out: the whole plate lifts and lets go */
+@keyframes coldOut{
+  0%{opacity:1;transform:scale(1)}
+  100%{opacity:0;visibility:hidden;transform:scale(1.06)}
+}
 /* the title lines lift out from behind a mask as the cold open clears */
 .head h1,.head .when{overflow:hidden}
 body.opening .head h1,body.opening .head .when{
@@ -567,14 +610,6 @@ body.opening .head .when{animation-delay:.92s}
   .pill:hover{ border-color:var(--ink);letter-spacing:.08em; }
   .iconbtn:hover{ opacity:1; }
 
-  #panel{
-    left:50%;right:auto;transform:translate(-50%,101%);
-    width:min(680px,92vw);max-height:86dvh;
-    border:1px solid var(--rule);border-bottom:0;
-  }
-  #panel.on{ transform:translate(-50%,0); }
-  #panelBody{ padding:6px 40px 48px; }
-  #panelBar{ padding:26px 40px 18px; }
   #toast{ left:50%;right:auto;transform:translate(-50%,8px);min-width:280px; }
   #toast.on{ transform:translate(-50%,0); }
 }
@@ -663,7 +698,13 @@ body.opening .head .when{animation-delay:.92s}
 #panel{
   position:fixed;left:0;right:0;bottom:0;z-index:100;
   max-height:92dvh;display:flex;flex-direction:column;
-  background:var(--bg);border-top:1px solid var(--rule);
+  /* Not solid. A flat slab of #000 is the one thing on screen the field
+     does not reach, which is what made every sheet look bolted on from a
+     different app. At this alpha the material still reads underneath and
+     the sheet belongs to the same room, while the text on it measures
+     around 0.12 — darker ground than the page it came from. */
+  background:rgba(3,4,3,.90);
+  border-top:1px solid var(--rule);
   transform:translateY(101%);
   transition:transform var(--t-mid) var(--ease);
 }
@@ -700,6 +741,41 @@ select{-webkit-appearance:none;appearance:none;
 .field-row .lab{flex:1;font-size:var(--t-body)}
 .field-row .in{width:44%;flex-shrink:0}
 .field-row .in input,.field-row .in select{text-align:right}
+
+/* ── the panel, on a wide screen ──────────────────────────────────────
+   These used to live in the desktop block further up the sheet, above
+   the base #panel rules — so "left:0;right:0" won on source order and a
+   680px sheet sat hard against the left edge of the screen with its own
+   vertical seam down the middle of the page. Same specificity, later
+   wins; the fix is where they are, not what they say.
+
+   It is also no longer a card. Detail arrives as the next screen: the
+   plate covers the window, the field carries on behind it, and the
+   content sits in one column rather than inside a bordered box. */
+@media (min-width:900px){
+  #panel{
+    left:0;right:0;top:0;bottom:0;
+    max-height:none;width:auto;
+    border:0;border-top:0;
+    background:rgba(3,4,3,.88);
+    transform:translateY(2.5%);opacity:0;pointer-events:none;
+    transition:transform var(--t-long) var(--ease),opacity var(--t-mid) var(--ease);
+  }
+  #panel.on{ transform:none;opacity:1;pointer-events:auto; }
+  #panelBar{
+    width:min(760px,84vw);margin:0 auto;
+    padding:64px 0 26px;
+    border-bottom:1px solid var(--rule-soft);
+  }
+  /* 48 rather than something in the thirties: the system has three sizes
+     and nothing between 20 and 40, so a "comfortable" title size is
+     exactly the drift the rule exists to stop. */
+  #panelTitle{ font-size:48px;letter-spacing:-0.01em;text-transform:none;
+               font-weight:300;color:var(--paper);line-height:1; }
+  #panelBody{ width:min(760px,84vw);margin:0 auto;padding:34px 0 96px; }
+  /* the scrim has nothing left to do once the plate covers the window */
+  #scrim{ display:none; }
+}
 
 /* ── choice: three words on a rule, the chosen one lit ────────────────── */
 /* ── settings, as a list ──────────────────────────────────────────────
@@ -2633,7 +2709,10 @@ function runShortcut(q){
      Fixed centre, fixed radius: it does not drift, breathe or parallax.
      Its only job is to bend how the material is sampled on one side of
      its edge. */
-  '  vec2 sc=vec2(0.34,-0.30);',
+  /* Pushed right to sit where the reference frames its own: the limb
+     enters top-left and the body fills to the right, so the lit rim runs
+     down the left side of the sphere rather than across the middle. */
+  '  vec2 sc=vec2(0.54,-0.26);',
   '  float sr=0.78;',
   '  vec2 d=uv-sc;',
   '  float dist=length(d);',
@@ -2694,12 +2773,11 @@ function runShortcut(q){
      small type sit on this material and still be readable. Bright at the
      top where the title is, dark where the rows are. */
   '  float y=fc.y/uRes.y;',
-    /* The falloff from the build you kept: the material carries across the
-     whole first screen and only lets go near the bottom edge. Brightness
-     and extent are separate levers and I had been reaching for the wrong
-     one — the fix for small type on the field is the type, not dimming
-     the field out from under it. */
-  '  col*=mix(0.050,1.0,smoothstep(0.00,0.64,y));',
+    /* The black was starting a third of the way up the first screen. The
+     material now carries most of the way down and only gives up at the
+     very bottom edge, so the opening screen is the field rather than the
+     field plus a large black shelf under it. */
+  '  col*=mix(0.150,1.0,smoothstep(-0.18,0.52,y));',
   '  col*=uFade;',
 
   /* Grain, over everything, static per frame. The reference has it even
@@ -2821,7 +2899,63 @@ function runShortcut(q){
     dot.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(1)+'px,0) translate(-50%,-50%)';
     if(Math.abs(tx-x)>0.4||Math.abs(ty-y)>0.4) raf=requestAnimationFrame(step);
   }
+  /* What counts as clickable is asked of the element under the pointer
+     rather than kept as a list of selectors, so anything the app grows
+     later is included without being registered anywhere. */
+  let hot=false;
+  function overClickable(e){
+    for(let n=e;n&&n!==document.body;n=n.parentElement){
+      if(n.tagName==='BUTTON'||n.tagName==='A'||n.tagName==='LABEL') return true;
+      if(typeof n.onclick==='function') return true;
+      const c=n.className;
+      if(typeof c==='string'&&/\b(item|pill|iconbtn)\b/.test(c)) return true;
+    }
+    return false;
+  }
+  addEventListener('pointerover',function(e){
+    const h=overClickable(e.target);
+    if(h!==hot){ hot=h; dot.classList.toggle('hot',h); }
+  },{passive:true});
   addEventListener('pointerleave',function(){ dot.classList.remove('on'); seen=false; },{passive:true});
+})();
+
+
+/* ── smooth scroll ─────────────────────────────────────────────────────
+   The reference eases the page rather than jumping it by wheel notches.
+   This runs on a mouse or trackpad only: touch already has momentum of
+   its own and hijacking it makes a phone feel broken, so the handler
+   never registers there. Keyboard, the scrollbar and anchor jumps all
+   still work — the target simply resyncs whenever the page moves by any
+   route other than the wheel. */
+(function(){
+  let fine=false;
+  try{ fine=matchMedia('(hover:hover) and (pointer:fine)').matches; }catch(e){}
+  let reduce=false;
+  try{ reduce=matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+  if(!fine||reduce) return;
+
+  let target=window.scrollY||0, raf=0, driving=false;
+  const max=()=>Math.max(0,document.documentElement.scrollHeight-innerHeight);
+
+  function run(){
+    raf=0;
+    const cur=window.scrollY||0, d=target-cur;
+    if(Math.abs(d)<0.6){ window.scrollTo(0,target); driving=false; return; }
+    window.scrollTo(0,cur+d*0.14);
+    raf=requestAnimationFrame(run);
+  }
+  addEventListener('wheel',function(e){
+    if(e.ctrlKey) return;                        /* pinch zoom is not scroll */
+    if(document.getElementById('panel').classList.contains('on')) return;
+    if(e.deltaMode===1) return;                  /* line-mode wheels: leave alone */
+    e.preventDefault();
+    if(!driving){ driving=true; target=window.scrollY||0; }
+    target=Math.min(max(),Math.max(0,target+e.deltaY));
+    if(!raf) raf=requestAnimationFrame(run);
+  },{passive:false});
+  /* anything that moves the page by another route owns the target again */
+  addEventListener('scroll',function(){ if(!driving) target=window.scrollY||0; },{passive:true});
+  addEventListener('keydown',function(){ driving=false; },{passive:true});
 })();
 
 /* Boot lives at the bottom of the view now — the engine cannot call into

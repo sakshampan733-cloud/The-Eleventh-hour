@@ -7,9 +7,10 @@ itself). Previous bar kept as `bar.v2.md`.
 
 | # | Piece | Built | Brief | System | Craft |
 |---|-------|-------|-------|--------|-------|
-| 1 | The field — shader, sphere-as-boundary, grain | v4 | — | — | — |
-| 2 | The pointer — trailing dot, field reacts | v2 | — | — | — |
-| 3 | Type and interface — monumental scale, no hue | not started | — | — | — |
+| 1 | The field — shader, sphere-as-boundary, grain | v6 | — | — | — |
+| 2 | The pointer — trailing dot, grows on clickables | v3 | — | — | — |
+| 3 | Type and interface — monumental scale, no hue | partial | — | — | — |
+| 4 | Sheets, cold open, scroll feel | v1 | — | — | — |
 
 Critics have not run yet. Verdicts stay blank until they do.
 
@@ -47,6 +48,21 @@ the reference uses (its hero is a WebGL2 canvas, confirmed in the DOM).
 | 1 | Too yellow — wanted the earlier shade | user |
 | 1 | Too bright overall once full-bleed | user |
 | 1 | `#floor` scrim double-dimmed a canvas measuring 0.42 at the top | self, measured |
+
+## Round 2
+
+- Cold open rebuilt as the reference's: near-black, one soft crescent of
+  warm light, a centred wordmark, then the plate lifts and lets go.
+- Sheets stopped being opaque slabs bolted on from another app. On a wide
+  screen a sheet is the next screen: it covers the window, the field
+  carries on behind it at 0.88, the title is 48px and there is no scrim
+  left to draw.
+- Orb moved right to the reference's framing; the material now carries
+  most of the way down the first screen instead of hitting black a third
+  of the way up.
+- The dot opens to 34px over anything clickable.
+- Wheel scrolling is eased on a mouse or trackpad; touch keeps its own
+  momentum and is never intercepted.
 
 ## Open
 
