@@ -41,8 +41,14 @@
   --ash:#9a9a9a; --felt:#6d6d6d; --slate:#636363;
 
   --bg:#000; --ink:#fff;
-  --ink-2:#9a9a9a;      /* supporting prose */
-  --ink-3:#6d6d6d;      /* labels, captions, things that recede */
+  /* These were picked against a black page, where a dim grey recedes. On
+     a lit material a dim grey is simply darker than its background —
+     "TODAY'S CLASSES" measured 1.01:1, which is no contrast at all. On
+     this ground things recede by being smaller and more spaced, not by
+     being dimmer, so both step toward white and hierarchy moves into
+     size and letterspacing. */
+  --ink-2:rgba(255,255,255,.88);   /* supporting prose */
+  --ink-3:rgba(255,255,255,.66);   /* labels, captions, things that recede */
   --rule:rgba(255,255,255,.18);
   --rule-soft:rgba(255,255,255,.09);
 
@@ -2673,6 +2679,14 @@ function runShortcut(q){
      out as "a hint of texture on black" rather than the reference's
      filled frame. */
   '  m=clamp((m-0.215)*2.10,0.0,1.0);',
+  /* Highlights roll off instead of climbing to near-white. Measured, the
+     material was reaching 0.88 luminance and pure white 16px type on that
+     is 1.13:1 — the words were not dim, they were gone, and because the
+     highlight flows they dropped out as it passed. Compressing the top of
+     the range keeps every hue in the ramp and simply stops it blowing
+     out; if anything it reads warmer, because the near-white was the
+     least warm part of the material. */
+  '  m=m<0.62?m:0.62+(m-0.62)*0.42;',
   '  vec3 col=ramp(m);',
 
   /* The reference goes near-black along the bottom of every frame it
