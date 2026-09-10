@@ -427,71 +427,60 @@ body.still #field b{animation-play-state:paused}
    crescent is two radials, not one: a warm bloom with a black bloom
    sitting over it and offset, which is what carves the arc — a plain
    radial is a blob, and a blob was what this had. */
+/* ── the cold open ─────────────────────────────────────────────────────
+   Not a picture of the app's colours — the app itself, seen through a
+   gap. The plate is black and carries a hole in it, and the hole sits on
+   the orb's limb, which is computed from the same numbers the shader
+   uses. Because the field is near-black everywhere except along that
+   edge, a soft round hole over it shows exactly one thing: the swoosh.
+
+   Then it is yours to open. Every bit of pointer movement widens the
+   hole, the curve gives way to the whole field, and when the gap has
+   swallowed the screen there is nothing left of the plate to remove. A
+   fog made of CSS was always going to be a different room from the one
+   it was introducing; this is the same room, through a keyhole. */
+/* ── the cold open ─────────────────────────────────────────────────────
+   There is no plate. The field itself is held small and centred while
+   the app waits — a soft body of light on black with the wordmark on it
+   — and opening is that same light growing out to fill the screen. One
+   material the whole way through, so nothing has to be matched to
+   anything and nothing can look bolted on.
+
+   It reacts because the field reacts: the shader pushes the material
+   away from the pointer before it samples it, so moving through it
+   disturbs the flow where your hand is and leaves the rest running. */
 #cold{
-  position:fixed;inset:0;z-index:200;background:#040404;
+  position:fixed;inset:0;z-index:200;background:transparent;
   display:flex;align-items:center;justify-content:center;
   pointer-events:none;
-  transition:opacity var(--t-long) var(--ease);
 }
-#cold::before{
-  content:'';position:absolute;left:50%;top:50%;
-  width:min(52vmin,420px);height:min(52vmin,420px);
-  transform:translate(-50%,-50%);
-  border-radius:50%;
-  background:
-    radial-gradient(circle at 50% 50%,
-      rgba(214,176,104,.62) 0%, rgba(150,152,96,.40) 34%,
-      rgba(74,92,66,.22) 56%, rgba(0,0,0,0) 74%);
-  filter:blur(18px);
-  animation:coldGlow 1.05s var(--ease) forwards;
+/* The interface waits until the light has opened out. */
+body.opening main,body.opening #top,body.opening #tabs,body.opening #cmdOpen{
+  opacity:0;
 }
-#cold::after{
-  content:'';position:absolute;left:50%;top:50%;
-  width:min(46vmin,372px);height:min(46vmin,372px);
-  transform:translate(-62%,-56%);
-  border-radius:50%;
-  background:radial-gradient(circle at 50% 50%,#040404 0%,#040404 62%,rgba(4,4,4,0) 78%);
-  filter:blur(14px);
-  animation:coldGlow 1.05s var(--ease) forwards;
+body.opened main,body.opened #top,body.opened #tabs,body.opened #cmdOpen{
+  opacity:1;transition:opacity var(--t-long) var(--ease);
 }
-#cold span{
-  position:relative;z-index:2;
+
+#cold span:not(.fog){
+  position:relative;z-index:3;
   font-size:clamp(26px,5.2vw,44px);letter-spacing:.02em;font-weight:300;
   text-transform:none;color:var(--paper);
   animation:coldWord 1.05s var(--ease) forwards;
 }
-/* While it waits, the light keeps moving. A still plate reads as a page
-   that has failed to load; a breathing one reads as something holding
-   the door. */
-#cold.waiting::before{
-  animation:coldGlow 1.05s var(--ease) forwards,
-            coldBreathe 7s ease-in-out 1.05s infinite;
-}
-@keyframes coldBreathe{
-  0%,100%{transform:translate(-50%,-50%) scale(1)}
-  50%{transform:translate(-50%,-50%) scale(1.07)}
-}
-#cold.go{animation:coldOut .66s var(--ease) forwards}
-/* the light blooms past the edge of the plate as the plate lets go */
-#cold.go::before{animation:coldBloom .66s var(--ease) forwards}
-@keyframes coldBloom{
-  0%{opacity:1;transform:translate(-50%,-50%) scale(1)}
-  100%{opacity:0;transform:translate(-50%,-50%) scale(2.1)}
-}
-@keyframes coldGlow{
-  0%{opacity:0}
-  46%{opacity:1}
-  100%{opacity:1}
+/* the wordmark thins out as the gap widens — by the time the field is
+   open it has already gone, rather than being cut off by the plate */
+#cold.waiting span:not(.fog){opacity:calc(1 - var(--openness,0)*1.15)}
+
+#cold.go{animation:coldOut .78s var(--ease) forwards}
+@keyframes coldOut{
+  0%{opacity:1}
+  100%{opacity:0;visibility:hidden}
 }
 @keyframes coldWord{
   0%{opacity:0;transform:translateY(14px)}
   40%{opacity:1;transform:none}
   100%{opacity:1;transform:none}
-}
-/* it opens rather than blinks out: the whole plate lifts and lets go */
-@keyframes coldOut{
-  0%{opacity:1;transform:scale(1)}
-  100%{opacity:0;visibility:hidden;transform:scale(1.12)}
 }
 /* the title lines lift out from behind a mask as the cold open clears */
 .head h1,.head .when{overflow:hidden}
@@ -502,7 +491,7 @@ body.opened .head h1{animation-delay:.08s}
 body.opened .head .when{animation-delay:.18s}
 @keyframes maskUp{from{opacity:0;transform:translateY(1.1em)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){
-  #cold span{animation:none;opacity:0}
+  #cold span:not(.fog){animation:none;opacity:0}
   #cold{display:none}
   body.opening .head h1,body.opening .head .when{animation:none}
   #field .lay{transform:none}
@@ -2687,7 +2676,7 @@ function runShortcut(q){
 
   const FS=[
   'precision highp float;',
-  'uniform vec2 uRes;uniform float uT;uniform vec2 uM;uniform float uScroll;uniform float uFade;',
+  'uniform vec2 uRes;uniform float uT;uniform vec2 uM;uniform float uScroll;uniform float uFade;uniform float uCold;',
 
   /* value noise + fBm. Cheap, and smooth enough at this scale that the
      material reads as poured rather than pixelated. */
@@ -2746,7 +2735,7 @@ function runShortcut(q){
      than a light being added on top of it. That is the difference
      between the field reacting to you and a spotlight following you. */
   '  float md0=length(uv-uM);',
-  '  float pull=exp(-md0*md0*4.0);',
+  '  float pull=exp(-md0*md0*mix(4.0,11.0,uCold))*mix(1.0,1.7,uCold);',
   '  vec2 puv=uv+normalize(uv-uM+vec2(1e-4))*pull*0.055;',
   '  float mo=material(puv*0.92+vec2(0.,uScroll*0.12),t,2.2);',
 
@@ -2779,7 +2768,11 @@ function runShortcut(q){
      in the dark half of the palette — which is how the first pass came
      out as "a hint of texture on black" rather than the reference's
      filled frame. */
-  '  m=clamp((m-0.215)*2.10,0.0,1.0);',
+    /* A little more black in the orb. Raising the floor the material is
+     measured from drops the bottom of the distribution out of the ramp
+     entirely, so the dark parts go properly dark instead of sitting at a
+     dim olive — without touching the colour of anything that stays lit. */
+  '  m=clamp((m-0.268)*2.22,0.0,1.0);',
   /* Highlights roll off instead of climbing to near-white. Measured, the
      material was reaching 0.88 luminance and pure white 16px type on that
      is 1.13:1 — the words were not dim, they were gone, and because the
@@ -2800,7 +2793,13 @@ function runShortcut(q){
      very bottom edge, so the opening screen is the field rather than the
      field plus a large black shelf under it. */
   '  col*=mix(0.150,1.0,smoothstep(-0.18,0.52,y));',
-  '  col*=uFade;',
+  /* Cold: the same field, gathered. Everything outside a soft body in
+     the middle is taken to black, so what is on screen is one small
+     mass of light — and opening is nothing more than letting go of this
+     one number, which is why the transition needs no choreography. */
+  '  float cg=exp(-dot(uv,uv)*mix(0.9,7.5,uCold));',
+  '  col*=mix(1.0,cg,uCold);',
+'  col*=uFade;',
 
   /* Grain, over everything, static per frame. The reference has it even
      in the black — nothing in that frame is ever perfectly flat. */
@@ -2834,7 +2833,8 @@ function runShortcut(q){
 
   const uRes=gl.getUniformLocation(pr,'uRes'), uT=gl.getUniformLocation(pr,'uT'),
         uM=gl.getUniformLocation(pr,'uM'), uScroll=gl.getUniformLocation(pr,'uScroll'),
-        uFade=gl.getUniformLocation(pr,'uFade');
+        uFade=gl.getUniformLocation(pr,'uFade'),
+        uCold=gl.getUniformLocation(pr,'uCold');
 
   /* A full-screen fragment shader is paid for per pixel, so the pixel
      count is the whole performance story. Capping the ratio is what keeps
@@ -2865,6 +2865,11 @@ function runShortcut(q){
   try{ reduce=matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
 
   let t0=performance.now(), clock=0, raf=0, running=true, fade=0;
+  /* The cold open owns this: it starts gathered and is released when the
+     door opens. Exposed on window so the opener does not need a handle
+     on anything inside here. */
+  let cold=1, coldWant=1;
+  window.__fieldOpen=function(){ coldWant=0; start(); };
   function frame(now){
     raf=0;
     const dt=Math.min(0.05,(now-t0)/1000); t0=now;
@@ -2882,6 +2887,10 @@ function runShortcut(q){
        scrolls, so that has to follow the scroll rather than sit at a
        fixed height on the glass. */
     gl.uniform1f(uFade,fade*(1.0-0.80*Math.min(1,sy/0.75)));
+    /* eased toward whatever the cold open has set — 1 while it waits,
+       0 once it has been opened */
+    cold+=(coldWant-cold)*Math.min(1,dt*2.6);
+    gl.uniform1f(uCold,cold);
     gl.drawArrays(gl.TRIANGLES,0,3);
     if(running) raf=requestAnimationFrame(frame);
   }
@@ -3105,7 +3114,13 @@ registerSW();
   try{ seen=sessionStorage.getItem('eh-cold')==='1'; }catch(e){}
   var reduce=false;
   try{ reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
-  if(seen||reduce){ cold.parentNode&&cold.parentNode.removeChild(cold); return; }
+  function release(){ if(window.__fieldOpen) window.__fieldOpen(); }
+  if(seen||reduce){
+    release();
+    cold.parentNode&&cold.parentNode.removeChild(cold);
+    document.body.classList.add('opened');
+    return;
+  }
   try{ sessionStorage.setItem('eh-cold','1'); }catch(e){}
   document.body.classList.add('opening');
 
@@ -3115,6 +3130,7 @@ registerSW();
   var done=false;
   function open(){
     if(done) return; done=true;
+    release();
     cold.classList.remove('waiting');
     cold.classList.add('go');
     document.body.classList.add('opened');
@@ -3126,20 +3142,33 @@ registerSW();
 
   if(!gated){ setTimeout(open,1150); return; }
 
-  /* A pointer that has not moved still fires one event when it enters the
-     window, so the first sample is a reference point rather than a
-     trigger — the door opens on movement, not on presence. */
   cold.classList.add('waiting');
-  var x0=null,y0=null;
+
+  /* Playing with it is not moving it. The field displaces the material
+     around the pointer and leaves everything else running, so passing
+     through it disturbs the flow the way a hand does in a stream — that
+     is already in the shader and needs nothing here. What is here is
+     only the question of when it has been played with enough.
+
+     Travel, not a twitch: about two screens of movement, and never
+     before a second and a half has passed, so there is time to put a
+     hand in it before it opens. */
+  var x0=null,y0=null,travel=0,firstMove=0;
   function look(e){
+    /* a pointer that has merely entered the window fires once without
+       having moved — that first sample is the origin, not a trigger */
     if(x0===null){ x0=e.clientX; y0=e.clientY; return; }
-    if(Math.abs(e.clientX-x0)+Math.abs(e.clientY-y0) < 18) return;
+    travel+=Math.abs(e.clientX-x0)+Math.abs(e.clientY-y0);
+    x0=e.clientX; y0=e.clientY;
+    if(!firstMove) firstMove=performance.now();
+    if(travel < innerWidth*2.0) return;
+    if(performance.now()-firstMove < 1500) return;
     removeEventListener('pointermove',look);
     open();
   }
   addEventListener('pointermove',look,{passive:true});
   /* a trackpad nobody touches must not be able to lock the app out */
-  setTimeout(function(){ removeEventListener('pointermove',look); open(); },7000);
+  setTimeout(function(){ removeEventListener('pointermove',look); open(); },9000);
 })();
 
 /* keep the countdown and "in class now" honest without a visible redraw */
