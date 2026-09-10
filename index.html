@@ -2694,31 +2694,34 @@ function runShortcut(q){
      bottom, olive through sage, then bone, with amber where the material
      turns toward the light. Their doc calls it "greens dissolving into
      amber into deep oxblood" — this is that ramp. */
-  /* Two ramps, not one. Read off the hero: outside the limb the field is
-   green — sage and olive, high contrast, and the brightest thing in the
-   picture is out there. Inside it is warm and darker — brown into amber,
-   smooth, slow. Their own doc calls it "greens dissolving into amber",
-   and it is not a gradient across the field, it is two materials meeting
-   at an edge. Every previous attempt ran one palette everywhere and then
-   tried to fix the result by moving stops around. */
-  'vec3 rampCool(float v){',
+  /* One ramp, holding both colours.
+
+   The pass before this gave the two sides of the limb separate palettes —
+   green outside, amber inside — and that was wrong. It is one material
+   with one colour profile; what makes the sphere look like a different
+   substance is that the flow inside it has carried the colour somewhere
+   else, not that it is made of something else. Split into two exclusive
+   ramps you get a hard seam and two halves that never share a tone.
+
+   So green and amber both live on this one ramp, green low and amber
+   high, and both sides of the limb draw from all of it. Where a side
+   happens to sit in the range decides how it reads, and both carry some
+   of the other. */
+  'vec3 ramp(float v){',
   '  v=clamp(v,0.,1.);',
-  '  vec3 c=mix(vec3(0.010,0.012,0.010),vec3(0.035,0.050,0.036),smoothstep(0.00,0.22,v));',
-  '  c=mix(c,vec3(0.118,0.148,0.088),smoothstep(0.20,0.42,v));',
-  '  c=mix(c,vec3(0.295,0.338,0.196),smoothstep(0.40,0.60,v));',
-  '  c=mix(c,vec3(0.552,0.590,0.356),smoothstep(0.58,0.78,v));',
-  '  c=mix(c,vec3(0.768,0.788,0.548),smoothstep(0.76,0.92,v));',
-  '  c=mix(c,vec3(0.908,0.915,0.778),smoothstep(0.90,1.00,v));',
-  '  return c;',
-  '}',
-  'vec3 rampWarm(float v){',
-  '  v=clamp(v,0.,1.);',
-  '  vec3 c=mix(vec3(0.012,0.010,0.008),vec3(0.055,0.040,0.026),smoothstep(0.00,0.24,v));',
-  '  c=mix(c,vec3(0.150,0.105,0.055),smoothstep(0.22,0.45,v));',
-  '  c=mix(c,vec3(0.330,0.230,0.100),smoothstep(0.43,0.64,v));',
-  '  c=mix(c,vec3(0.560,0.400,0.160),smoothstep(0.62,0.80,v));',
-  '  c=mix(c,vec3(0.760,0.580,0.270),smoothstep(0.78,0.92,v));',
-  '  c=mix(c,vec3(0.900,0.760,0.480),smoothstep(0.90,1.00,v));',
+  '  vec3 c=mix(vec3(0.000,0.000,0.000),vec3(0.024,0.031,0.022),smoothstep(0.00,0.20,v));',
+  '  c=mix(c,vec3(0.082,0.112,0.070),smoothstep(0.18,0.36,v));',
+  '  c=mix(c,vec3(0.195,0.262,0.132),smoothstep(0.34,0.52,v));',
+  '  c=mix(c,vec3(0.408,0.448,0.168),smoothstep(0.50,0.66,v));',
+  '  c=mix(c,vec3(0.672,0.628,0.196),smoothstep(0.64,0.79,v));',
+  /* The warm end sits above where the material actually reaches — it
+     peaks around 0.72 — so it is there for the rare ridge that climbs
+     into it and nothing more. Pulled down into range it became an orange
+     mass, and narrowed it became a thread; both were too much. Left
+     where it is, the field is black, green and yellow. */
+  '  c=mix(c,vec3(0.880,0.598,0.170),smoothstep(0.78,0.875,v));',
+  '  c=mix(c,vec3(0.932,0.812,0.330),smoothstep(0.865,0.945,v));',
+  '  c=mix(c,vec3(0.948,0.906,0.652),smoothstep(0.935,1.00,v));',
   '  return c;',
   '}',
 
@@ -2752,8 +2755,8 @@ function runShortcut(q){
 
   /* Outside the limb: tight, contrasty, and the brightest thing in the
      frame lives out here. */
-  '  float mo=material(puv*1.05+vec2(0.,uScroll*0.12),t,2.6);',
-  '  mo=clamp((mo-0.268)*2.45,0.0,1.0);',
+  '  float mo=material(puv*0.52+vec2(0.,uScroll*0.12),t,1.85);',
+  '  mo=clamp((mo-0.3472)*2.92,0.0,1.0);',
   '  mo+=0.11*pull;',
 
   /* Inside: refracted through the curvature and run smoother and larger,
@@ -2763,8 +2766,8 @@ function runShortcut(q){
   '  float mi=0.0;',
   '  if(inside>0.001){',
   '    vec2 refr=uv-d*(0.26*z)+normalize(uv-uM+vec2(1e-4))*pull*0.030;',
-  '    mi=material(refr*0.60+vec2(0.,uScroll*0.12),t*0.80,1.6);',
-  '    mi=clamp((mi-0.292)*2.25,0.0,1.0)*0.90;',
+  '    mi=material(refr*0.36+vec2(0.,uScroll*0.12),t*0.80,1.25);',
+  '    mi=clamp((mi-0.3552)*2.66,0.0,1.0)*0.94;',
   '  }',
 
   /* Shading across the curvature, before either side is coloured. */
@@ -2773,15 +2776,18 @@ function runShortcut(q){
   '  float lam=max(0.0,dot(N,L));',
   '  mi+=inside*(lam*0.16-0.05);',
 
-  /* Two materials, two ramps, mixed at the edge — not one value pushed
-     through one palette. This is the difference the whole thing turned
-     on: green outside, amber inside. */
-  '  vec3 col=mix(rampCool(clamp(mo,0.0,1.0)),rampWarm(clamp(mi,0.0,1.0)),inside);',
+  /* Same ramp for both. The inside is nudged along it rather than given
+     a palette of its own — enough that it reads warmer, not so much that
+     the limb becomes a seam between two different materials. */
+  '  float mm=mix(mo,mi+0.17,inside);',
+  '  vec3 col=ramp(clamp(mm,0.0,1.0));',
 
-  /* The limb catches light: thin, warm-white, and on the edge itself
-     rather than glowing off it. */
-  '  float rim=smoothstep(0.016,0.0,abs(dist-sr));',
-  '  col+=rim*0.42*(0.30+0.70*lam)*vec3(1.00,0.96,0.86);',
+  /* Matte. A bright specular line was the one glossy thing in an
+     otherwise diffuse picture, and it read as chrome — the reference's
+     limb is barely there, the soft turn of a surface rather than a
+     highlight sitting on it. */
+  '  float rim=smoothstep(0.018,0.0,abs(dist-sr));',
+  '  col+=rim*0.115*(0.35+0.65*lam)*vec3(0.96,0.94,0.88);',
 
   /* The reference goes near-black along the bottom of every frame it
      holds. That is not decoration here: it is what lets a screen full of
@@ -2801,10 +2807,13 @@ function runShortcut(q){
   '  col*=mix(1.0,cg,uCold);',
 '  col*=uFade;',
 
-  /* Grain, over everything, static per frame. The reference has it even
-     in the black — nothing in that frame is ever perfectly flat. */
+  /* A tooth on the surface, nothing more — enough that no area is
+     perfectly flat, faded out of the deepest shadow so the black stays
+     black. Not the storm: the particles carrying their own colour was a
+     different thing entirely, and this is not that. */
   '  float g=h(fc+fract(t)*137.0);',
-  '  col+=(g-0.5)*0.028;',
+  '  float lv=max(col.r,max(col.g,col.b));',
+  '  col+=(g-0.5)*0.030*smoothstep(0.0,0.10,lv);',
 
   '  gl_FragColor=vec4(max(col,0.0),1.0);',
   '}'].join('\n');
@@ -2868,7 +2877,7 @@ function runShortcut(q){
   /* The cold open owns this: it starts gathered and is released when the
      door opens. Exposed on window so the opener does not need a handle
      on anything inside here. */
-  let cold=1, coldWant=1;
+  let coldWant=window.__fieldReleased?0:1, cold=coldWant;
   window.__fieldOpen=function(){ coldWant=0; start(); };
   function frame(now){
     raf=0;
@@ -2896,7 +2905,18 @@ function runShortcut(q){
   }
   function start(){ if(!raf&&running){ t0=performance.now(); raf=requestAnimationFrame(frame); } }
   function stop(){ if(raf){ cancelAnimationFrame(raf); raf=0; } }
+  /* A stopped loop renders as a black screen, which is the worst failure
+     this thing has — worse than any wrong colour, because it looks like
+     the app is broken. visibilitychange alone was not enough: if the page
+     is hidden mid-load and the matching visible event is missed or
+     swallowed, the loop is cancelled and nothing ever asks for another
+     frame. So every route back into the page restarts it, and start() is
+     a no-op when it is already running. */
   document.addEventListener('visibilitychange',()=>{ document.hidden?stop():start(); });
+  addEventListener('focus',start);
+  addEventListener('pageshow',start);
+  addEventListener('pointerdown',start,{passive:true});
+  addEventListener('scroll',start,{passive:true});
 
   /* Only now is the CSS fallback taken down, and only because the canvas
      has actually produced a frame. If anything above had failed we would
@@ -3132,7 +3152,15 @@ registerSW();
      was opened. It leaves a flag instead. */
   var summoned=!!window.__summoned;
   try{ summoned=summoned||(location.search||'').indexOf('do=')>=0; }catch(e){}
-  function release(){ if(window.__fieldOpen) window.__fieldOpen(); }
+  /* Order-proof. If the field has not built itself yet there is nothing
+     to call, and the release was being dropped on the floor — which left
+     uCold pinned at 1 and the whole field gathered into a dot, reading
+     as a black screen with dust on it. The flag is checked by the field
+     when it starts, so it no longer matters which of the two runs first. */
+  function release(){
+    window.__fieldReleased=true;
+    if(window.__fieldOpen) window.__fieldOpen();
+  }
   if(reduce||summoned){
     release();
     cold.parentNode&&cold.parentNode.removeChild(cold);
