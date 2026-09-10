@@ -258,6 +258,35 @@ section.on{display:block}
   overflow:hidden;pointer-events:none;opacity:1;
   transition:opacity var(--t-long) var(--ease);
 }
+/* The canvas IS the field when WebGL is available. It sits under
+   everything, never scrolls (position:fixed on #field), and is the only
+   thing painting the background. */
+#glfield{
+  position:absolute;inset:0;width:100%;height:100%;
+  display:block;pointer-events:none;
+}
+/* Once the canvas has a frame, the gradient stand-ins come down. Both at
+   once would be two backgrounds stacked, which is how the old field got
+   so bright. */
+html.glfield #field .lay{display:none}
+html:not(.glfield) #glfield{display:none}
+
+/* The dot that follows the pointer and arrives late. It is not attached
+   to the cursor — the damping in the field loop puts it behind you, and
+   it settles when you stop. Hidden entirely on a touch screen, where
+   there is no pointer to trail. */
+#dot{
+  position:fixed;left:0;top:0;z-index:95;
+  width:7px;height:7px;border-radius:var(--pill);
+  background:var(--paper);
+  pointer-events:none;opacity:0;
+  transform:translate3d(-50px,-50px,0);
+  transition:opacity var(--t-mid) var(--ease);
+  mix-blend-mode:difference;
+}
+html.haspointer #dot.on{opacity:1}
+@media (hover:none),(pointer:coarse){ #dot{display:none} }
+
 #field b{position:absolute;display:block;will-change:transform}
 /* Clustered so they read as one body with a lit edge, not five lights in
    a row. The deep green is the mass; the amber is the rim catching light
@@ -337,9 +366,18 @@ section.on{display:block}
    over the whole form — a flat wash across everything would undo the depth
    the contrast pass just created. */
 /* Just enough shade under the type, kept off the sphere itself. */
+/* The floor exists to keep type off the field. It was written for a CSS
+   gradient that had no falloff of its own, so it starts at 34% black
+   across the whole frame. The shader has its own falloff and its own
+   scroll dim, and stacking the two is what made a canvas measuring 0.42
+   at the top read as near-black on the page. On the GL path the floor
+   only does the bottom, where the dense rows are. */
 #floor{position:fixed;inset:0;z-index:0;pointer-events:none;
   background:linear-gradient(180deg,rgba(0,0,0,.34) 0%,rgba(0,0,0,.46) 40%,
     rgba(0,0,0,.72) 76%,rgba(0,0,0,.88) 100%)}
+html.glfield #floor{
+  background:linear-gradient(180deg,rgba(0,0,0,0) 0%,rgba(0,0,0,0) 34%,
+    rgba(0,0,0,.30) 62%,rgba(0,0,0,.62) 86%,rgba(0,0,0,.80) 100%)}
 /* Only main needs lifting off the field. Setting position on the two bars
    here overrode the fixed positioning declared above them, which is what
    made the header and the pill scroll away with the page instead of
@@ -758,10 +796,15 @@ select{-webkit-appearance:none;appearance:none;
 <body>
 
 <div id="field" aria-hidden="true">
+  <!-- The real field. The CSS layers below stay as the fallback for a
+       browser without WebGL; boot hides them the moment the canvas is
+       drawing, so what you see is one or the other, never both. -->
+  <canvas id="glfield"></canvas>
   <span class="lay" style="--amp:120px"><b class="orb"></b></span>
   <span class="lay" style="--amp:70px"><b class="orb2"></b></span>
   <span class="lay" style="--amp:200px"><b class="haze"></b></span>
 </div>
+<div id="dot" aria-hidden="true"></div>
 <div id="floor" aria-hidden="true"></div>
 <div id="cold" aria-hidden="true"><span>Eleventh Hour</span></div>
 
@@ -2496,6 +2539,264 @@ function runShortcut(q){
   if(r.tab) S.tab=r.tab;
   if(r.view){ try{ termView=r.view; }catch(e){} }
   if(r.msg) setTimeout(()=>toast(r.msg, r.bad?'bad':''), 260);
+})();
+
+/* ── the field ─────────────────────────────────────────────────────────
+   The reference's hero is a WebGL canvas, and every attempt to fake it
+   with CSS failed for the same reason: a radial-gradient disc sitting on
+   a black page has a cut edge by definition. You said "the globe is half
+   cut" four times and you were right every time — it was a disc, not a
+   sphere.
+
+   What the reference actually does, read off the rendered frames: one
+   continuous flowing material fills the viewport, and the sphere is a
+   BOUNDARY inside that material. The texture carries on outside the
+   sphere as well as inside it, refracted and smoothed across the edge.
+   There is no background for the sphere to be cut against, so it never
+   reads as cut.
+
+   And: the geometry is still. It is the colour that moves.             */
+(function(){
+  const cv=document.getElementById('glfield');
+  if(!cv) return;
+  let gl=null;
+  try{ gl=cv.getContext('webgl',{alpha:false,antialias:false,depth:false,
+        stencil:false,powerPreference:'low-power',preserveDrawingBuffer:false}); }catch(e){}
+  if(!gl) return;                       /* the CSS layers stay as they are */
+
+  const VS='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+
+  const FS=[
+  'precision highp float;',
+  'uniform vec2 uRes;uniform float uT;uniform vec2 uM;uniform float uScroll;uniform float uFade;',
+
+  /* value noise + fBm. Cheap, and smooth enough at this scale that the
+     material reads as poured rather than pixelated. */
+  'float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}',
+  'float n(vec2 p){vec2 i=floor(p),f=fract(p);vec2 u=f*f*(3.-2.*f);',
+  ' return mix(mix(h(i),h(i+vec2(1,0)),u.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),u.x),u.y);}',
+  'float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){v+=a*n(p);p*=2.03;a*=.5;}return v;}',
+
+  /* Domain warping is what makes it look like liquid rather than clouds:
+     the field is sampled through a displaced copy of itself. Time only
+     ever enters the WARP, never the position of anything, which is why
+     the colour churns while the geometry stays exactly where it is. */
+  'float material(vec2 p,float t,float detail){',
+  '  vec2 q=vec2(fbm(p+vec2(0.,t*.06)),fbm(p+vec2(5.2,1.3)-vec2(t*.045,0.)));',
+  '  vec2 r=vec2(fbm(p+2.6*q+vec2(1.7,9.2)+t*.03),fbm(p+2.6*q+vec2(8.3,2.8)-t*.025));',
+  '  return fbm(p+detail*r);',
+  '}',
+
+  /* The palette, in the order the reference stacks it: a deep brown-black
+     bottom, olive through sage, then bone, with amber where the material
+     turns toward the light. Their doc calls it "greens dissolving into
+     amber into deep oxblood" — this is that ramp. */
+  'vec3 ramp(float v){',
+  '  v=clamp(v,0.,1.);',
+  '  vec3 c=mix(vec3(0.026,0.026,0.022),vec3(0.062,0.078,0.060),smoothstep(0.00,0.20,v));',
+  '  c=mix(c,vec3(0.150,0.178,0.132),smoothstep(0.18,0.36,v));',
+  '  c=mix(c,vec3(0.205,0.242,0.186),smoothstep(0.34,0.52,v));',
+  '  c=mix(c,vec3(0.352,0.382,0.300),smoothstep(0.50,0.68,v));',
+  '  c=mix(c,vec3(0.520,0.538,0.442),smoothstep(0.66,0.83,v));',
+  '  c=mix(c,vec3(0.720,0.728,0.678),smoothstep(0.80,1.00,v));',
+  '  return c;',
+  '}',
+
+  'void main(){',
+  '  vec2 fc=gl_FragCoord.xy;',
+  '  vec2 uv=(fc-0.5*uRes)/min(uRes.x,uRes.y);',
+  '  uv.y=-uv.y;',
+  '  float t=uT;',
+
+  /* ── the sphere, as a boundary rather than a shape ───────────────────
+     Fixed centre, fixed radius: it does not drift, breathe or parallax.
+     Its only job is to bend how the material is sampled on one side of
+     its edge. */
+  '  vec2 sc=vec2(0.34,-0.30);',
+  '  float sr=0.78;',
+  '  vec2 d=uv-sc;',
+  '  float dist=length(d);',
+  '  float inside=1.0-smoothstep(sr-0.004,sr+0.004,dist);',
+
+  /* Outside: the material at full detail. */
+  /* The pointer pushes the material away from itself before it is
+     sampled, so the colour genuinely deforms around where you are rather
+     than a light being added on top of it. That is the difference
+     between the field reacting to you and a spotlight following you. */
+  '  float md0=length(uv-uM);',
+  '  float pull=exp(-md0*md0*4.0);',
+  '  vec2 puv=uv+normalize(uv-uM+vec2(1e-4))*pull*0.055;',
+  '  float mo=material(puv*0.92+vec2(0.,uScroll*0.12),t,2.2);',
+
+  /* Inside: the SAME material, refracted through the curvature and run
+     with less detail, so it reads as the same substance seen through a
+     lens. This is the whole trick — one material, two samplings. */
+  '  float z=sqrt(max(0.0,1.0-(dist*dist)/(sr*sr)));',
+  '  vec2 refr=uv-d*(0.30*z)+normalize(uv-uM+vec2(1e-4))*pull*0.030;',
+  '  float mi=material(refr*0.74+vec2(0.,uScroll*0.12),t*0.82,1.5);',
+  '  mi=mi*0.86+0.10;',
+
+  '  float m=mix(mo,mi,inside);',
+
+  /* Shading across the curvature, and a thin bright rim exactly on the
+     edge — a real sphere catches light along its limb. */
+  '  vec3 L=normalize(vec3(-0.42,0.62,0.66));',
+  '  vec3 N=vec3(d/sr,z);',
+  '  float lam=max(0.0,dot(N,L));',
+  '  m+=inside*(lam*0.20-0.07);',
+  '  float rim=smoothstep(0.030,0.0,abs(dist-sr));',
+  '  m+=rim*0.26*(0.35+0.65*lam);',
+  /* The warmth is a minority note, not the temperature of the whole
+     ramp: a little amber only where the material is brightest and facing
+     the light. Running it through every stop turned the field yellow. */
+  '  float warm=smoothstep(0.72,0.97,m)*(0.45+0.55*lam);',
+
+  /* The pointer. A slow light that never quite arrives — the damping is
+     done on the JS side, so by the time uM gets here it is already
+     behind your cursor, and the material lifts where it has got to. */
+  '  m+=0.13*pull;',
+
+  /* Level the material before it hits the ramp. Domain warping narrows
+     the distribution around the middle, so raw fbm lands almost entirely
+     in the dark half of the palette — which is how the first pass came
+     out as "a hint of texture on black" rather than the reference's
+     filled frame. */
+  '  m=clamp((m-0.300)*1.80,0.0,1.0);',
+  '  vec3 col=ramp(m);',
+  '  col=mix(col,col*vec3(1.10,0.985,0.80),warm*0.55);',
+
+  /* The reference goes near-black along the bottom of every frame it
+     holds. That is not decoration here: it is what lets a screen full of
+     small type sit on this material and still be readable. Bright at the
+     top where the title is, dark where the rows are. */
+  '  float y=fc.y/uRes.y;',
+    /* smoothstep(0,0.64) reads as "bright at the top" but it is still at
+     90% by the middle of the screen, which is where the rows are. The
+     bright band belongs to the title and nothing else: full at the top
+     quarter, gone by just past halfway. */
+  '  col*=mix(0.040,1.0,smoothstep(0.42,0.78,y));',
+  '  col*=uFade;',
+
+  /* Grain, over everything, static per frame. The reference has it even
+     in the black — nothing in that frame is ever perfectly flat. */
+  '  float g=h(fc+fract(t)*137.0);',
+  '  col+=(g-0.5)*0.028;',
+
+  '  gl_FragColor=vec4(max(col,0.0),1.0);',
+  '}'].join('\n');
+
+  function sh(type,src){
+    const o=gl.createShader(type); gl.shaderSource(o,src); gl.compileShader(o);
+    if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)){
+      try{ console.warn('field shader:',gl.getShaderInfoLog(o)); }catch(e){}
+      return null;
+    }
+    return o;
+  }
+  const vs=sh(gl.VERTEX_SHADER,VS), fs=sh(gl.FRAGMENT_SHADER,FS);
+  if(!vs||!fs) return;
+  const pr=gl.createProgram();
+  gl.attachShader(pr,vs); gl.attachShader(pr,fs); gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) return;
+  gl.useProgram(pr);
+
+  const buf=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  const loc=gl.getAttribLocation(pr,'p');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+
+  const uRes=gl.getUniformLocation(pr,'uRes'), uT=gl.getUniformLocation(pr,'uT'),
+        uM=gl.getUniformLocation(pr,'uM'), uScroll=gl.getUniformLocation(pr,'uScroll'),
+        uFade=gl.getUniformLocation(pr,'uFade');
+
+  /* A full-screen fragment shader is paid for per pixel, so the pixel
+     count is the whole performance story. Capping the ratio is what keeps
+     this cheap on a phone. */
+  let W=0,H=0;
+  function size(){
+    const dpr=Math.min(window.devicePixelRatio||1, innerWidth<820?1.25:1.5);
+    const w=Math.round(innerWidth*dpr), h=Math.round(innerHeight*dpr);
+    if(w===W&&h===H) return;
+    W=w;H=h; cv.width=w; cv.height=h;
+    cv.style.width=innerWidth+'px'; cv.style.height=innerHeight+'px';
+    gl.viewport(0,0,w,h);
+  }
+  size();
+  addEventListener('resize',size);
+
+  /* The pointer is damped here rather than in the shader so the lag is
+     real: the uniform genuinely trails the cursor and settles. */
+  let mx=0.30,my=-0.12,tx=0.30,ty=-0.12;
+  function aimGL(cx,cy){
+    const m=Math.min(innerWidth,innerHeight);
+    tx=(cx-innerWidth/2)/m; ty=-((cy-innerHeight/2)/m);
+  }
+  addEventListener('pointermove',e=>aimGL(e.clientX,e.clientY),{passive:true});
+  addEventListener('touchmove',e=>{ if(e.touches&&e.touches[0]) aimGL(e.touches[0].clientX,e.touches[0].clientY); },{passive:true});
+
+  let reduce=false;
+  try{ reduce=matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){}
+
+  let t0=performance.now(), clock=0, raf=0, running=true, fade=0;
+  function frame(now){
+    raf=0;
+    const dt=Math.min(0.05,(now-t0)/1000); t0=now;
+    if(!reduce) clock+=dt;
+    mx+=(tx-mx)*Math.min(1,dt*3.2);
+    my+=(ty-my)*Math.min(1,dt*3.2);
+    fade+=(1-fade)*Math.min(1,dt*1.4);
+    gl.uniform2f(uRes,W,H);
+    gl.uniform1f(uT,clock);
+    gl.uniform2f(uM,mx,my);
+    const sy=(window.scrollY||0)/Math.max(1,innerHeight);
+    gl.uniform1f(uScroll,sy*0.35);
+    /* Past the hero the field steps back. The reference is bright where
+       the display type is and near-black where the reading is; this app
+       scrolls, so that has to follow the scroll rather than sit at a
+       fixed height on the glass. */
+    gl.uniform1f(uFade,fade*(1.0-0.80*Math.min(1,sy/0.75)));
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    if(running) raf=requestAnimationFrame(frame);
+  }
+  function start(){ if(!raf&&running){ t0=performance.now(); raf=requestAnimationFrame(frame); } }
+  function stop(){ if(raf){ cancelAnimationFrame(raf); raf=0; } }
+  document.addEventListener('visibilitychange',()=>{ document.hidden?stop():start(); });
+
+  /* Only now is the CSS fallback taken down, and only because the canvas
+     has actually produced a frame. If anything above had failed we would
+     have returned already and the gradients would still be there. */
+  document.documentElement.classList.add('glfield');
+  start();
+})();
+
+/* ── the dot ───────────────────────────────────────────────────────────
+   "There's a little dot that traces my mouse as I move it. It's almost
+   trying to catch it." It eases toward the pointer at a fixed rate per
+   frame, so it is always behind a fast move and always arrives on a
+   slow one. mix-blend-mode:difference keeps it visible over both the
+   bright material and the black without giving it a colour of its own. */
+(function(){
+  const dot=document.getElementById('dot');
+  if(!dot) return;
+  let fine=false;
+  try{ fine=matchMedia('(hover:hover) and (pointer:fine)').matches; }catch(e){}
+  if(!fine) return;
+  document.documentElement.classList.add('haspointer');
+  let x=innerWidth/2,y=innerHeight/2,tx=x,ty=y,raf=0,seen=false;
+  addEventListener('pointermove',function(e){
+    tx=e.clientX; ty=e.clientY;
+    if(!seen){ seen=true; x=tx; y=ty; dot.classList.add('on'); }
+    if(!raf) raf=requestAnimationFrame(step);
+  },{passive:true});
+  function step(){
+    raf=0;
+    x+=(tx-x)*0.13; y+=(ty-y)*0.13;
+    dot.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(1)+'px,0) translate(-50%,-50%)';
+    if(Math.abs(tx-x)>0.4||Math.abs(ty-y)>0.4) raf=requestAnimationFrame(step);
+  }
+  addEventListener('pointerleave',function(){ dot.classList.remove('on'); seen=false; },{passive:true});
 })();
 
 /* Boot lives at the bottom of the view now — the engine cannot call into

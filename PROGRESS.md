@@ -1,42 +1,58 @@
-# design-loop — The Eleventh Hour → monopo saigon
+# Design loop — monopo.vn
 
-Bar: https://monopo.vn · mechanisms in `bar.md` · reference tokens in
-`~/Downloads/DESIGN.md`
-
-Decisions locked before building: obsidian canvas · ratios kept, scale
-re-anchored to 375px · monochrome interface, colour only as a verdict ·
-Inter embedded as a data URI.
+**Round 1 in progress.** Bar: `bar.md` (v3, rewritten from the reference
+itself). Previous bar kept as `bar.v2.md`.
 
 ## Pieces
 
-| # | piece | status | brief | system | craft |
-|---|-------|--------|-------|--------|-------|
-| ① | tokens, type, colour, motion | built, round 1 | … | … | … |
-| ② | Today | not started | — | — | — |
-| ③ | Attendance + the goal card | not started | — | — | — |
-| ④ | sheets, tab bar, motion detail | not started | — | — | — |
+| # | Piece | Built | Brief | System | Craft |
+|---|-------|-------|-------|--------|-------|
+| 1 | The field — shader, sphere-as-boundary, grain | v4 | — | — | — |
+| 2 | The pointer — trailing dot, field reacts | v2 | — | — | — |
+| 3 | Type and interface — monumental scale, no hue | not started | — | — | — |
 
-## Round history
+Critics have not run yet. Verdicts stay blank until they do.
 
-### ① round 1
-Built: palette replaced with the reference's two absolutes and three greys;
-every radius collapsed to 0 or a pill; every shadow and every backdrop-blur
-removed; one easing curve and a 0.5s floor imposed across the file; the type
-ramp re-anchored to 11 / 15 / 44 with the 20–40px dead zone emptied; the
-glass tab pill replaced with a flat bar and a hairline; Inter embedded.
+## What round 1 changed
 
-Self-check before the critics: `tests/bar.js` — the seven mechanisms as
-measurable assertions — 14/14. Full suite 402 checks, 0 failures.
+The teardown found the premise wrong, not the execution. v2 of the bar was
+built on "86–93% of frames below 0.10 luminance" — a figure taken from the
+dark stretches of the showreel and then applied to the whole product. The
+reference's hero is a mid-tone field. Every step taken to satisfy that
+number was a step away from the reference.
 
-Known gaps going in, expected to be named:
-- the attendance ring is a soft container with a coloured stroke
-- Today shows three statement-size figures where the reference shows one
-- whitespace is still under the 40% the bar asks for
+Replaced the CSS gradient field with a WebGL fragment shader, which is what
+the reference uses (its hero is a WebGL2 canvas, confirmed in the DOM).
 
-## Machinery
+- **The sphere stopped being a disc.** A radial gradient on a black page has
+  a cut edge by definition — which is what "the globe is half cut" was,
+  every time it was raised. It is now a boundary inside one continuous
+  material, refracted and shaded across the edge, with texture on both
+  sides. Nothing for it to be cut against.
+- **The geometry stopped moving.** No breathe, no parallax, no drift. Time
+  enters the domain warp only, so the colour churns and the sphere does not
+  move at all.
+- **Grain is back**, as a per-pixel hash rather than an feTurbulence filter
+  re-running every repaint. That was the original grain-and-stall bug.
+- **The pointer deforms the material** rather than adding a light on top of
+  it, and a damped dot trails the cursor and settles.
 
-- Local preview: `python3 -m http.server 8788` in the repo, viewed at
-  375×812. Critics drive it themselves in their own browser tab.
-- The reference is live and drivable, so motion can be compared directly.
-- The two screen recordings could not be read (sandboxed temp folder, no
-  ffmpeg) — motion is judged from the site instead.
+## Gap history
+
+| Round | Gap named | By |
+|-------|-----------|-----|
+| 1 | Field far too dark — "a hint of texture on black" | self, vs reference frames |
+| 1 | Bright colour of the reference missing entirely | user |
+| 1 | Cursor effect present but too quiet to notice | user |
+| 1 | Too yellow — wanted the earlier shade | user |
+| 1 | Too bright overall once full-bleed | user |
+| 1 | `#floor` scrim double-dimmed a canvas measuring 0.42 at the top | self, measured |
+
+## Open
+
+- Piece 3 not started: display type is 78px, the reference system specifies
+  225px, and small grey labels still sit in the bright band.
+- Critics not yet fanned out.
+- ~60 test suites still assert the pre-rebuild UI (separate from this loop).
+
+Measured: 60.2 fps at 1919x1229 backing, DPR capped to 1.25 on phones.
