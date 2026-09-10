@@ -226,6 +226,10 @@ section.on{display:block}
   transform:translateZ(0);backface-visibility:hidden;
   transition:opacity var(--t-quick) var(--ease);
 }
+/* Settings rides in the menu markup for wide screens; the pill is a
+   two-up thumb control and does not show it. */
+#tabs button.wide{display:none}
+
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   #tabs{background:rgba(14,12,14,.94)}
 }
@@ -456,25 +460,36 @@ body.opening .head .when{animation-delay:.92s}
   #top.solid{ background:none;border-bottom-color:transparent; }
   #brand{ font-size:12px;letter-spacing:.26em; }
 
-  /* The menu used to be stacked in the top-right corner, unstyled, because
-     that is where the reference puts its own. But the reference does not
-     also put its render in that corner — we do. Measured, the sphere's lit
-     rim sits at 0.40 luminance right where those labels were, and grey
-     11px text on 0.40 is a 1.6:1 contrast: it was not dim, it was gone.
-
-     So the pill stays a pill on a desktop too. It is legible over anything
-     because it carries its own ground, the bottom-centre is measured at
-     0.001 luminance, and it is the floating control you asked to keep. */
+  /* The menu, in the corner, the way the reference sets it. It was a
+     bottom pill for a while because the old field put a 0.40-luminance
+     rim exactly here and grey 11px type on that is a 1.6:1 contrast —
+     invisible. The answer to that was never to move the menu, it was to
+     stop setting it in grey: white reads on this material at any point
+     in its range, which is what the reference does with its own. */
   #tabs{
-    left:50%;right:auto;transform:translateX(-50%) translateZ(0);
-    bottom:28px;width:auto;height:52px;
-    padding:5px;gap:4px;
+    position:fixed;top:30px;right:max(28px,calc(50vw - 519px));
+    left:auto;bottom:auto;width:auto;height:auto;
+    flex-direction:column;align-items:flex-end;gap:11px;
+    padding:0;border:0;border-radius:0;background:none;
+    -webkit-backdrop-filter:none;backdrop-filter:none;
+    z-index:80;
   }
   #tabs button{
-    flex:none;width:auto;min-width:132px;padding:0 26px;
-    font-size:10.5px;letter-spacing:.14em;
+    flex:none;width:auto;height:auto;padding:0;border-radius:0;
+    font-size:11px;letter-spacing:.2em;text-align:right;
+    background:none;color:rgba(255,255,255,.62);
   }
-  #tabs button:not(.on):hover{ color:var(--ink-2); }
+  #tabs button.on{ background:none;color:var(--paper); }
+  #tabs button:not(.on):hover{ color:var(--paper); }
+  #tabs button.wide{ display:block; }
+  /* the gear is redundant once Settings is a row in the menu */
+  #btnSettings{ display:none; }
+
+  /* The wordmark is fixed, so every line of the page slid underneath it
+     and sat on top of it. It belongs to the first screen: once you have
+     left that, it goes. */
+  #brand{ transition:opacity var(--t-mid) var(--ease); }
+  #top.solid #brand{ opacity:0;pointer-events:none; }
 
   .head{ padding:96px 0 0; }
   .head h1{ line-height:.88; }
@@ -3170,8 +3185,15 @@ let termView=(function(){
   return TERM_VIEWS.some(v=>v[0]===w)?w:'attendance';
 })();
 function renderTabs(){
+  /* Settings is part of the menu on a wide screen, where the menu is a
+     list in the corner and has room for it. On a phone the pill is a
+     two-up thumb control and Settings stays on the gear, so the extra
+     row is marked and hidden there rather than rendered conditionally —
+     the same markup answers both. */
   set('tabs',TABS.map(t=>'<button data-tab="'+t.id+'"'+(S.tab===t.id?' class="on"':'')+
-    '>'+t.t+'</button>').join(''));
+    '>'+t.t+'</button>').join('')+
+    '<button data-tab="settings" class="wide'+(S.tab==='settings'?' on':'')+
+    '">Settings</button>');
   onAll('#tabs [data-tab]',n=>showTab(n.dataset.tab));
 }
 function drawIcons(){
