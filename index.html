@@ -251,7 +251,7 @@ section.on{display:block}
   position:fixed;inset:0;z-index:0;
   overflow:hidden;pointer-events:none;opacity:1;
   transition:opacity var(--t-long) var(--ease);
-  filter:contrast(1.12) saturate(1.14) brightness(.96);
+  filter:contrast(1.1) saturate(1.3) brightness(.8);
   /* No mask. A sphere has its own edge; cropping it from the top is what
      turned this into a band across the header. */
 }
@@ -259,60 +259,38 @@ section.on{display:block}
 /* Clustered so they read as one body with a lit edge, not five lights in
    a row. The deep green is the mass; the amber is the rim catching light
    along one side of it; the oxblood is the shadow it sits in. */
-/* ── the sphere ───────────────────────────────────────────────────────
-   You described it exactly: a sphere in the corner, and the rest is
-   depth. That is a body with light on one side and shadow on the other,
-   sitting in near-black — not a wash across the top, which is what a
-   mask anchored to the top edge was always going to produce.
-
-   A radial gradient offset from centre reads as a lit sphere on its own,
-   because that is literally how a sphere shades: bright where it faces
-   the light, dark where it turns away, black at the terminator. The
-   liquid filter then warps its edge so it moves like the reference's
-   render rather than sitting there like a ball.                       */
-#field .orb{
-  position:absolute;
-  width:150vmin;height:150vmin;
-  right:-58vmin;top:-34vmin;
-  border-radius:50%;
-  background:
-    radial-gradient(circle at 34% 26%,
-      #F2D08A 0%, #E0A63C 9%, #A8761F 19%,
-      #4E6B36 34%, #2C4A2A 48%, #1A2E20 60%,
-      #14100E 72%, #0A0708 84%, #000 100%);
-  filter:url(#liquid);
-  animation:orbBreathe 44s ease-in-out infinite;
+/* ── the cloud ────────────────────────────────────────────────────────
+   One continuous body across the whole frame. The reference has no empty
+   black middle, and neither does this: two noise planes at different
+   scales, drifting against each other so the form never settles and never
+   visibly repeats. The second is larger and slower, which is what stops
+   the first from reading as a texture.                               */
+#field .cloud{
+  position:absolute;inset:-25%;
+  filter:url(#cloud);
+  animation:cloudA 71s linear infinite;
 }
-/* a second, smaller body low on the other side, so the frame has depth
-   rather than one object floating in nothing */
-#field .orb2{
-  position:absolute;
-  width:96vmin;height:96vmin;
-  left:-44vmin;bottom:-30vmin;
-  border-radius:50%;
-  background:
-    radial-gradient(circle at 62% 34%,
-      #8A3A22 0%, #5A1F14 22%, #331410 42%,
-      #16090A 62%, #000 82%);
-  filter:url(#liquid);
-  animation:orbBreathe 57s ease-in-out infinite reverse;
+#field .cloud2{
+  position:absolute;inset:-40%;
+  filter:url(#cloud);
+  opacity:.55;
+  /* screen only ever adds light — two of these stacked was the wash.
+     Overlay deepens where the lower layer is dark and lifts only where it
+     is already bright, which is what gives the form its folds. */
+  mix-blend-mode:overlay;
+  transform:scale(1.7) rotate(180deg);
+  animation:cloudB 97s linear infinite;
 }
-/* the light it throws into the room */
-#field .haze{
-  position:absolute;inset:-20%;
-  background:
-    radial-gradient(60% 44% at 78% 16%, rgba(224,166,60,.20) 0%, rgba(224,166,60,0) 70%),
-    radial-gradient(52% 40% at 12% 88%, rgba(138,58,34,.16) 0%, rgba(138,58,34,0) 72%);
-  animation:hazeDrift 39s linear infinite;
+@keyframes cloudA{
+  0%{transform:translate3d(0,0,0) scale(1.02)}
+  33%{transform:translate3d(-6%,4%,0) scale(1.12)}
+  66%{transform:translate3d(5%,-3%,0) scale(1.06)}
+  100%{transform:translate3d(0,0,0) scale(1.02)}}
+@keyframes cloudB{
+  0%{transform:scale(1.7) rotate(180deg) translate3d(0,0,0)}
+  50%{transform:scale(1.86) rotate(174deg) translate3d(4%,-5%,0)}
+  100%{transform:scale(1.7) rotate(180deg) translate3d(0,0,0)}}
 }
-@keyframes orbBreathe{
-  0%{transform:translate3d(0,0,0) scale(1) rotate(0deg)}
-  50%{transform:translate3d(-3vmin,2vmin,0) scale(1.06) rotate(8deg)}
-  100%{transform:translate3d(0,0,0) scale(1) rotate(0deg)}}
-@keyframes hazeDrift{
-  0%{transform:translate3d(0,0,0)}
-  45%{transform:translate3d(4%,-3%,0)}
-  100%{transform:translate3d(0,0,0)}}
 }
 }
 @keyframes d1{0%{transform:translate3d(0,0,0) scale(1)}33%{transform:translate3d(14vw,6vw,0) scale(1.14)}
@@ -330,9 +308,16 @@ section.on{display:block}
    over the whole form — a flat wash across everything would undo the depth
    the contrast pass just created. */
 /* Just enough shade under the type, kept off the sphere itself. */
+/* Light shade only, and even. The heavy bottom-weighted wash was what
+   emptied the middle of the screen into flat black. */
+/* Shade under the type, weighted to the top where the small tracked
+   labels live — they are the first thing the cloud drowns. Kept even
+   below that so the middle of the screen never empties into flat black
+   the way it did before. */
 #floor{position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(0,0,0,.34) 0%,rgba(0,0,0,.46) 40%,
-    rgba(0,0,0,.72) 76%,rgba(0,0,0,.88) 100%)}
+  background:
+    linear-gradient(180deg,rgba(0,0,0,.62) 0%,rgba(0,0,0,.30) 14%,
+      rgba(0,0,0,.34) 44%,rgba(0,0,0,.50) 100%)}
 /* Only main needs lifting off the field. Setting position on the two bars
    here overrode the fixed positioning declared above them, which is what
    made the header and the pill scroll away with the page instead of
@@ -533,44 +518,60 @@ select{-webkit-appearance:none;appearance:none;
 <body>
 <svg id="fieldFx" aria-hidden="true" width="0" height="0" style="position:absolute">
   <defs>
-    <!-- The reference's backdrop is a rendered 3D surface: it has light on
-         it, not just colour. feSpecularLighting is the one thing in a
-         browser that does actual lighting maths — it treats the alpha
-         channel as a height map and computes a highlight from a light
-         position. Turbulence supplies the surface, the displacement warps
-         the colour over it, and the specular pass puts the light on top.
-         No asset, no shader, nothing fetched. -->
-    <filter id="liquid" x="-20%" y="-20%" width="140%" height="140%"
+    <!-- feTurbulence IS cloud. The previous attempts used it only as a
+         hidden height map and painted gradients on top, which is why they
+         came out as spheres and washes rather than the flowing, continuous
+         thing the reference shows.
+
+         Here the noise is the picture. Fractal noise gives the billowing
+         form; feComponentTransfer maps its greyscale through a colour ramp
+         — near-black green, forest, olive, dark gold, amber, pale
+         highlight — which is a gradient map, the same operation a compositor
+         would use to grade a cloud pass. Nothing is fetched and nothing is
+         a video; it is generated in the browser at whatever size the
+         screen happens to be. -->
+    <filter id="cloud" x="0" y="0" width="100%" height="100%"
             color-interpolation-filters="sRGB">
-      <!-- The noise is computed once and left alone. Animating
-           baseFrequency regenerates the entire field every frame, which is
-           the single most expensive thing you can ask a mobile GPU to do
-           here. The movement comes from the light and from the bodies'
-           own transforms instead, which are composited and free. -->
-      <feTurbulence type="fractalNoise" baseFrequency="0.0016 0.0034"
-                    numOctaves="2" seed="7" result="noise"/>
-      <feGaussianBlur in="noise" stdDeviation="9" result="soft"/>
-      <feDisplacementMap in="SourceGraphic" in2="soft" scale="260"
-                         xChannelSelector="R" yChannelSelector="G" result="warped"/>
-      <feSpecularLighting in="soft" surfaceScale="6" specularConstant="1.5"
-                          specularExponent="26" lighting-color="#FFE7B8" result="spec">
-        <fePointLight x="140" y="90" z="220">
-          <animate attributeName="x" dur="29s" repeatCount="indefinite"
-                   values="140;330;90;140"/>
-          <animate attributeName="y" dur="41s" repeatCount="indefinite"
-                   values="90;250;60;90"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.0022 0.0041"
+                    numOctaves="4" seed="11" stitchTiles="noStitch" result="n"/>
+      <!-- Fractal noise clusters hard around mid-grey. Graded straight,
+           almost every pixel lands in the middle of the ramp and the whole
+           frame comes out one flat olive — which is exactly what happened.
+           So the range is expanded first: a steep slope with a negative
+           intercept pushes the valleys to black and the peaks to white,
+           and only then is there anything for a ramp to grade. -->
+      <feColorMatrix in="n" type="matrix" result="lum"
+        values="1.35 1.35 1.35 0 -1.32
+                1.35 1.35 1.35 0 -1.32
+                1.35 1.35 1.35 0 -1.32
+                0    0    0    0  1"/>
+      <feComponentTransfer in="lum" result="graded">
+        <!-- Most of the frame is dark; colour only arrives where the cloud
+             is thick, and gold only at the very top of the range. That is
+             the reference's distribution — deep and quiet, lit in places,
+             not evenly bright everywhere. -->
+        <feFuncR type="table" tableValues="0 0 0.012 0.05 0.22 0.66 0.97"/>
+        <feFuncG type="table" tableValues="0 0.012 0.05 0.15 0.28 0.52 0.86"/>
+        <feFuncB type="table" tableValues="0 0.008 0.03 0.06 0.09 0.19 0.58"/>
+      </feComponentTransfer>
+      <!-- a highlight where the cloud is thickest, so it reads as lit -->
+      <feSpecularLighting in="lum" surfaceScale="3.2" specularConstant="0.55"
+                          specularExponent="19" lighting-color="#FFE9C0" result="spec">
+        <fePointLight x="260" y="180" z="180">
+          <animate attributeName="x" dur="34s" repeatCount="indefinite"
+                   values="260;120;420;260"/>
+          <animate attributeName="y" dur="53s" repeatCount="indefinite"
+                   values="180;480;120;180"/>
         </fePointLight>
       </feSpecularLighting>
-      <feComposite in="spec" in2="warped" operator="in" result="specClipped"/>
-      <feBlend in="warped" in2="specClipped" mode="screen" result="lit"/>
-      <feGaussianBlur in="lit" stdDeviation="7"/>
+      <feComposite in="spec" in2="graded" operator="in" result="specIn"/>
+      <feBlend in="graded" in2="specIn" mode="screen"/>
     </filter>
   </defs>
 </svg>
 <div id="field" aria-hidden="true">
-  <span class="lay" style="--amp:120px"><b class="orb"></b></span>
-  <span class="lay" style="--amp:70px"><b class="orb2"></b></span>
-  <span class="lay" style="--amp:200px"><b class="haze"></b></span>
+  <span class="lay" style="--amp:52px"><b class="cloud"></b></span>
+  <span class="lay" style="--amp:130px"><b class="cloud2"></b></span>
 </div>
 <div id="floor" aria-hidden="true"></div>
 <div id="cold" aria-hidden="true"><span>Eleventh Hour</span></div>
