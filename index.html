@@ -2738,13 +2738,11 @@ function runShortcut(q){
      reference: centre (1.12,-0.75), radius 1.41 in units of the smaller
      viewport side. Nearly twice the radius I had been drawing and much
      further out of frame — which is the whole reason theirs sweeps the
-     picture as a long shallow arc and mine sat in a corner as a ball. */
-  /* The reference's own size, measured: fitting a circle to three points
-     on its limb gives centre (1.12,-0.75) and radius 1.41, in units of
-     the smaller viewport side. It was briefly taken to 1.20 to make the
-     orb smaller — but the screen centre sitting just inside the body IS
-     what the reference does, and that is what makes the limb sweep the
-     whole picture rather than sitting in a corner. Back to measured. */
+     picture as a long shallow arc and mine sat in a corner as a ball.
+
+     Briefly taken to 1.20 to make the orb smaller, and put back: the
+     screen centre sitting just inside the body IS what the reference
+     does, and it is what makes the limb sweep the whole picture. */
   '  vec2 sc=vec2(1.12,-0.75);',
   '  float sr=1.41;',
   '  vec2 d=uv-sc;',
