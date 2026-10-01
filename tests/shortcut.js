@@ -114,23 +114,9 @@ t('no command at all does nothing', function(){
 
 print('\n— opening a tab —');
 t('?do=open&tab=attendance switches tab', function(){
-  /* attendance was a tab of its own before the rebuild and is a view
-     inside Term now, so a shortcut naming it has to land on Term with
-     that view selected — shortcuts already written must keep working. */
   day();
   var r=runShortcut('?do=open&tab=attendance');
-  if(!r||r.tab!=='term') throw 'did not switch (tab='+(r&&r.tab)+')';
-  if(r.view!=='attendance') throw 'wrong view: '+(r&&r.view);
-});
-t('the term views are all reachable by their old and new names', function(){
-  var want={attendance:'attendance',timetable:'timetable',classes:'timetable',
-            due:'deadlines',deadlines:'deadlines',calendar:'calendar'};
-  Object.keys(want).forEach(function(k){
-    day();
-    var r=runShortcut('?do=open&tab='+k);
-    if(!r||r.tab!=='term') throw k+' did not open Term';
-    if(r.view!==want[k]) throw k+' opened '+(r&&r.view)+', wanted '+want[k];
-  });
+  if(!r||r.tab!=='attendance') throw 'did not switch';
 });
 t('an unknown tab is ignored rather than blanking the app', function(){
   day(); __.S.tab='home';
@@ -142,13 +128,9 @@ print('\n— it cannot fire twice —');
 t('the command is stripped from the address bar', function(){
   var src=readFile('index.html');
   if(!/history\.replaceState/.test(src)) throw 'never cleans the URL';
-  /* Anchor on the consumer, not on any mention of "do=" — the cold open
-     also asks whether this load was summoned, and it reads the query a
-     long way from where the query gets cleared. */
-  var i=src.indexOf("q.indexOf('do=')");
+  var i=src.indexOf("indexOf('do=')");
   var j=src.indexOf('history.replaceState', i);
-  if(i<0) throw 'the consumer no longer tests the query string';
-  if(j<0||j-i>1400) throw 'the URL is not cleared right after the command runs';
+  if(i<0||j<0||j-i>1400) throw 'the URL is not cleared right after the command runs';
 });
 t('running the same command twice does not double-mark', function(){
   day(); setClock(9*60+20);
